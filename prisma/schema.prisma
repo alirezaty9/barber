@@ -1,0 +1,61 @@
+// برای پروداکشن provider را به "postgresql" تغییر بده و DATABASE_URL را عوض کن.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Service {
+  id          String    @id @default(cuid())
+  name        String
+  price       Int
+  duration    Int // به دقیقه
+  description String    @default("")
+  category    String    @default("hair") // hair | beard | grooming | combo
+  createdAt   DateTime  @default(now())
+  bookings    Booking[]
+}
+
+model Barber {
+  id        String    @id @default(cuid())
+  name      String
+  specialty String    @default("")
+  avatar    String    @default("")
+  rating    Float     @default(5)
+  bio       String    @default("")
+  image     String    @default("")
+  // روزهای کاری به‌صورت CSV از 0..6 (0=شنبه ... 6=جمعه) — SQLite آرایه ندارد.
+  workDays  String    @default("0,1,2,3,4,5,6")
+  createdAt DateTime  @default(now())
+  bookings  Booking[]
+}
+
+model Booking {
+  id            String   @id @default(cuid())
+  code          String   @unique // کد رهگیری برای مشتری
+  customerName  String
+  customerPhone String
+  // در صورت حذف خدمت/آرایشگر، نوبت تاریخی حذف نشود؛ فقط مرجع null می‌شود.
+  serviceId     String?
+  service       Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  barberId      String?
+  barber        Barber?  @relation(fields: [barberId], references: [id], onDelete: SetNull)
+  date          String // YYYY-MM-DD (میلادی؛ نمایش به کاربر جلالی است)
+  timeSlot      String // HH:MM
+  status        String   @default("pending") // pending | confirmed | cancelled
+  createdAt     DateTime @default(now())
+
+  @@index([barberId, date])
+}
+
+model Review {
+  id           String   @id @default(cuid())
+  customerName String
+  rating       Float
+  comment      String
+  date         String
+  createdAt    DateTime @default(now())
+}

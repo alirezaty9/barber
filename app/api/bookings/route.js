@@ -1,0 +1,120 @@
+import { prisma } from '@/lib/db';
+import { bookingSchema } from '@/lib/validation';
+import { computeAvailability } from '@/lib/availability';
+import { isAuthenticated } from '@/lib/auth';
+import { ok, guardAdmin, parseBody, conflict, badRequest, serverError, generateBookingCode } from '@/lib/api-helpers';
+
+// GET — فهرست نوبت‌ها برای ادمین، با فیلتر/جست‌وجو/صفحه‌بندی.
+export async function GET(request) {
+  const denied = await guardAdmin();
+  if (denied) return denied;
+
+  const { searchParams } = new URL(request.url);
+  const barberId = searchParams.get('barberId');
+  const status = searchParams.get('status');
+  const dateFilter = searchParams.get('date'); // all | today | tomorrow
+  const q = (searchParams.get('q') || '').trim();
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+  const pageSize = Math.min(50, Math.max(1, parseInt(searchParams.get('pageSize') || '10', 10)));
+
+  const where = {};
+  if (barberId && barberId !== 'all') where.barberId = barberId;
+  if (status && status !== 'all') where.status = status;
+
+  if (dateFilter === 'today' || dateFilter === 'tomorrow') {
+    const d = new Date();
+    if (dateFilter === 'tomorrow') d.setDate(d.getDate() + 1);
+    where.date = d.toISOString().split('T')[0];
+  }
+  if (q) {
+    where.OR = [
+      { customerName: { contains: q } },
+      { customerPhone: { contains: q } },
+    ];
+  }
+
+  try {
+    const [items, total] = await Promise.all([
+      prisma.booking.findMany({
+        where,
+        include: { service: true, barber: true },
+        orderBy: [{ date: 'asc' }, { timeSlot: 'asc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.booking.count({ where }),
+    ]);
+    return ok({ items, total, page, pageSize });
+  } catch {
+    return serverError();
+  }
+}
+
+// POST — ثبت نوبت (عمومی → pending، ادمین → confirmed) با بررسی تداخل سمت سرور.
+export async function POST(request) {
+  const { data, response } = await parseBody(request, bookingSchema);
+  if (response) return response;
+
+  try {
+    const [service, barber] = await Promise.all([
+      prisma.service.findUnique({ where: { id: data.serviceId } }),
+      prisma.barber.findUnique({ where: { id: data.barberId } }),
+    ]);
+    if (!service) return badRequest('خدمت انتخابی معتبر نیست.');
+    if (!barber) return badRequest('آرایشگر انتخابی معتبر نیست.');
+
+    // نوبت‌های فعالِ همان آرایشگر در همان روز
+    const existing = await prisma.booking.findMany({
+      where: { barberId: data.barberId, date: data.date, status: { not: 'cancelled' } },
+      include: { service: true },
+    });
+
+    const workDays = barber.workDays
+      .split(',')
+      .map((s) => parseInt(s, 10))
+      .filter((n) => !Number.isNaN(n));
+
+    const { dayOff, slots } = computeAvailability({
+      serviceDuration: service.duration,
+      workDays,
+      date: data.date,
+      existing: existing.map((b) => ({ timeSlot: b.timeSlot, duration: b.service?.duration || 60 })),
+    });
+
+    if (dayOff) return conflict('آرایشگر در روز انتخاب‌شده مرخصی است.');
+    const slot = slots.find((s) => s.time === data.timeSlot);
+    if (!slot || !slot.available) {
+      return conflict('این ساعت برای آرایشگر موردنظر در دسترس نیست. لطفاً زمان دیگری انتخاب کنید.');
+    }
+
+    const admin = await isAuthenticated();
+    const status = admin ? 'confirmed' : 'pending';
+
+    // تولید کد یکتا با چند تلاش در صورت برخورد
+    let booking = null;
+    for (let attempt = 0; attempt < 5 && !booking; attempt++) {
+      try {
+        booking = await prisma.booking.create({
+          data: {
+            code: generateBookingCode(),
+            customerName: data.customerName,
+            customerPhone: data.customerPhone,
+            serviceId: data.serviceId,
+            barberId: data.barberId,
+            date: data.date,
+            timeSlot: data.timeSlot,
+            status,
+          },
+          include: { service: true, barber: true },
+        });
+      } catch (e) {
+        if (e?.code !== 'P2002') throw e; // فقط برخورد کد یکتا را دوباره تلاش کن
+      }
+    }
+    if (!booking) return serverError('ثبت نوبت ناموفق بود. دوباره تلاش کنید.');
+
+    return ok(booking, { status: 201 });
+  } catch {
+    return serverError();
+  }
+}

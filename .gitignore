@@ -1,0 +1,17 @@
+node_modules/
+build/
+dist/
+coverage/
+.next/
+next-env.d.ts
+out/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# Prisma / SQLite
+*.db
+*.db-journal
+prisma/dev.db
+prisma/migrations/dev.db*
