@@ -40,15 +40,15 @@ export default function Footer() {
           <h4 className="text-zinc-100 font-bold text-sm">ارتباط با ما</h4>
           <div className="flex items-start gap-2.5">
             <MapPin className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-            <span className="leading-relaxed text-zinc-500">تهران، نیاوران، سه راه یاسر، پلاک ۱۲، طبقه همکف</span>
+            <span className="leading-relaxed text-zinc-500">مهرشهر، خیابان صد</span>
           </div>
           <div className="flex items-center gap-2.5">
             <Phone className="w-4 h-4 text-amber-500 flex-shrink-0" />
-            <span className="font-mono text-zinc-500">{toPersianDigits('۰۲۱-۲۲۰۰۳۳۰۰')}</span>
+            <span className="font-mono text-zinc-500">{toPersianDigits('۰۹۱۹۵۴۹۶۹۲۹')}</span>
           </div>
           <div className="flex items-center gap-2.5">
             <Clock className="w-4 h-4 text-amber-500 flex-shrink-0" />
-            <span>شنبه تا جمعه: {toPersianDigits('۱۰:۰۰')} الی {toPersianDigits('۲۱:۰۰')}</span>
+            <span>شنبه تا جمعه: ۹ صبح تا ۱۰ شب</span>
           </div>
         </div>
       </div>

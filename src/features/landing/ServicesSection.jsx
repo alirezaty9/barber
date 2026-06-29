@@ -41,7 +41,7 @@ function ServiceCardImage({ category, name }) {
       alt={name}
       loading="lazy"
       onError={() => setErrored(true)}
-      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+      className="absolute inset-0 w-full h-full object-cover transition duration-500 group-hover:brightness-110"
     />
   );
 }

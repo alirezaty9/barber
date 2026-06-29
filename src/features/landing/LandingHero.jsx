@@ -20,11 +20,6 @@ export default function LandingHero() {
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[350px] md:w-[600px] h-[350px] bg-amber-500/5 blur-[120px] rounded-full z-0 pointer-events-none" />
 
       <div className="relative z-10 max-w-4xl mx-auto px-6 text-center my-auto pt-24 pb-16 flex flex-col items-center">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-zinc-900/80 border border-zinc-800 rounded-full mb-8 backdrop-blur-md">
-          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-          <span className="text-xs font-semibold tracking-wider text-amber-400 uppercase">رزرو آنلاین با تایید آنی</span>
-        </div>
-
         <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-tight mb-6">
           اصالت سبک، <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600">هنر پیراستن</span>
         </h1>
@@ -64,15 +59,15 @@ export default function LandingHero() {
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-center text-sm text-zinc-400">
           <div className="flex items-center justify-center gap-2">
             <MapPin className="w-4 h-4 text-amber-500" />
-            <span>تهران، خیابان نیاوران، پلاک ۱۲</span>
+            <span>مهرشهر، خیابان صد</span>
           </div>
           <div className="flex items-center justify-center gap-2 border-y md:border-y-0 md:border-x border-zinc-900 py-2 md:py-0">
             <Phone className="w-4 h-4 text-amber-500" />
-            <span>تلفن تماس: ۰۲۱-۲۲۰۰۳۳۰۰</span>
+            <span>تلفن تماس: ۰۹۱۹۵۴۹۶۹۲۹</span>
           </div>
           <div className="flex items-center justify-center gap-2">
             <Star className="w-4 h-4 text-amber-500 fill-amber-500/20" />
-            <span>شنبه تا جمعه - ۱۰:۰۰ صبح تا ۹:۰۰ شب</span>
+            <span>شنبه تا جمعه - ۹ صبح تا ۱۰ شب</span>
           </div>
         </div>
       </div>
