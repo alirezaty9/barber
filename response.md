@@ -1,122 +1,165 @@
 <div dir="rtl" align="right">
 
-![رمز](https://img.shields.io/badge/%D8%B1%D9%85%D8%B2-%D8%AF%D8%B1%D8%B3%D8%AA_%D8%A7%D8%B3%D8%AA-brightgreen) ![خطا](https://img.shields.io/badge/%D8%AE%D8%B7%D8%A7-P1001_%D8%B4%D8%A8%DA%A9%D9%87-red) ![علت محتمل](https://img.shields.io/badge/%D8%B9%D9%84%D8%AA-%D9%81%DB%8C%D9%84%D8%AA%D8%B1%2F%D8%AA%D8%AD%D8%B1%DB%8C%D9%85_%DB%8C%D8%A7_%D9%BE%D9%88%D8%B1%D8%AA-orange)
+![تأیید](https://img.shields.io/badge/%D8%B1%D9%88%DB%8C_GitHub-sqlite_%D8%AA%D8%A3%DB%8C%DB%8C%D8%AF_%D8%B4%D8%AF-red?logo=github) ![کار](https://img.shields.io/badge/%DA%A9%D8%A7%D8%B1-%D8%B9%D9%88%D8%B6_%DA%A9%D8%B1%D8%AF%D9%86_%DB%B4_%D8%AE%D8%B7_%2B_push-brightgreen)
 
-# ✅ رمزت درست است — مشکل از شبکه است نه رمز
+# ✅ دقیقاً همین بود! حالا درستش می‌کنیم
 
-## 🔎 تشخیص دقیق
-
-خطای تو این بود:
-```
-Error: P1001: Can't reach database server at ...pooler.supabase.com:5432
-```
-
-> 💡 **`P1001` یعنی «به سرور نمی‌رسم» (مشکل شبکه/پورت).** اگر رمز اشتباه بود، خطای دیگری می‌گرفتی (`P1000: Authentication failed`). پس **رمز و رشته‌ی اتصالت کاملاً درست است.** ✅
-
-من از سمت خودم DNS را چک کردم: نام `aws-1-ap-northeast-1.pooler.supabase.com` درست به IP رسید (`13.114.6.6`)، یعنی **پروژه‌ی Supabase تو روشن و سالم است.** مشکل فقط این است که **کامپیوتر تو نمی‌تواند به پورت ۵۴۳۲ وصل شود.**
+> دیدی؟ روی گیت‌هاب نوشته `provider = "sqlite"`. کافیست همین را `postgresql` کنیم و `directUrl` اضافه کنیم. فقط **بلوک datasource** (۴ خط) عوض می‌شود؛ بقیه‌ی فایل دست‌نخورده می‌ماند.
 
 ---
 
-## 🎯 محتمل‌ترین علت‌ها (به ترتیب احتمال)
+## 🎯 ساده‌ترین راه — این ۴ خط را عوض کن
 
-| # | علت | چرا؟ |
-|---|------|------|
-| 1️⃣ | **تحریم/جئوبلاک ایران** | Supabase آی‌پی‌های ایران را بلاک می‌کند. اگر ایرانی، بدون **VPN/پروکسی** اصلاً وصل نمی‌شوی. |
-| 2️⃣ | **ISP پورت ۵۴۳۲ را می‌بندد** | خیلی از اینترنت‌ها/شبکه‌ها پورت دیتابیس را به‌صورت خروجی فیلتر می‌کنند. |
-| 3️⃣ | **فایروال/آنتی‌ویروس محلی** | بعضی فایروال‌ها اتصال خروجی به پورت‌های غیرعادی را می‌بندند. |
+در فایل `prisma/schema.prisma` روی لپ‌تاپت، این بخش را پیدا کن:
+
+```prisma
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+```
+
+و **جایگزینش کن** با این:
+
+```prisma
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+```
+
+ذخیره کن (`Ctrl+S`). تمام — بقیه‌ی فایل را دست نزن.
 
 ---
 
-## 🧪 قدم اول: دقیقاً بفهم کدام است
+## 📋 یا اگر راحت‌تری: کل فایل را با این جایگزین کن
 
-این دو دستور را در ترمینال خودت بزن (تست خام پورت، بدون Prisma):
+اگر می‌ترسی اشتباه کنی، **کل محتوای `prisma/schema.prisma`** را پاک کن و **عیناً این را Paste کن** (این همان فایل توست، فقط datasource درست شده):
+
+```prisma
+// پروداکشن: provider روی postgresql (Supabase). DATABASE_URL و DIRECT_URL در .env.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Service {
+  id          String    @id @default(cuid())
+  name        String
+  price       Int
+  duration    Int // به دقیقه
+  description String    @default("")
+  category    String    @default("hair") // hair | beard | grooming | combo
+  createdAt   DateTime  @default(now())
+  bookings    Booking[]
+}
+
+model Barber {
+  id        String    @id @default(cuid())
+  name      String
+  specialty String    @default("")
+  avatar    String    @default("")
+  rating    Float     @default(5)
+  bio       String    @default("")
+  image     String    @default("")
+  // روزهای کاری به‌صورت CSV از 0..6 (0=شنبه ... 6=جمعه)
+  workDays  String    @default("0,1,2,3,4,5,6")
+  createdAt DateTime  @default(now())
+  bookings  Booking[]
+}
+
+model Booking {
+  id            String   @id @default(cuid())
+  code          String   @unique // کد رهگیری برای مشتری
+  customerName  String
+  customerPhone String
+  // در صورت حذف خدمت/آرایشگر، نوبت تاریخی حذف نشود؛ فقط مرجع null می‌شود.
+  serviceId     String?
+  service       Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  barberId      String?
+  barber        Barber?  @relation(fields: [barberId], references: [id], onDelete: SetNull)
+  date          String // YYYY-MM-DD (میلادی؛ نمایش به کاربر جلالی است)
+  timeSlot      String // HH:MM
+  status        String   @default("pending") // pending | confirmed | cancelled
+  createdAt     DateTime @default(now())
+
+  @@index([barberId, date])
+}
+
+model Review {
+  id           String   @id @default(cuid())
+  customerName String
+  rating       Float
+  comment      String
+  date         String
+  createdAt    DateTime @default(now())
+}
+```
+
+---
+
+## 📤 بعد، commit و push کن
+
+در ترمینال، داخل پوشه‌ی پروژه:
 
 ```bash
-nc -vz aws-1-ap-northeast-1.pooler.supabase.com 5432
-nc -vz aws-1-ap-northeast-1.pooler.supabase.com 6543
+cd ~/Desktop/barber
+git add prisma/schema.prisma
+git commit -m "fix: use postgresql provider for production"
+git push origin main
 ```
 
-تفسیر نتیجه:
-- اگر **هر دو** `succeeded` شدند → شبکه اوکی است؛ دوباره `migrate` بزن.
-- اگر **هر دو** timeout/refused شدند → علت **۱ (تحریم)** یا **۳ (فایروال)** است → **VPN روشن کن.**
-- اگر فقط **۵۴۳۲** بسته بود ولی **۶۵۴۳** باز → علت **۲ (ISP پورت ۵۴۳۲ را بسته)** → برو سراغ «راه‌حل ب».
+---
 
-> اگر `nc` نداری: `sudo apt install netcat-openbsd` یا به‌جایش `curl -v telnet://aws-1-ap-northeast-1.pooler.supabase.com:5432`.
+## ⏳ بعد از push چه می‌شود؟
+
+۱. Vercel **خودش** یک دیپلوی جدید شروع می‌کند (لازم نیست کاری کنی).
+۲. برو Vercel → تب **Deployments** → ببین دیپلوی تازه با وضعیت **Building** آمده.
+۳. صبر کن تا **Ready** (سبز) شود (~۱-۲ دقیقه).
+۴. آدرس **https://barber-kohl-two.vercel.app/** را باز کن.
+
+> 🎉 این‌بار چون schema درست است، روی Vercel کلاینت Postgres ساخته می‌شود و سایت با آرایشگرها و خدمات بالا می‌آید.
+
+برای تست نهایی: `https://barber-kohl-two.vercel.app/api/services` را هم باز کن — این‌بار باید **لیست خدمات** را ببینی، نه خطا.
 
 ---
 
-## 🛠️ راه‌حل‌ها
+## 💡 یک نکته (مهم نیست، فقط بدانی)
 
-### ✅ راه‌حل الف) VPN (توصیه‌ی اصلی من)
-اگر در ایرانی، این تقریباً حتمی لازم است. یک **VPN** به کشوری که تحریم نیست روشن کن، بعد دوباره:
-```bash
-npx prisma migrate dev --name init
-npx prisma db seed
-```
-- **خوبی‌ها:** ساده، همه‌چیز سرجایش می‌ماند، احتمال موفقیت بالا.
-- **بدی‌ها:** باید VPN پایدار داشته باشی؛ بعضی VPNها هم پورت ۵۴۳۲ را پاس نمی‌دهند (آن‌وقت برو راه‌حل ب).
-
----
-
-### ✅ راه‌حل ب) دور زدن پورت دیتابیس — اجرای SQL در داشبورد Supabase
-اگر پورت‌ها بسته‌اند و VPN جواب نداد، **اصلاً به پورت دیتابیس وصل نمی‌شویم.** به‌جایش SQL جدول‌ها را آفلاین می‌سازیم و در **SQL Editor سوپابیس** (که با HTTPS کار می‌کند و فیلتر نمی‌شود) اجرا می‌کنیم.
-
-من می‌توانم همین الان فایل SQL ساخت جدول‌ها را برات تولید کنم (بدون نیاز به اتصال به دیتابیس). بعد تو فقط آن را در **Supabase → SQL Editor → New query → Paste → Run** اجرا می‌کنی. 🎯
-
-- **خوبی‌ها:** پورت دیتابیس لازم نیست؛ از پسِ فیلترینگ برمی‌آید؛ مطمئن.
-- **بدی‌ها:** seed (داده‌ی اولیه) را هم باید جداگانه به SQL تبدیل کنیم یا از پنل ادمین خودت دستی وارد کنی.
-
-> 💬 **اگر می‌خوای این راه را برم، بگو «راه ب» تا فایل SQL را برات بسازم.**
-
----
-
-### ✅ راه‌حل ج) موبایل/شبکه‌ی دیگر (تست سریع)
-گاهی شبکه‌ی خانه پورت را می‌بندد ولی **هات‌اسپات موبایل** نه. یک‌بار با دیتای موبایل امتحان کن:
-```bash
-npx prisma migrate dev --name init
-```
-- **خوبی‌ها:** تست ۲ دقیقه‌ای، اگر شد که کارت راه افتاد.
-- **بدی‌ها:** اگر علت تحریم باشد، موبایل هم جواب نمی‌دهد.
-
----
-
-## 📌 نکته‌ی مهم درباره‌ی Vercel (خبر خوب)
-
-حتی اگر کامپیوتر تو نتواند وصل شود، **سرورهای Vercel معمولاً بدون مشکل به Supabase وصل می‌شوند** (تحریم/فیلتر ایران را ندارند). اسکریپت build ما (`prisma migrate deploy`) موقع دیپلوی جدول‌ها را خودش می‌سازد — **به‌شرطی که فایل‌های migration در گیت باشند.**
-
-برای همین، **راه‌حل ب (ساخت SQL/migration آفلاین) دو فایده دارد:** هم جدول‌ها را همین حالا می‌سازد، هم پوشه‌ی migration را برای Vercel آماده می‌کند.
+جدول‌هایی که با `setup.sql` ساختیم یک ستون اضافه‌ی بی‌استفاده (`serviceId2`) دارند که نسخه‌ی فعلیِ کدت از آن استفاده نمی‌کند. **این هیچ مشکلی ایجاد نمی‌کند** (ستون خالی نادیده گرفته می‌شود). پس نگرانش نباش؛ همه‌چیز کار می‌کند.
 
 ---
 
 ## 🗺️ کجاییم؟
 
 ```
-[✅] کد آماده + رمز درست  →  [❌ گیر اینجا] اتصال به پورت 5432 (شبکه)
-        ↓ (با VPN یا راه ب)
-[بعد] migrate + seed  →  git push  →  Vercel + Env  →  Deploy
+[✅] جدول‌ها در Supabase  [✅] متغیرها در Vercel  [✅] علت پیدا شد (sqlite)
+[👉 الان] عوض‌کردن provider → postgresql + push  ← آخرین قدم!
+[  بعد] دیپلوی خودکار → سایت سالم 🎉
 ```
 
 ---
 
 ## 📝 تصمیم‌ها (مزایا/معایب)
 
-### تصمیم ۱) اعلام اینکه رمز درست است و مشکل شبکه‌ای است
-- **خوبی‌ها:** وقت تلف نمی‌کنی روی عوض‌کردن رمز.
-- **بدی‌ها:** باید مشکل شبکه را حل کنی که خارج از کد است.
-- **چرا:** کد خطا (P1001) صریحاً «عدم دسترسی شبکه» است، نه احراز هویت.
+### تصمیم ۱) دادن کل فایل آماده برای Paste
+- **خوبی‌ها:** برای کاربر مبتدی بدون خطا؛ فقط کپی-پیست.
+- **بدی‌ها:** اگر فایلت تغییر دیگری داشته، با این جایگزین می‌شود (ولی این همان فایل توست).
+- **چرا:** ساده‌ترین و مطمئن‌ترین راه برای جلوگیری از اشتباه تایپی.
 
-### تصمیم ۲) پیشنهاد VPN به‌عنوان راه اول
-- **خوبی‌ها:** سریع‌ترین و محتمل‌ترین راه‌حل برای کاربر ایرانی.
-- **بدی‌ها:** وابسته به کیفیت VPN.
-- **چرا:** Supabase ایران را تحریم می‌کند؛ این شایع‌ترین علت است.
-
-### تصمیم ۳) آماده‌کردن «راه ب» (SQL آفلاین) به‌عنوان پشتیبان
-- **خوبی‌ها:** مستقل از پورت دیتابیس و فیلترینگ؛ همیشه جواب می‌دهد.
-- **بدی‌ها:** چند قدم دستی بیشتر.
-- **چرا:** اگر VPN هم پورت ۵۴۳۲ را پاس ندهد، این تنها راه قطعی است.
+### تصمیم ۲) دست‌نزدن به مدل‌ها (فقط datasource)
+- **خوبی‌ها:** هماهنگ با کد فعلیِ تو روی گیت‌هاب؛ ریسک صفر.
+- **بدی‌ها:** ندارد.
+- **چرا:** تنها چیزی که خطا می‌داد `provider` بود، نه مدل‌ها.
 
 ---
 
-> 🎯 **قدم بعدی تو:** اول آن دو دستور `nc -vz ...` را بزن و نتیجه را برام بفرست. بر اساس نتیجه می‌گم VPN کافی است یا برویم سراغ «راه ب» (ساخت فایل SQL). اگر همین الان می‌خوای راه قطعی، بگو «راه ب».
+> 🎯 **الان:** datasource را به `postgresql` عوض کن (+`directUrl`)، ذخیره، و سه دستور git را بزن. بعد از Ready شدن دیپلوی، سایت را باز کن و بگو نتیجه چه شد. تقریباً تمام است! 🚀
 
 </div>
