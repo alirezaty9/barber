@@ -1,165 +1,145 @@
 <div dir="rtl" align="right">
 
-![تأیید](https://img.shields.io/badge/%D8%B1%D9%88%DB%8C_GitHub-sqlite_%D8%AA%D8%A3%DB%8C%DB%8C%D8%AF_%D8%B4%D8%AF-red?logo=github) ![کار](https://img.shields.io/badge/%DA%A9%D8%A7%D8%B1-%D8%B9%D9%88%D8%B6_%DA%A9%D8%B1%D8%AF%D9%86_%DB%B4_%D8%AE%D8%B7_%2B_push-brightgreen)
+![فاز](https://img.shields.io/badge/%D9%81%D8%A7%D8%B2-%D8%B3%D8%B1%DB%8C%D8%B9_%D9%88_%DA%A9%D9%85%E2%80%8C%D8%B1%DB%8C%D8%B3%DA%A9-brightgreen) ![سرعت](https://img.shields.io/badge/%D8%B3%D8%B1%D8%B9%D8%AA-ISR_%2B_fra1_%2B_next%2Fimage-blue) ![کد](https://img.shields.io/badge/%DA%A9%D8%AF-%D8%A7%D8%B9%D9%85%D8%A7%D9%84_%D8%B4%D8%AF_%E2%9C%93-success)
 
-# ✅ دقیقاً همین بود! حالا درستش می‌کنیم
+# ✅ بهینه‌سازی فاز ۱ انجام شد — حالا نوبت چند کار توست
 
-> دیدی؟ روی گیت‌هاب نوشته `provider = "sqlite"`. کافیست همین را `postgresql` کنیم و `directUrl` اضافه کنیم. فقط **بلوک datasource** (۴ خط) عوض می‌شود؛ بقیه‌ی فایل دست‌نخورده می‌ماند.
-
----
-
-## 🎯 ساده‌ترین راه — این ۴ خط را عوض کن
-
-در فایل `prisma/schema.prisma` روی لپ‌تاپت، این بخش را پیدا کن:
-
-```prisma
-datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
-}
-```
-
-و **جایگزینش کن** با این:
-
-```prisma
-datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
-}
-```
-
-ذخیره کن (`Ctrl+S`). تمام — بقیه‌ی فایل را دست نزن.
+> 💡 همه‌ی تغییرهای کد را در ریپو اعمال کردم. حالا تو باید: **۱) `npm install` بزنی، ۲) commit + push کنی، ۳) دیتابیس را به فرانکفورت ببری، ۴) ناحیه‌ی Vercel را تنظیم کنی.** همه قدم‌به‌قدم پایین آمده.
 
 ---
 
-## 📋 یا اگر راحت‌تری: کل فایل را با این جایگزین کن
-
-اگر می‌ترسی اشتباه کنی، **کل محتوای `prisma/schema.prisma`** را پاک کن و **عیناً این را Paste کن** (این همان فایل توست، فقط datasource درست شده):
-
-```prisma
-// پروداکشن: provider روی postgresql (Supabase). DATABASE_URL و DIRECT_URL در .env.
-generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
-}
-
-model Service {
-  id          String    @id @default(cuid())
-  name        String
-  price       Int
-  duration    Int // به دقیقه
-  description String    @default("")
-  category    String    @default("hair") // hair | beard | grooming | combo
-  createdAt   DateTime  @default(now())
-  bookings    Booking[]
-}
-
-model Barber {
-  id        String    @id @default(cuid())
-  name      String
-  specialty String    @default("")
-  avatar    String    @default("")
-  rating    Float     @default(5)
-  bio       String    @default("")
-  image     String    @default("")
-  // روزهای کاری به‌صورت CSV از 0..6 (0=شنبه ... 6=جمعه)
-  workDays  String    @default("0,1,2,3,4,5,6")
-  createdAt DateTime  @default(now())
-  bookings  Booking[]
-}
-
-model Booking {
-  id            String   @id @default(cuid())
-  code          String   @unique // کد رهگیری برای مشتری
-  customerName  String
-  customerPhone String
-  // در صورت حذف خدمت/آرایشگر، نوبت تاریخی حذف نشود؛ فقط مرجع null می‌شود.
-  serviceId     String?
-  service       Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-  barberId      String?
-  barber        Barber?  @relation(fields: [barberId], references: [id], onDelete: SetNull)
-  date          String // YYYY-MM-DD (میلادی؛ نمایش به کاربر جلالی است)
-  timeSlot      String // HH:MM
-  status        String   @default("pending") // pending | confirmed | cancelled
-  createdAt     DateTime @default(now())
-
-  @@index([barberId, date])
-}
-
-model Review {
-  id           String   @id @default(cuid())
-  customerName String
-  rating       Float
-  comment      String
-  date         String
-  createdAt    DateTime @default(now())
-}
-```
+## 📂 فهرست
+1. [چه چیزهایی را من تغییر دادم](#changes)
+2. [کارهای تو — قدم‌به‌قدم](#todo)
+3. [انتقال دیتابیس به فرانکفورت (مهم)](#region)
+4. [تست نهایی](#verify)
+5. [تصمیم‌ها (مزایا/معایب)](#decisions)
+6. [چک‌لیست](#checklist)
 
 ---
 
-## 📤 بعد، commit و push کن
+<a name="changes"></a>
+## 1️⃣ چه چیزهایی را من تغییر دادم؟
 
-در ترمینال، داخل پوشه‌ی پروژه:
+### 🚀 سرعت
+| # | فایل | تغییر | چرا |
+|---|------|-------|-----|
+| A2 | `app/page.jsx` | `force-dynamic` → `revalidate = 300` (ISR) | صفحه‌ی اصلی کش می‌شود؛ بیشتر بازدیدها دیگر به دیتابیس نمی‌زنند → خیلی سریع‌تر |
+| A2 | روت‌های ادمین `services/barbers/reviews` | افزودن `revalidatePath('/')` بعد از تغییر | تغییرهای ادمین **فوری** روی صفحه‌ی اصلی دیده می‌شوند (با وجود کش) |
+| A1 | `vercel.json` (جدید) | `"regions": ["fra1"]` | فانکشن‌ها در فرانکفورت، کنار دیتابیس و نزدیک ایران → تأخیر کمتر |
+| A3 | `LandingHero.jsx` | پس‌زمینه‌ی هیرو از CSS به `next/image` | عکس ۵۳۲KB خودکار به WebP/AVIF و ری‌سایز می‌شود |
+| A3 | `ServicesSection.jsx` | `<img>` → `next/image` | بهینه‌ی خودکار عکس خدمات |
+| A4 | `JalaliDatePicker.jsx` + `JalaliDatePickerImpl.jsx` | لِیزی‌لود با `next/dynamic` | کتابخانه‌ی سنگین تقویم از باندل اولیه خارج شد |
 
+### 🎨 استایل (prod vs dev)
+| # | فایل | تغییر | چرا |
+|---|------|-------|-----|
+| B2 | `JalaliDatePickerImpl.jsx` | افزودن `portal` به تقویم | دیگر داخل مودال **بریده/کلیپ** نمی‌شود (احتمالاً همان باگ مودال) |
+| B3 | `app/globals.css` | اصلاح ترتیب فال‌بک فونت (`system-ui` قبل از لاتین) | جلوگیری از فلش فونت انگلیسی |
+| B4 | `app/admin/(panel)/page.jsx` | کلاس داینامیک → `cn(...)` | حذف ریسک purge شدن کلاس در prod |
+
+### 🧹 تمیزکاری کم‌ریسک
+| # | فایل | تغییر |
+|---|------|-------|
+| C1 | `ReviewsSection.jsx`, `Field.jsx` | حذف `'use client'` اضافه → Server Component، باندل کوچک‌تر |
+| C2 | `package.json` | حذف `@supabase/ssr` و `@supabase/supabase-js` (بلااستفاده) |
+
+> ⚠️ بازسازی‌های بزرگ‌تر (حذف کدهای تکراری، شکستن کامپوننت‌های بزرگ) طبق توافق به **فاز ۲** موکول شد.
+
+---
+
+<a name="todo"></a>
+## 2️⃣ کارهای تو — قدم‌به‌قدم
+
+### 🟢 قدم ۱ — به‌روزرسانی پکیج‌ها (مهم، وگرنه بیلد Vercel خطا می‌دهد)
+چون دو پکیج را از `package.json` حذف کردم، باید `package-lock.json` هم به‌روز شود:
 ```bash
 cd ~/Desktop/barber
-git add prisma/schema.prisma
-git commit -m "fix: use postgresql provider for production"
+npm install
+```
+> ⚠️ اگر این را نزنی، Vercel موقع `npm ci` به‌خاطر ناهماهنگی lock با package.json **خطا می‌دهد**.
+
+### 🟢 قدم ۲ — commit و push
+```bash
+git add -A
+git commit -m "perf+style: ISR caching, fra1 region, next/image, lazy datepicker, cleanup"
 git push origin main
 ```
+> 📌 این کار همان «آشتی کد با گیت‌هاب» (بخش B1) را هم انجام می‌دهد: کدِ فعلی روی prod می‌رود، پس استایلِ پروداکشن با لوکال یکی می‌شود.
+
+### 🟢 قدم ۳ — انتقال دیتابیس به فرانکفورت → [بخش بعدی](#region)
+
+### 🟢 قدم ۴ — تنظیم ناحیه‌ی Vercel
+فایل `vercel.json` ناحیه را `fra1` می‌کند و خودکار اعمال می‌شود. فقط مطمئن شو در **Vercel → Settings → Functions** ناحیه روی **Frankfurt (fra1)** باشد. (در پلن رایگان یک ناحیه مجاز است؛ fra1 پشتیبانی می‌شود.)
 
 ---
 
-## ⏳ بعد از push چه می‌شود؟
+<a name="region"></a>
+## 3️⃣ انتقال دیتابیس به فرانکفورت (نزدیک ایران = سریع‌تر)
 
-۱. Vercel **خودش** یک دیپلوی جدید شروع می‌کند (لازم نیست کاری کنی).
-۲. برو Vercel → تب **Deployments** → ببین دیپلوی تازه با وضعیت **Building** آمده.
-۳. صبر کن تا **Ready** (سبز) شود (~۱-۲ دقیقه).
-۴. آدرس **https://barber-kohl-two.vercel.app/** را باز کن.
+> ⚠️ Supabase امکان عوض‌کردن ناحیه‌ی یک پروژه‌ی موجود را **ندارد**. باید یک پروژه‌ی تازه در اروپا بسازی. چون داده‌ی مهمی نداری (فقط seed)، این کار ساده است.
 
-> 🎉 این‌بار چون schema درست است، روی Vercel کلاینت Postgres ساخته می‌شود و سایت با آرایشگرها و خدمات بالا می‌آید.
+۱. در [supabase.com](https://supabase.com) → **New Project** → ناحیه (Region): **`Central EU (Frankfurt)`** → یک رمز دیتابیس قوی بگذار و ذخیره‌اش کن.
+۲. وقتی ساخته شد: **SQL Editor → New query** → کل `setup.sql` را Paste و **Run** کن (همان جدول‌ها + داده).
+۳. **Connect** → تب **ORMs/Prisma** → `DATABASE_URL` (پورت 6543) و `DIRECT_URL` (پورت 5432) جدید را بردار و `[YOUR-PASSWORD]` را با رمز جدید جایگزین کن.
+۴. در **Vercel → Settings → Environment Variables**، مقدار `DATABASE_URL` و `DIRECT_URL` را با مقادیر **پروژه‌ی فرانکفورت** به‌روز کن (بدون گیومه).
+۵. **Vercel → Deployments → Redeploy** (تا env جدید اعمال شود).
+۶. وقتی سالم شد، پروژه‌ی توکیو را در Supabase حذف کن.
 
-برای تست نهایی: `https://barber-kohl-two.vercel.app/api/services` را هم باز کن — این‌بار باید **لیست خدمات** را ببینی، نه خطا.
-
----
-
-## 💡 یک نکته (مهم نیست، فقط بدانی)
-
-جدول‌هایی که با `setup.sql` ساختیم یک ستون اضافه‌ی بی‌استفاده (`serviceId2`) دارند که نسخه‌ی فعلیِ کدت از آن استفاده نمی‌کند. **این هیچ مشکلی ایجاد نمی‌کند** (ستون خالی نادیده گرفته می‌شود). پس نگرانش نباش؛ همه‌چیز کار می‌کند.
+> 💡 بعد از این، هم دیتابیس و هم فانکشن‌ها در فرانکفورت‌اند و نزدیک‌ترین به ایران؛ به‌علاوه‌ی کشینگِ صفحه‌ی اصلی → کندی باید محسوس برطرف شود.
 
 ---
 
-## 🗺️ کجاییم؟
+<a name="verify"></a>
+## 4️⃣ تست نهایی (بعد از همه‌ی قدم‌ها)
 
-```
-[✅] جدول‌ها در Supabase  [✅] متغیرها در Vercel  [✅] علت پیدا شد (sqlite)
-[👉 الان] عوض‌کردن provider → postgresql + push  ← آخرین قدم!
-[  بعد] دیپلوی خودکار → سایت سالم 🎉
-```
+1. 🏠 صفحه‌ی اصلی را باز کن → باید **سریع** بیاید (HTML کش‌شده).
+2. 🔌 `https://<app>.vercel.app/api/services` → لیست خدمات (نه خطا).
+3. 🛠️ در ادمین یک خدمت ویرایش کن → روی صفحه‌ی اصلی **فوری** دیده شود (به لطف `revalidatePath`).
+4. 📅 مودال رزرو → تقویم شمسی باز شود و **بریده نشود** و استایلش درست باشد.
+5. 🖼️ عکس‌ها سریع و بهینه لود شوند (در DevTools → Network فرمت WebP/AVIF).
+6. (اختیاری) **Lighthouse** قبل/بعد برای مقایسه‌ی Performance.
 
 ---
 
-## 📝 تصمیم‌ها (مزایا/معایب)
+<a name="decisions"></a>
+## 5️⃣ تصمیم‌ها (مزایا/معایب)
 
-### تصمیم ۱) دادن کل فایل آماده برای Paste
-- **خوبی‌ها:** برای کاربر مبتدی بدون خطا؛ فقط کپی-پیست.
-- **بدی‌ها:** اگر فایلت تغییر دیگری داشته، با این جایگزین می‌شود (ولی این همان فایل توست).
-- **چرا:** ساده‌ترین و مطمئن‌ترین راه برای جلوگیری از اشتباه تایپی.
+### تصمیم ۱) کشینگ ISR به‌جای force-dynamic
+- **خوبی‌ها:** بزرگ‌ترین جهش سرعت؛ کاهش شدید کوئری دیتابیس؛ هزینه‌ی کمتر.
+- **بدی‌ها:** تغییرها تا ۵ دقیقه دیر دیده می‌شوند — که با `revalidatePath('/')` برای ادمین حل شد (فوری).
+- **چرا:** کاتالوگ به‌ندرت عوض می‌شود؛ کش بهترین گزینه است.
 
-### تصمیم ۲) دست‌نزدن به مدل‌ها (فقط datasource)
-- **خوبی‌ها:** هماهنگ با کد فعلیِ تو روی گیت‌هاب؛ ریسک صفر.
+### تصمیم ۲) سپردن بهینه‌ی عکس به next/image
+- **خوبی‌ها:** بدون ابزار دستی، خودکار WebP/AVIF + ری‌سایز + lazy.
+- **بدی‌ها:** کمی پردازش سمت Vercel (ناچیز و کش‌شونده).
+- **چرا:** ابزار فشرده‌سازی در محیط نبود و این راه پایدارتر است.
+
+### تصمیم ۳) لِیزی‌لود تقویم با wrapper تک‌نقطه‌ای
+- **خوبی‌ها:** هر دو مصرف‌کننده خودکار سبک شدند؛ بدون تکرار.
+- **بدی‌ها:** یک فایل impl اضافه شد.
+- **چرا:** DRY و کم‌ریسک.
+
+### تصمیم ۴) `portal` برای تقویم (رفع باگ مودال)
+- **خوبی‌ها:** تقویم دیگر با `overflow` مودال بریده نمی‌شود.
 - **بدی‌ها:** ندارد.
-- **چرا:** تنها چیزی که خطا می‌داد `provider` بود، نه مدل‌ها.
+- **چرا:** محتمل‌ترین علت به‌هم‌ریختگی مودال در prod.
 
 ---
 
-> 🎯 **الان:** datasource را به `postgresql` عوض کن (+`directUrl`)، ذخیره، و سه دستور git را بزن. بعد از Ready شدن دیپلوی، سایت را باز کن و بگو نتیجه چه شد. تقریباً تمام است! 🚀
+<a name="checklist"></a>
+## 6️⃣ چک‌لیست تو
+
+- [ ] `npm install` (به‌روزرسانی lock)
+- [ ] `git add -A && commit && push`
+- [ ] پروژه‌ی Supabase جدید در **فرانکفورت** + اجرای `setup.sql`
+- [ ] به‌روزرسانی `DATABASE_URL`/`DIRECT_URL` در Vercel + **Redeploy**
+- [ ] ناحیه‌ی Functions روی **fra1**
+- [ ] تست: سرعت، مودال رزرو، ادمین، عکس‌ها
+- [ ] حذف پروژه‌ی توکیو
+
+---
+
+> 🎯 **قدم بعدی تو:** اول `npm install` و سپس `commit + push`. بعد دیتابیس فرانکفورت را بساز. هر جا گیر کردی بگو. اگر خواستی، **فاز ۲ (تمیزکاری عمیق کد و حذف تکرارها)** را هم شروع می‌کنیم.
 
 </div>

@@ -8,8 +8,10 @@ import ReviewsSection from '@/features/landing/ReviewsSection';
 import Footer from '@/features/landing/Footer';
 import BookingLauncher from '@/features/booking/BookingLauncher';
 
-// همیشه داده‌ی به‌روز از دیتابیس (کاتالوگ توسط ادمین تغییر می‌کند).
-export const dynamic = 'force-dynamic';
+// کاتالوگ به‌ندرت تغییر می‌کند: صفحه را کش می‌کنیم (ISR) و هر ۵ دقیقه یک‌بار
+// (یا بلافاصله پس از تغییر ادمین، با revalidatePath('/')) از نو می‌سازیم.
+// نتیجه: بیشتر بازدیدها بدون زدن به دیتابیس و خیلی سریع سرو می‌شوند.
+export const revalidate = 300;
 
 export default async function Home() {
   const [services, barbersRaw, reviews] = await Promise.all([

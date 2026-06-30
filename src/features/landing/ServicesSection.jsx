@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Clock, Scissors } from 'lucide-react';
 import { formatPrice, toPersianDigits } from '@/lib/persian';
 import { cn } from '@/lib/utils';
@@ -38,12 +39,13 @@ function ServiceCardImage({ category, name }) {
   }
 
   return (
-    <img
+    <Image
       src={src}
       alt={name}
-      loading="lazy"
+      fill
+      sizes="(max-width: 768px) 100vw, 50vw"
       onError={() => setErrored(true)}
-      className="absolute inset-0 w-full h-full object-cover transition duration-500 group-hover:brightness-110"
+      className="object-cover transition duration-500 group-hover:brightness-110"
     />
   );
 }

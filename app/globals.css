@@ -1,8 +1,10 @@
 @import "tailwindcss";
 
 @theme {
-  /* فونت از طریق next/font در layout بارگذاری می‌شود و متغیر --font-vazir را می‌سازد. */
-  --font-sans: var(--font-vazir), "Inter", system-ui, -apple-system, sans-serif;
+  /* فونت از طریق next/font در layout بارگذاری می‌شود و متغیر --font-vazir را می‌سازد.
+     فال‌بک: تا قبل از لود وزیر، system-ui (که گلیف فارسی دارد) به‌جای فونت لاتین Inter
+     استفاده شود تا فلش فونت انگلیسی رخ ندهد. */
+  --font-sans: var(--font-vazir), system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
 }
 
 /* Custom Scrollbar */

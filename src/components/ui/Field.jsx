@@ -1,5 +1,3 @@
-'use client';
-
 import { AlertCircle } from 'lucide-react';
 
 // رپر فیلد فرم: برچسب + محتوا + پیام خطا (برای استفاده با React Hook Form).

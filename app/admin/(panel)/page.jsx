@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { Calendar, DollarSign, Users, XCircle } from 'lucide-react';
 import { formatPrice, toPersianDigits } from '@/lib/persian';
+import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,7 +62,7 @@ function Card({ title, icon: Icon, iconClass, children }) {
     <div className="glass p-5 rounded-2xl">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs text-zinc-500 font-bold">{title}</span>
-        <Icon className={`w-4 h-4 ${iconClass}`} />
+        <Icon className={cn('w-4 h-4', iconClass)} />
       </div>
       {children}
     </div>

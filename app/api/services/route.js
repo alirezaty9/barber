@@ -1,3 +1,4 @@
+import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
 import { serviceSchema } from '@/lib/validation';
 import { ok, guardAdmin, parseBody, serverError } from '@/lib/api-helpers';
@@ -20,6 +21,7 @@ export async function POST(request) {
 
   try {
     const service = await prisma.service.create({ data });
+    revalidatePath('/'); // کش صفحه‌ی اصلی را تازه کن تا خدمت جدید فوری دیده شود
     return ok(service, { status: 201 });
   } catch {
     return serverError();

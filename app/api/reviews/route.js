@@ -1,3 +1,4 @@
+import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { ok, guardAdmin, parseBody, serverError } from '@/lib/api-helpers';
@@ -27,6 +28,7 @@ export async function POST(request) {
 
   try {
     const review = await prisma.review.create({ data });
+    revalidatePath('/');
     return ok(review, { status: 201 });
   } catch {
     return serverError();

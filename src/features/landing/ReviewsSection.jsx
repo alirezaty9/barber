@@ -1,5 +1,3 @@
-'use client';
-
 import { Star, MessageSquare } from 'lucide-react';
 import { toPersianDigits } from '@/lib/persian';
 
