@@ -1,11 +1,14 @@
-// برای پروداکشن provider را به "postgresql" تغییر بده و DATABASE_URL را عوض کن.
+// پروداکشن: دیتابیس Postgres روی Supabase.
+// DATABASE_URL = اتصال Pooled (پورت 6543) برای زمان اجرا.
+// DIRECT_URL   = اتصال مستقیم (پورت 5432) فقط برای migrate/db push.
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Service {
