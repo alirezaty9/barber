@@ -16,7 +16,9 @@ model Service {
   description String    @default("")
   category    String    @default("hair") // hair | beard | grooming | combo
   createdAt   DateTime  @default(now())
-  bookings    Booking[]
+  // یک خدمت می‌تواند خدمتِ اصلی یا خدمتِ دومِ چند نوبت باشد (هر نوبت تا دو خدمت).
+  bookings    Booking[] @relation("PrimaryService")
+  bookings2   Booking[] @relation("SecondService")
 }
 
 model Barber {
@@ -40,7 +42,10 @@ model Booking {
   customerPhone String
   // در صورت حذف خدمت/آرایشگر، نوبت تاریخی حذف نشود؛ فقط مرجع null می‌شود.
   serviceId     String?
-  service       Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  service       Service? @relation("PrimaryService", fields: [serviceId], references: [id], onDelete: SetNull)
+  // خدمت دومِ اختیاری (هر نوبت می‌تواند تا دو خدمت داشته باشد).
+  serviceId2    String?
+  service2      Service? @relation("SecondService", fields: [serviceId2], references: [id], onDelete: SetNull)
   barberId      String?
   barber        Barber?  @relation(fields: [barberId], references: [id], onDelete: SetNull)
   date          String // YYYY-MM-DD (میلادی؛ نمایش به کاربر جلالی است)

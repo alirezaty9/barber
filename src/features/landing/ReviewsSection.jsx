@@ -11,7 +11,7 @@ export default function ReviewsSection({ reviews }) {
           <span className="text-amber-500 font-bold text-xs tracking-wider uppercase bg-amber-500/10 px-3.5 py-1.5 rounded-full">
             تجربه مشتریان رویال
           </span>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-white mt-4 mb-3">سخنان مشتریان وفادار ما</h2>
+          <h2 className="font-display text-4xl md:text-5xl text-white mt-4 mb-3">سخنان مشتریان وفادار ما</h2>
           <p className="text-zinc-400 text-sm md:text-base">
             رضایت شما بزرگ‌ترین پاداش ماست. ما متعهد به ارائه بالاترین سطح خدمات لوکس آرایشی هستیم.
           </p>

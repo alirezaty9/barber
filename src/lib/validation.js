@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { normalizeDigits } from './persian';
 
-export const CATEGORIES = ['hair', 'beard', 'grooming', 'combo'];
+export const CATEGORIES = ['hair', 'beard', 'grooming', 'groom', 'combo'];
 export const STATUSES = ['pending', 'confirmed', 'cancelled'];
 
 // شماره‌ی موبایل: ابتدا ارقام فارسی/عربی به انگلیسی نرمال می‌شود، سپس اعتبارسنجی.
@@ -51,6 +51,8 @@ export const bookingSchema = z.object({
   customerName: z.string().trim().min(1, 'نام و نام خانوادگی الزامی است.'),
   customerPhone: mobile,
   serviceId: z.string().min(1, 'انتخاب خدمت الزامی است.'),
+  // خدمت دومِ اختیاری (هر نوبت تا دو خدمت).
+  serviceId2: z.string().min(1).nullish(),
   barberId: z.string().min(1, 'انتخاب آرایشگر الزامی است.'),
   date: isoDate,
   timeSlot,
@@ -64,6 +66,12 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'رمز عبور را وارد کنید.'),
 });
 
+// رهگیری نوبت فقط با شماره موبایل.
 export const lookupSchema = z.object({
-  code: z.string().trim().min(1, 'کد رهگیری را وارد کنید.'),
+  phone: mobile,
+});
+
+// لغو نوبت با کد رهگیریِ همان نوبت (از نتیجه‌ی رهگیری برداشته می‌شود).
+export const cancelSchema = z.object({
+  code: z.string().trim().min(1, 'کد رهگیری نامعتبر است.'),
 });

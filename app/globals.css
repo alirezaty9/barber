@@ -32,6 +32,13 @@ html {
   font-family: var(--font-sans);
 }
 
+/* فونت نمایشی برای تیترها — روی هر المنتی که کلاس font-display بگیرد اعمال می‌شود. */
+.font-display {
+  font-family: var(--font-display), var(--font-sans);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
 /* Glassmorphism utility */
 .glass {
   background: rgba(10, 10, 10, 0.7);

@@ -114,8 +114,12 @@ export default function BookingsManager() {
               </div>
 
               <div className="lg:col-span-3">
-                <p className="font-semibold text-xs text-zinc-300">{b.service ? b.service.name : 'خدمت نامشخص'}</p>
-                <p className="text-[10px] text-amber-500 font-extrabold mt-0.5">{b.service ? formatPrice(b.service.price) : ''}</p>
+                <p className="font-semibold text-xs text-zinc-300">
+                  {[b.service, b.service2].filter(Boolean).map((s) => s.name).join(' + ') || 'خدمت نامشخص'}
+                </p>
+                <p className="text-[10px] text-amber-500 font-extrabold mt-0.5">
+                  {(b.service || b.service2) ? formatPrice((b.service?.price || 0) + (b.service2?.price || 0)) : ''}
+                </p>
                 <p className="text-[10px] text-zinc-500 mt-0.5">آرایشگر: {b.barber?.name || 'نامشخص'}</p>
               </div>
 

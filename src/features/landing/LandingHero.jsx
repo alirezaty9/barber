@@ -20,7 +20,7 @@ export default function LandingHero() {
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[350px] md:w-[600px] h-[350px] bg-amber-500/5 blur-[120px] rounded-full z-0 pointer-events-none" />
 
       <div className="relative z-10 max-w-4xl mx-auto px-6 text-center my-auto pt-24 pb-16 flex flex-col items-center">
-        <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-tight mb-6">
+        <h1 className="font-display text-5xl md:text-7xl lg:text-8xl tracking-tight text-white leading-tight mb-6">
           اصالت سبک، <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600">هنر پیراستن</span>
         </h1>
 

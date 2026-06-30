@@ -1,10 +1,10 @@
 import { prisma } from '@/lib/db';
-import { lookupSchema } from '@/lib/validation';
+import { cancelSchema } from '@/lib/validation';
 import { ok, parseBody, notFound, conflict, serverError } from '@/lib/api-helpers';
 
-// POST — لغو نوبت توسط مشتری فقط با کد رهگیری (عمومی).
+// POST — لغو نوبت توسط مشتری با کد رهگیریِ همان نوبت (عمومی).
 export async function POST(request) {
-  const { data, response } = await parseBody(request, lookupSchema);
+  const { data, response } = await parseBody(request, cancelSchema);
   if (response) return response;
 
   try {

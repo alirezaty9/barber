@@ -11,6 +11,7 @@ const CATEGORIES = [
   { id: 'hair', label: 'اصلاح مو' },
   { id: 'beard', label: 'اصلاح ریش' },
   { id: 'grooming', label: 'پاکسازی و گریم' },
+  { id: 'groom', label: 'گریم داماد' },
   { id: 'combo', label: 'پکیج‌های ویژه' },
 ];
 
@@ -19,6 +20,7 @@ const CATEGORY_IMAGES = {
   hair: '/images/service-hair.jpg',
   beard: '/images/service-beard.jpg',
   grooming: '/images/service-grooming.jpg',
+  groom: '/images/service-groom.jpg',
   combo: '/images/service-combo.jpg',
 };
 
@@ -59,7 +61,7 @@ export default function ServicesSection({ services }) {
           <span className="text-amber-500 font-bold text-xs tracking-wider uppercase bg-amber-500/10 px-3.5 py-1.5 rounded-full">
             لیست منو و خدمات
           </span>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-white mt-4 mb-3">خدمات حرفه‌ای و استایل‌های نوین</h2>
+          <h2 className="font-display text-4xl md:text-5xl text-white mt-4 mb-3">خدمات حرفه‌ای و استایل‌های نوین</h2>
           <p className="text-zinc-400 text-sm md:text-base">
             ما از بهترین محصولات آرایشی و مراقبتی دنیا در کنار مدرن‌ترین ابزارها استفاده می‌کنیم تا بالاترین سطح رضایت را برای شما رقم بزنیم.
           </p>
@@ -91,10 +93,9 @@ export default function ServicesSection({ services }) {
                 key={service.id}
                 className="glass rounded-2xl overflow-hidden hover:border-amber-500/20 transition-all duration-300 flex flex-col group hover:-translate-y-1"
               >
-                {/* عکس مرتبط با عنوان/دسته‌بندی خدمت */}
-                <div className="relative h-44 w-full overflow-hidden bg-zinc-900">
+                {/* عکس مرتبط با عنوان/دسته‌بندی خدمت — نسبت ۳:۲ برابر با خود عکس‌ها تا هیچ بخشی بریده نشود */}
+                <div className="relative aspect-[3/2] w-full overflow-hidden bg-zinc-900">
                   <ServiceCardImage category={service.category} name={service.name} />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0d0d0d] via-transparent to-transparent" />
                 </div>
 
                 <div className="p-6 flex flex-col flex-1">

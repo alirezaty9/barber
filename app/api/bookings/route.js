@@ -37,7 +37,7 @@ export async function GET(request) {
     const [items, total] = await Promise.all([
       prisma.booking.findMany({
         where,
-        include: { service: true, barber: true },
+        include: { service: true, service2: true, barber: true },
         orderBy: [{ date: 'asc' }, { timeSlot: 'asc' }],
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -56,17 +56,23 @@ export async function POST(request) {
   if (response) return response;
 
   try {
-    const [service, barber] = await Promise.all([
+    const serviceId2 = data.serviceId2 || null;
+    const [service, service2, barber] = await Promise.all([
       prisma.service.findUnique({ where: { id: data.serviceId } }),
+      serviceId2 ? prisma.service.findUnique({ where: { id: serviceId2 } }) : Promise.resolve(null),
       prisma.barber.findUnique({ where: { id: data.barberId } }),
     ]);
     if (!service) return badRequest('خدمت انتخابی معتبر نیست.');
+    if (serviceId2 && !service2) return badRequest('خدمت دوم انتخابی معتبر نیست.');
     if (!barber) return badRequest('آرایشگر انتخابی معتبر نیست.');
+
+    // مدت‌زمان کل = مجموع مدت هر دو خدمت (برای محاسبه‌ی صحیح اشغال زمان).
+    const totalDuration = service.duration + (service2?.duration || 0);
 
     // نوبت‌های فعالِ همان آرایشگر در همان روز
     const existing = await prisma.booking.findMany({
       where: { barberId: data.barberId, date: data.date, status: { not: 'cancelled' } },
-      include: { service: true },
+      include: { service: true, service2: true },
     });
 
     const workDays = barber.workDays
@@ -75,10 +81,13 @@ export async function POST(request) {
       .filter((n) => !Number.isNaN(n));
 
     const { dayOff, slots } = computeAvailability({
-      serviceDuration: service.duration,
+      serviceDuration: totalDuration,
       workDays,
       date: data.date,
-      existing: existing.map((b) => ({ timeSlot: b.timeSlot, duration: b.service?.duration || 60 })),
+      existing: existing.map((b) => ({
+        timeSlot: b.timeSlot,
+        duration: (b.service?.duration || 0) + (b.service2?.duration || 0) || 60,
+      })),
     });
 
     if (dayOff) return conflict('آرایشگر در روز انتخاب‌شده مرخصی است.');
@@ -100,12 +109,13 @@ export async function POST(request) {
             customerName: data.customerName,
             customerPhone: data.customerPhone,
             serviceId: data.serviceId,
+            serviceId2,
             barberId: data.barberId,
             date: data.date,
             timeSlot: data.timeSlot,
             status,
           },
-          include: { service: true, barber: true },
+          include: { service: true, service2: true, barber: true },
         });
       } catch (e) {
         if (e?.code !== 'P2002') throw e; // فقط برخورد کد یکتا را دوباره تلاش کن

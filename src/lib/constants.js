@@ -20,6 +20,7 @@ export const CATEGORY_LABELS = {
   hair: 'اصلاح مو',
   beard: 'اصلاح ریش',
   grooming: 'پاکسازی و گریم',
+  groom: 'گریم داماد',
   combo: 'پکیج ویژه',
 };
 

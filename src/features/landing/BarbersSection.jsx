@@ -15,7 +15,7 @@ export default function BarbersSection({ barbers }) {
           <span className="text-amber-500 font-bold text-xs tracking-wider uppercase bg-amber-500/10 px-3.5 py-1.5 rounded-full">
             تیم پیراستاران متخصص
           </span>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-white mt-4 mb-3">استایلیست‌های ارشد ما را بشناسید</h2>
+          <h2 className="font-display text-4xl md:text-5xl text-white mt-4 mb-3">استایلیست‌های ارشد ما را بشناسید</h2>
           <p className="text-zinc-400 text-sm md:text-base">
             هر یک از اعضای تیم ما با تکیه بر سال‌ها تخصص و مهارت، آماده خلق سبکی بی‌نظیر برای شما هستند. شما می‌توانید آرایشگر دلخواه خود را شخصاً انتخاب کنید.
           </p>
