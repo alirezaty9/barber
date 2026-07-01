@@ -12,7 +12,7 @@ export default function Error({ error, reset }) {
       <p className="text-zinc-400 text-sm mb-8 max-w-sm">متأسفانه مشکلی پیش آمد. لطفاً دوباره تلاش کنید.</p>
       <button
         onClick={reset}
-        className="px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-black font-extrabold text-sm rounded-xl"
+        className="px-6 py-3 bg-linear-to-r from-amber-500 to-amber-600 text-black font-extrabold text-sm rounded-xl"
       >
         تلاش دوباره
       </button>
