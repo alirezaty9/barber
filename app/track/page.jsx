@@ -9,18 +9,12 @@ import { Search, Scissors, Calendar, Clock, User, Scissors as ScissorsIcon, XCir
 import { lookupSchema } from '@/lib/validation';
 import { lookupBooking, cancelBooking } from '@/api/bookings';
 import { toPersianDigits, formatJalaliDate, formatPrice } from '@/lib/persian';
-import { STATUS_LABELS } from '@/lib/constants';
+import { STATUS_LABELS, STATUS_STYLES } from '@/lib/constants';
 import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import Field from '@/components/ui/Field';
 import { confirm } from '@/components/ui/confirm';
 import { cn } from '@/lib/utils';
-
-const STATUS_STYLES = {
-  pending: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  confirmed: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
-};
 
 export default function TrackPage() {
   const [bookings, setBookings] = useState(null);

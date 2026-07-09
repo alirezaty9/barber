@@ -4,27 +4,13 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Filter, Search, CheckCircle, XCircle, Trash2, AlertCircle, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { useBookings, useUpdateBookingStatus, useDeleteBooking } from '@/api/bookings';
-import { useBarbers } from '@/api/barbers';
 import { toPersianDigits, formatJalaliDate, formatPrice } from '@/lib/persian';
-import { STATUS_LABELS, PAYMENT_LABELS } from '@/lib/constants';
+import { STATUS_LABELS, PAYMENT_LABELS, STATUS_STYLES, PAYMENT_STYLES } from '@/lib/constants';
 import { confirm } from '@/components/ui/confirm';
 import Select from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
-
-const STATUS_STYLES = {
-  pending: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  confirmed: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
-};
-
-const PAYMENT_STYLES = {
-  paid: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  unpaid: 'bg-zinc-700/20 text-zinc-400 border-zinc-700/40',
-  failed: 'bg-red-500/10 text-red-400 border-red-500/20',
-  refunded: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
-};
 
 const BORDER = {
   confirmed: 'border-r-emerald-500',
@@ -33,8 +19,7 @@ const BORDER = {
 };
 
 export default function BookingsManager() {
-  const [filters, setFilters] = useState({ barberId: 'all', status: 'all', date: 'all', q: '', page: 1, pageSize: 10 });
-  const { data: barbers = [] } = useBarbers();
+  const [filters, setFilters] = useState({ status: 'all', date: 'all', q: '', page: 1, pageSize: 10 });
   const { data, isLoading, isFetching } = useBookings(filters);
   const updateStatus = useUpdateBookingStatus();
   const deleteBooking = useDeleteBooking();
@@ -69,7 +54,7 @@ export default function BookingsManager() {
       </div>
 
       {/* فیلترها */}
-      <div className="glass p-4 rounded-2xl mb-6 grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="glass p-4 rounded-2xl mb-6 grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="md:col-span-1 relative">
           <Search className="w-4 h-4 text-zinc-500 absolute right-3 top-1/2 -translate-y-1/2" />
           <Input
@@ -79,10 +64,6 @@ export default function BookingsManager() {
             className="pr-9"
           />
         </div>
-        <Select value={filters.barberId} onChange={(e) => setFilter({ barberId: e.target.value })}>
-          <option value="all">همه آرایشگران</option>
-          {barbers.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-        </Select>
         <Select value={filters.status} onChange={(e) => setFilter({ status: e.target.value })}>
           <option value="all">همه وضعیت‌ها</option>
           <option value="pending">در انتظار تایید</option>

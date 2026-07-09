@@ -24,12 +24,6 @@ const SERVICES = [
   { id: 's3', name: 'استایل', price: 500000, duration: 60, description: 'حالت‌دهی و استایل تخصصی مو با جدیدترین متدها و محصولات روز دنیا، متناسب با فرم چهره و سلیقه شما.', category: 'style' },
 ];
 
-const REVIEWS = [
-  { customerName: 'علیرضا عبادی', rating: 5, comment: 'دکور فوق‌العاده شیک، برخورد پرسنل عالی و کیفیت هیرکات سهراب بی‌نظیر بود. حتما باز هم میام.', date: '۱۴۰۵/۰۴/۰۵' },
-  { customerName: 'پوریا رضایی', rating: 4.8, comment: 'طراحی ریش کیان فوق‌العاده با وسواس و تمیز بود. استفاده از حوله داغ و ماساژ حس خوبی داشت.', date: '۱۴۰۵/۰۴/۰۳' },
-  { customerName: 'امین حسینی', rating: 5, comment: 'پکیج رویال رو رزرو کردم و واقعاً فراتر از انتظارم بود. پوست کل صورتم شاداب شد و اصلاح مو هم درجه یک بود.', date: '۱۴۰۵/۰۴/۰۱' },
-];
-
 function dateStr(offsetDays) {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
@@ -39,13 +33,11 @@ function dateStr(offsetDays) {
 async function main() {
   // پاک‌سازی برای اجرای تکراریِ بی‌خطر
   await prisma.booking.deleteMany();
-  await prisma.review.deleteMany();
   await prisma.service.deleteMany();
   await prisma.barber.deleteMany();
 
   for (const b of BARBERS) await prisma.barber.create({ data: b });
   for (const s of SERVICES) await prisma.service.create({ data: s });
-  for (const r of REVIEWS) await prisma.review.create({ data: r });
 
   const today = dateStr(0);
   const tomorrow = dateStr(1);
@@ -58,7 +50,7 @@ async function main() {
   ];
   for (const bk of bookings) await prisma.booking.create({ data: bk });
 
-  console.log('Seed complete:', { barbers: BARBERS.length, services: SERVICES.length, reviews: REVIEWS.length, bookings: bookings.length });
+  console.log('Seed complete:', { barbers: BARBERS.length, services: SERVICES.length, bookings: bookings.length });
 }
 
 main()

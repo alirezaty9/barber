@@ -2,26 +2,24 @@
 
 import { useRouter } from 'next/navigation';
 import { X, Filter } from 'lucide-react';
-import Select from '@/components/ui/Select';
 import JalaliDatePicker from '@/components/ui/JalaliDatePicker';
 import Field from '@/components/ui/Field';
 
-// نوار فیلتر داشبورد: بر اساس آرایشگر و بازه‌ی تاریخ (از/تا).
+// نوار فیلتر داشبورد: بر اساس بازه‌ی تاریخ (از/تا).
 // با هر تغییر، پارامترهای URL به‌روز می‌شود و صفحه‌ی سروری دوباره با فیلتر رندر می‌شود.
-export default function DashboardFilters({ barbers, barberId, from, to }) {
+export default function DashboardFilters({ from, to }) {
   const router = useRouter();
 
   const update = (patch) => {
-    const next = { barberId, from, to, ...patch };
+    const next = { from, to, ...patch };
     const qs = new URLSearchParams();
-    if (next.barberId) qs.set('barberId', next.barberId);
     if (next.from) qs.set('from', next.from);
     if (next.to) qs.set('to', next.to);
     const s = qs.toString();
     router.push(s ? `/admin?${s}` : '/admin');
   };
 
-  const hasFilter = Boolean(barberId || from || to);
+  const hasFilter = Boolean(from || to);
 
   return (
     <div className="glass p-4 rounded-2xl">
@@ -38,14 +36,7 @@ export default function DashboardFilters({ barbers, barberId, from, to }) {
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Field label="آرایشگر:">
-          <Select value={barberId || ''} onChange={(e) => update({ barberId: e.target.value || undefined })}>
-            <option value="">همه‌ی آرایشگران</option>
-            {barbers.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </Select>
-        </Field>
-
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="از تاریخ:">
           <JalaliDatePicker value={from} onChange={(iso) => update({ from: iso || undefined })} minDate={null} placeholder="ابتدای بازه" />
         </Field>

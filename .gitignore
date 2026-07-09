@@ -1,17 +1,50 @@
+# ===== Dependencies =====
 node_modules/
+.pnp
+.pnp.js
+
+# ===== Build / Output =====
 build/
 dist/
 coverage/
 .next/
 next-env.d.ts
 out/
-.DS_Store
-*.log
+*.tsbuildinfo
+
+# ===== Environment / Secrets =====
+.env
 .env*
 !.env.example
 
-# Prisma / SQLite
+# ===== Prisma / Database =====
 *.db
 *.db-journal
 prisma/dev.db
 prisma/migrations/dev.db*
+
+# ===== Logs =====
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===== Editor / IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ===== OS junk =====
+.DS_Store
+Thumbs.db
+
+# ===== Deploy =====
+.vercel
+
+# ===== Claude Code (تنظیمات محلی) =====
+.claude/
+
+# ===== فایل‌های کاری/موقت (پاسخ‌های تولیدشده) =====
+response.md
+v2ray.md

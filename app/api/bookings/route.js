@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db';
 import { bookingSchema } from '@/lib/validation';
-import { computeAvailability } from '@/lib/availability';
+import { resolveAvailability } from '@/lib/availability-server';
 import { isAuthenticated } from '@/lib/auth';
 import { ok, guardAdmin, parseBody, conflict, badRequest, serverError, generateBookingCode } from '@/lib/api-helpers';
 
@@ -57,40 +57,24 @@ export async function POST(request) {
 
   try {
     const serviceId2 = data.serviceId2 || null;
-    const [service, service2, barber] = await Promise.all([
+    const [service, service2] = await Promise.all([
       prisma.service.findUnique({ where: { id: data.serviceId } }),
       serviceId2 ? prisma.service.findUnique({ where: { id: serviceId2 } }) : Promise.resolve(null),
-      prisma.barber.findUnique({ where: { id: data.barberId } }),
     ]);
     if (!service) return badRequest('خدمت انتخابی معتبر نیست.');
     if (serviceId2 && !service2) return badRequest('خدمت دوم انتخابی معتبر نیست.');
-    if (!barber) return badRequest('آرایشگر انتخابی معتبر نیست.');
 
     // مدت‌زمان کل = مجموع مدت هر دو خدمت (برای محاسبه‌ی صحیح اشغال زمان).
     const totalDuration = service.duration + (service2?.duration || 0);
     const totalPrice = service.price + (service2?.price || 0);
 
-    // نوبت‌های فعالِ همان آرایشگر در همان روز
-    const existing = await prisma.booking.findMany({
-      where: { barberId: data.barberId, date: data.date, status: { not: 'cancelled' } },
-      include: { service: true, service2: true },
-    });
-
-    const workDays = barber.workDays
-      .split(',')
-      .map((s) => parseInt(s, 10))
-      .filter((n) => !Number.isNaN(n));
-
-    const { dayOff, slots } = computeAvailability({
-      serviceDuration: totalDuration,
-      workDays,
+    // موجودی با لحاظ نوبت‌های فعال و بستن‌های زمان (helper مشترک).
+    const { error, dayOff, slots } = await resolveAvailability({
+      barberId: data.barberId,
       date: data.date,
-      existing: existing.map((b) => ({
-        timeSlot: b.timeSlot,
-        duration: (b.service?.duration || 0) + (b.service2?.duration || 0) || 60,
-      })),
+      serviceDuration: totalDuration,
     });
-
+    if (error) return badRequest('آرایشگر انتخابی معتبر نیست.');
     if (dayOff) return conflict('آرایشگر در روز انتخاب‌شده مرخصی است.');
     const slot = slots.find((s) => s.time === data.timeSlot);
     if (!slot || !slot.available) {

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ShieldCheck, LogOut, LayoutDashboard, CalendarDays, PlusCircle, Settings2, Home } from 'lucide-react';
+import { ShieldCheck, LogOut, LayoutDashboard, CalendarDays, PlusCircle, Settings2, CalendarOff, Home } from 'lucide-react';
 import { adminLogout } from '@/api/admin';
 import { cn } from '@/lib/utils';
 
@@ -11,7 +11,8 @@ const TABS = [
   { href: '/admin', label: 'داشبورد', icon: LayoutDashboard },
   { href: '/admin/bookings', label: 'مدیریت نوبت‌ها', icon: CalendarDays },
   { href: '/admin/manual', label: 'ثبت نوبت دستی', icon: PlusCircle },
-  { href: '/admin/manage', label: 'خدمات و آرایشگران', icon: Settings2 },
+  { href: '/admin/timeoff', label: 'مرخصی و بستن ساعت', icon: CalendarOff },
+  { href: '/admin/manage', label: 'خدمات و آرایشگر', icon: Settings2 },
 ];
 
 export default function AdminNav() {

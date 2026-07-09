@@ -35,6 +35,20 @@ model Barber {
   workDays  String    @default("0,1,2,3,4,5,6")
   createdAt DateTime  @default(now())
   bookings  Booking[]
+  blocks    BarberBlock[]
+}
+
+// بستن زمان (مرخصی/تعطیلی): کل روز (timeSlot = null) یا یک ساعتِ مشخص.
+model BarberBlock {
+  id        String   @id @default(cuid())
+  barberId  String
+  barber    Barber   @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  date      String // YYYY-MM-DD
+  timeSlot  String? // null = کل روز؛ در غیر این صورت ساعتِ مشخص (HH:MM)
+  reason    String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([barberId, date])
 }
 
 model Booking {
@@ -66,11 +80,3 @@ model Booking {
   @@index([barberId, date])
 }
 
-model Review {
-  id           String   @id @default(cuid())
-  customerName String
-  rating       Float
-  comment      String
-  date         String
-  createdAt    DateTime @default(now())
-}

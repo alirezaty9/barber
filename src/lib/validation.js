@@ -75,3 +75,13 @@ export const lookupSchema = z.object({
 export const cancelSchema = z.object({
   code: z.string().trim().min(1, 'کد رهگیری نامعتبر است.'),
 });
+
+// بستن زمان (مرخصی/تعطیلی): کل روز (fullDay=true، از date تا dateTo) یا ساعت‌های مشخص (slots).
+export const blockSchema = z.object({
+  barberId: z.string().min(1, 'انتخاب آرایشگر الزامی است.'),
+  date: isoDate,
+  dateTo: isoDate.nullish(),
+  fullDay: z.boolean().default(false),
+  slots: z.array(timeSlot).default([]),
+  reason: z.string().trim().default(''),
+});

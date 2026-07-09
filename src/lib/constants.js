@@ -37,3 +37,17 @@ export const PAYMENT_LABELS = {
   failed: 'ناموفق',
   refunded: 'مسترد شده',
 };
+
+// کلاس‌های استایل بَج‌ها — متمرکز تا در چند صفحه تکرار نشوند.
+export const STATUS_STYLES = {
+  pending: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  confirmed: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
+};
+
+export const PAYMENT_STYLES = {
+  paid: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  unpaid: 'bg-zinc-700/20 text-zinc-400 border-zinc-700/40',
+  failed: 'bg-red-500/10 text-red-400 border-red-500/20',
+  refunded: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
+};

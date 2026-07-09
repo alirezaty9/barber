@@ -32,22 +32,33 @@ export function isBarberWorkingOnDate(workDays, isoDate) {
  * @param {number[]} p.workDays روزهای کاری آرایشگر
  * @param {string} p.date تاریخ ISO (YYYY-MM-DD)
  * @param {{timeSlot: string, duration: number}[]} p.existing نوبت‌های فعالِ همان آرایشگر/روز
+ * @param {{timeSlot: string|null}[]} [p.blocks] بستن‌های زمان (مرخصی): timeSlot=null یعنی کل روز
  * @returns {{ dayOff: boolean, slots: {time: string, available: boolean, reason?: string}[] }}
  */
-export function computeAvailability({ serviceDuration, workDays, date, existing }) {
+export function computeAvailability({ serviceDuration, workDays, date, existing, blocks = [] }) {
   const duration = serviceDuration || SLOT_STEP_MIN;
 
-  if (!isBarberWorkingOnDate(workDays, date)) {
+  // روز غیرکاری یا بستنِ کل‌روز (بلاکی بدون ساعت) → کل روز تعطیل.
+  const fullDayBlocked = blocks.some((b) => !b.timeSlot);
+  if (!isBarberWorkingOnDate(workDays, date) || fullDayBlocked) {
     return {
       dayOff: true,
       slots: TIME_SLOTS.map((time) => ({ time, available: false, reason: 'dayoff' })),
     };
   }
 
-  const busy = existing.map((b) => {
-    const start = timeToMin(b.timeSlot);
-    return [start, start + (b.duration || SLOT_STEP_MIN)];
-  });
+  // ساعت‌های بسته‌شده (مرخصیِ ساعتی) — هم برچسب می‌گیرند و هم مثل نوبتِ اشغال، مانع خدمتِ کِش‌دار می‌شوند.
+  const blockedSlots = new Set(blocks.filter((b) => b.timeSlot).map((b) => b.timeSlot));
+  const busy = [
+    ...existing.map((b) => {
+      const start = timeToMin(b.timeSlot);
+      return [start, start + (b.duration || SLOT_STEP_MIN)];
+    }),
+    ...[...blockedSlots].map((t) => {
+      const start = timeToMin(t);
+      return [start, start + SLOT_STEP_MIN];
+    }),
+  ];
 
   const slots = TIME_SLOTS.map((time) => {
     const start = timeToMin(time);
@@ -55,6 +66,9 @@ export function computeAvailability({ serviceDuration, workDays, date, existing 
 
     if (end > CLOSING_MIN) {
       return { time, available: false, reason: 'closing' };
+    }
+    if (blockedSlots.has(time)) {
+      return { time, available: false, reason: 'blocked' };
     }
     const clash = busy.some(([bs, be]) => overlap(start, end, bs, be));
     return { time, available: !clash, reason: clash ? 'booked' : undefined };

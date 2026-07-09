@@ -8,7 +8,6 @@ import { useBlocks, useCreateBlock, useDeleteBlock } from '@/api/blocks';
 import { TIME_SLOTS } from '@/lib/constants';
 import { formatJalaliDate, toPersianDigits } from '@/lib/persian';
 import { confirm } from '@/components/ui/confirm';
-import Select from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
 import Field from '@/components/ui/Field';
 import Button from '@/components/ui/Button';
@@ -16,8 +15,9 @@ import JalaliDatePicker from '@/components/ui/JalaliDatePicker';
 import { cn } from '@/lib/utils';
 
 export default function ManageTimeOff() {
+  // پروژه تک‌آرایشگره است؛ خودکار روی تنها آرایشگر کار می‌کنیم (بدون انتخاب).
   const { data: barbers = [] } = useBarbers();
-  const [barberId, setBarberId] = useState('');
+  const barberId = barbers[0]?.id || '';
   const [mode, setMode] = useState('fullDay'); // fullDay | hours
   const [date, setDate] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -34,7 +34,7 @@ export default function ManageTimeOff() {
   const resetForm = () => { setDate(''); setDateTo(''); setSlots([]); setReason(''); };
 
   const onSave = async () => {
-    if (!barberId) { toast.error('اول یک آرایشگر انتخاب کن.'); return; }
+    if (!barberId) { toast.error('آرایشگری در سیستم ثبت نشده است.'); return; }
     if (!date) { toast.error('تاریخ را انتخاب کن.'); return; }
     if (mode === 'hours' && slots.length === 0) { toast.error('حداقل یک ساعت را انتخاب کن.'); return; }
 
@@ -89,13 +89,6 @@ export default function ManageTimeOff() {
             <Ban className="w-5 h-5 text-red-500" /> بستن زمان جدید
           </h3>
 
-          <Field label="آرایشگر:">
-            <Select value={barberId} onChange={(e) => setBarberId(e.target.value)}>
-              <option value="">— انتخاب آرایشگر —</option>
-              {barbers.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </Select>
-          </Field>
-
           {/* حالت: کل روز یا ساعت‌های مشخص */}
           <Field label="نوع بستن:">
             <div className="grid grid-cols-2 gap-2">
@@ -147,13 +140,9 @@ export default function ManageTimeOff() {
 
         {/* فهرست زمان‌های بسته */}
         <div className="glass p-6 rounded-3xl">
-          <h3 className="text-base font-bold text-zinc-100 mb-4">
-            زمان‌های بسته {barberId ? '' : '(اول آرایشگر را انتخاب کن)'}
-          </h3>
+          <h3 className="text-base font-bold text-zinc-100 mb-4">زمان‌های بسته</h3>
 
-          {!barberId ? (
-            <p className="text-zinc-500 text-xs text-center py-8">برای دیدن زمان‌های بسته، یک آرایشگر انتخاب کن.</p>
-          ) : Object.keys(grouped).length === 0 ? (
+          {Object.keys(grouped).length === 0 ? (
             <p className="text-zinc-500 text-xs text-center py-8">هیچ زمانی برای این آرایشگر بسته نشده است.</p>
           ) : (
             <div className="space-y-3">

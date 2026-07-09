@@ -29,16 +29,17 @@ export default function ManualBooking() {
   const createBooking = useCreateBooking();
 
   const [serviceId, setServiceId] = useState('');
-  const [barberId, setBarberId] = useState('');
   const [dateIso, setDateIso] = useState('');
   const [timeSlot, setTimeSlot] = useState('');
+
+  // پروژه تک‌آرایشگره است؛ آرایشگر خودکار همان تنها آرایشگر است (بدون انتخاب).
+  const activeBarber = barbers[0];
+  const barberId = activeBarber?.id || '';
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
     defaultValues: { customerName: '', customerPhone: '' },
   });
-
-  const activeBarber = barbers.find((b) => b.id === barberId);
   const { data: avail, isLoading: loadingSlots } = useAvailability(barberId, dateIso, serviceId, Boolean(barberId && dateIso));
 
   const isDayDisabled = (jsDate) =>
@@ -46,14 +47,14 @@ export default function ManualBooking() {
 
   const onSubmit = async (form) => {
     if (!serviceId || !barberId || !dateIso || !timeSlot) {
-      toast.error('لطفاً خدمت، آرایشگر، تاریخ و ساعت را انتخاب کنید.');
+      toast.error('لطفاً خدمت، تاریخ و ساعت را انتخاب کنید.');
       return;
     }
     try {
       await createBooking.mutateAsync({ ...form, serviceId, barberId, date: dateIso, timeSlot });
       toast.success('نوبت با موفقیت ثبت و تایید شد.');
       reset();
-      setServiceId(''); setBarberId(''); setDateIso(''); setTimeSlot('');
+      setServiceId(''); setDateIso(''); setTimeSlot('');
     } catch (e) {
       toast.error(e.message);
     }
@@ -78,20 +79,12 @@ export default function ManualBooking() {
           </Field>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field label="خدمت:">
-            <Select value={serviceId} onChange={(e) => { setServiceId(e.target.value); setTimeSlot(''); }}>
-              <option value="">-- انتخاب خدمت --</option>
-              {services.map((s) => <option key={s.id} value={s.id}>{s.name} ({formatPrice(s.price)})</option>)}
-            </Select>
-          </Field>
-          <Field label="آرایشگر:">
-            <Select value={barberId} onChange={(e) => { setBarberId(e.target.value); setDateIso(''); setTimeSlot(''); }}>
-              <option value="">-- انتخاب آرایشگر --</option>
-              {barbers.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </Select>
-          </Field>
-        </div>
+        <Field label="خدمت:">
+          <Select value={serviceId} onChange={(e) => { setServiceId(e.target.value); setTimeSlot(''); }}>
+            <option value="">-- انتخاب خدمت --</option>
+            {services.map((s) => <option key={s.id} value={s.id}>{s.name} ({formatPrice(s.price)})</option>)}
+          </Select>
+        </Field>
 
         <Field label="تاریخ حضور:">
           <JalaliDatePicker value={dateIso} onChange={(iso) => { setDateIso(iso); setTimeSlot(''); }} isDisabled={isDayDisabled} minDate={new Date()} />

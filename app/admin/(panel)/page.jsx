@@ -1,5 +1,4 @@
 import { prisma } from '@/lib/db';
-import { serializeBarbers } from '@/lib/serializers';
 import { Wallet, TrendingUp, Undo2, Hourglass, Calendar, XCircle, Scissors } from 'lucide-react';
 import { formatPrice, toPersianDigits, formatJalaliDate } from '@/lib/persian';
 import { cn } from '@/lib/utils';
@@ -9,28 +8,22 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboard({ searchParams }) {
   const sp = (await searchParams) || {};
-  const barberId = sp.barberId || undefined;
   const from = sp.from || undefined;
   const to = sp.to || undefined;
 
-  // فیلتر: بر اساس آرایشگر و بازه‌ی تاریخ (تاریخ رشته‌ی ISO است و مقایسه‌ی رشته‌ای درست کار می‌کند).
+  // فیلتر: بر اساس بازه‌ی تاریخ (تاریخ رشته‌ی ISO است و مقایسه‌ی رشته‌ای درست کار می‌کند).
   const where = {};
-  if (barberId) where.barberId = barberId;
   if (from || to) {
     where.date = {};
     if (from) where.date.gte = from;
     if (to) where.date.lte = to;
   }
 
-  const [barbersRaw, bookings] = await Promise.all([
-    prisma.barber.findMany({ orderBy: { createdAt: 'asc' } }),
-    prisma.booking.findMany({
-      where,
-      include: { service: true, service2: true },
-      orderBy: [{ date: 'asc' }, { timeSlot: 'asc' }],
-    }),
-  ]);
-  const barbers = serializeBarbers(barbersRaw);
+  const bookings = await prisma.booking.findMany({
+    where,
+    include: { service: true, service2: true },
+    orderBy: [{ date: 'asc' }, { timeSlot: 'asc' }],
+  });
 
   // ── محاسبات مالی ──
   let grossReceived = 0;   // کل پولی که تا حالا وارد شده (پرداخت‌شده + مستردشده)
@@ -79,7 +72,7 @@ export default async function AdminDashboard({ searchParams }) {
         <p className="text-xs text-zinc-400 mt-1">گردش مالی، درآمد و طلبِ آرایشگاه — با فیلتر بازه و آرایشگر</p>
       </div>
 
-      <DashboardFilters barbers={barbers} barberId={barberId} from={from} to={to} />
+      <DashboardFilters from={from} to={to} />
 
       {/* کارت‌های مالی اصلی */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
