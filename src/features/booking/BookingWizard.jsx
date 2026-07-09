@@ -9,10 +9,9 @@ import {
   Sparkles, Check, AlertCircle, ArrowRight, ArrowLeft, Loader2,
 } from 'lucide-react';
 import { formatPrice, toPersianDigits, formatJalaliDate, isValidIranMobile } from '@/lib/persian';
-import { jsDayToPersianIndex } from '@/lib/availability';
 import { useAvailability, useRequestPayment } from '@/api/bookings';
 import { useBookingStore } from './store';
-import JalaliDatePicker from '@/components/ui/JalaliDatePicker';
+import DayPicker from '@/components/ui/DayPicker';
 import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import Field from '@/components/ui/Field';
@@ -59,14 +58,6 @@ export default function BookingWizard({ services, barbers, onClose }) {
     barberId, dateIso, serviceIds.join(','), step === 2 && Boolean(dateIso)
   );
 
-  const isDayDisabled = (jsDate) =>
-    activeBarber ? !activeBarber.workDays.includes(jsDayToPersianIndex(jsDate.getDay())) : false;
-
-  // بازه‌ی مجاز رزرو: از امروز تا حداکثر یک هفته‌ی آینده.
-  const minBookingDate = new Date();
-  const maxBookingDate = new Date();
-  maxBookingDate.setDate(maxBookingDate.getDate() + 7);
-
   const canNext =
     (step === 1 && serviceIds.length >= 1) ||
     (step === 2 && dateIso && timeSlot && !avail?.dayOff);
@@ -79,8 +70,7 @@ export default function BookingWizard({ services, barbers, onClose }) {
       const { paymentUrl } = await requestPayment.mutateAsync({
         customerName: form.customerName,
         customerPhone: form.customerPhone,
-        serviceId: serviceIds[0],
-        serviceId2: serviceIds[1] || null,
+        serviceIds,
         barberId,
         date: dateIso,
         timeSlot,
@@ -175,10 +165,8 @@ export default function BookingWizard({ services, barbers, onClose }) {
       {/* مرحله ۲: روز و ساعت */}
       {step === 2 && (
         <div className="p-6 md:p-8">
-          <p className="text-zinc-400 text-xs md:text-sm mb-3 text-center">ابتدا یک روز را برای حضور انتخاب کنید (فقط تا یک هفته‌ی آینده فعال است):</p>
-          <div className="max-w-xs mx-auto">
-            <JalaliDatePicker value={dateIso} onChange={(iso) => { setDateIso(iso); setTimeSlot(''); }} isDisabled={isDayDisabled} minDate={minBookingDate} maxDate={maxBookingDate} />
-          </div>
+          <p className="text-zinc-400 text-xs md:text-sm mb-3 text-center">یک روز را برای حضور انتخاب کنید (تا یک هفته‌ی آینده):</p>
+          <DayPicker value={dateIso} onChange={(iso) => { setDateIso(iso); setTimeSlot(''); }} days={8} />
 
           {dateIso && (
             <div className="mt-6">
@@ -213,6 +201,9 @@ export default function BookingWizard({ services, barbers, onClose }) {
                         {toPersianDigits(slot.time)}
                         {!slot.available && slot.reason === 'booked' && (
                           <span className="block text-[8px] font-medium text-red-400 mt-0.5">رزرو شده</span>
+                        )}
+                        {!slot.available && slot.reason === 'past' && (
+                          <span className="block text-[8px] font-medium text-zinc-500 mt-0.5">گذشته</span>
                         )}
                       </button>
                     ))}

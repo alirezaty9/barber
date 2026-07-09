@@ -26,9 +26,9 @@ export default function LandingHero() {
       />
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[350px] md:w-[600px] h-[350px] bg-amber-500/5 blur-[120px] rounded-full z-0 pointer-events-none" />
 
-      <div className="relative z-10 max-w-4xl mx-auto px-6 text-center my-auto pt-24 pb-16 flex flex-col items-center">
-        <h1 dir="ltr" className="font-display text-6xl md:text-8xl lg:text-9xl tracking-tight leading-none mb-6 text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-500 to-amber-600">
-          | banad barber |
+      <div className="relative z-10 max-w-4xl mx-auto px-6 text-center my-auto -translate-y-6 md:-translate-y-10 pt-24 pb-16 flex flex-col items-center">
+        <h1 dir="ltr" className="font-display text-5xl sm:text-6xl md:text-8xl lg:text-9xl tracking-tight leading-none mb-6 whitespace-nowrap text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-500 to-amber-600">
+          |&nbsp;banad&nbsp;&nbsp;&nbsp;barber&nbsp;|
         </h1>
 
         <p dir="ltr" className="text-zinc-300 text-lg md:text-2xl tracking-[0.3em] uppercase font-light mb-10">

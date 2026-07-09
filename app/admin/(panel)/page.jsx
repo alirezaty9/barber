@@ -1,177 +1,255 @@
 import { prisma } from '@/lib/db';
-import { Wallet, TrendingUp, Undo2, Hourglass, Calendar, XCircle, Scissors } from 'lucide-react';
+import { Wallet, CalendarDays, CalendarRange, TrendingUp, Coins, Clock, Scissors, Hourglass, Receipt } from 'lucide-react';
 import { formatPrice, toPersianDigits, formatJalaliDate } from '@/lib/persian';
+import { servicesLabelOf } from '@/lib/serializers';
+import { TIME_SLOTS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import DashboardFilters from '@/features/admin/DashboardFilters';
+import DashboardPeriod from '@/features/admin/DashboardPeriod';
 
 export const dynamic = 'force-dynamic';
 
+const PERSIAN_MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+const PERIOD_LABELS = { today: 'امروز', 7: '۷ روز اخیر', 30: '۳۰ روز اخیر', 90: '۹۰ روز اخیر', year: 'امسال', all: 'کل دوره' };
+
+// تاریخِ «امروز» به وقت ایران (مستقل از تایم‌زون سرور).
+function tehranTodayIso() {
+  const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+  const g = (t) => p.find((x) => x.type === t)?.value;
+  return `${g('year')}-${g('month')}-${g('day')}`;
+}
+// جابه‌جاییِ امنِ روز روی رشته‌ی ISO (بدون دردسر تایم‌زون).
+function shiftIso(iso, delta) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + delta);
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+}
+// سال و ماهِ شمسیِ یک تاریخِ ISO میلادی (اعداد لاتین).
+function jalaliYM(iso) {
+  const p = new Intl.DateTimeFormat('en-US-u-ca-persian', { year: 'numeric', month: 'numeric' }).formatToParts(new Date(iso + 'T00:00:00'));
+  return { y: p.find((x) => x.type === 'year')?.value, m: parseInt(p.find((x) => x.type === 'month')?.value, 10) };
+}
+const netOf = (b) => (b.paymentStatus === 'paid' || b.paymentStatus === 'refunded' ? b.amount - (b.refundAmount || 0) : 0);
+
 export default async function AdminDashboard({ searchParams }) {
   const sp = (await searchParams) || {};
-  const from = sp.from || undefined;
-  const to = sp.to || undefined;
+  const period = sp.period || '30';
 
-  // فیلتر: بر اساس بازه‌ی تاریخ (تاریخ رشته‌ی ISO است و مقایسه‌ی رشته‌ای درست کار می‌کند).
-  const where = {};
-  if (from || to) {
-    where.date = {};
-    if (from) where.date.gte = from;
-    if (to) where.date.lte = to;
+  const all = await prisma.booking.findMany({ include: { service: true, service2: true }, orderBy: [{ date: 'asc' }, { timeSlot: 'asc' }] });
+
+  const todayIso = tehranTodayIso();
+  const tj = jalaliYM(todayIso);
+
+  // ── نوارِ نگاه کلی (همیشه از کلِ داده) ──
+  let incToday = 0, incMonth = 0, incYear = 0;
+  for (const b of all) {
+    const n = netOf(b);
+    if (!n) continue;
+    if (b.date === todayIso) incToday += n;
+    const bj = jalaliYM(b.date);
+    if (bj.y === tj.y) { incYear += n; if (bj.m === tj.m) incMonth += n; }
   }
 
-  const bookings = await prisma.booking.findMany({
-    where,
-    include: { service: true, service2: true },
-    orderBy: [{ date: 'asc' }, { timeSlot: 'asc' }],
-  });
+  // ── فیلترِ بازه ──
+  let filtered, chartMode;
+  if (period === 'all') { filtered = all; chartMode = 'monthly'; }
+  else if (period === 'year') { filtered = all.filter((b) => jalaliYM(b.date).y === tj.y); chartMode = 'monthly'; }
+  else {
+    const n = { today: 1, 7: 7, 30: 30, 90: 90 }[period] || 30;
+    const start = shiftIso(todayIso, -(n - 1));
+    filtered = all.filter((b) => b.date >= start && b.date <= todayIso);
+    chartMode = n <= 31 ? 'daily' : 'monthly';
+  }
 
-  // ── محاسبات مالی ──
-  let grossReceived = 0;   // کل پولی که تا حالا وارد شده (پرداخت‌شده + مستردشده)
-  let totalRefunded = 0;   // مجموع مبالغ مستردشده
-  let pendingUnpaid = 0;   // طلب: رزروهای پرداخت‌نشده‌ی فعال
-  let paidCount = 0, refundedCount = 0, unpaidCount = 0, cancelledCount = 0;
-  const perDay = {};       // تاریخ → { received, refunded }
-  const perService = {};   // نام خدمت → درآمد خالص
+  // ── محاسبات بازه ──
+  let net = 0, refunded = 0, pending = 0, paidCount = 0, confirmed = 0, pend = 0, cancelled = 0;
+  const perHour = {}, perService = {};
+  for (const b of filtered) {
+    if (b.status === 'confirmed') confirmed++;
+    else if (b.status === 'pending') pend++;
+    else if (b.status === 'cancelled') cancelled++;
 
-  for (const b of bookings) {
-    if (b.status === 'cancelled') cancelledCount++;
-
+    if (b.status !== 'cancelled') {
+      perHour[b.timeSlot] = (perHour[b.timeSlot] || 0) + 1;
+    }
+    const n = netOf(b);
     if (b.paymentStatus === 'paid' || b.paymentStatus === 'refunded') {
-      grossReceived += b.amount;
-      perDay[b.date] = perDay[b.date] || { received: 0, refunded: 0 };
-      perDay[b.date].received += b.amount;
-
-      if (b.paymentStatus === 'refunded') {
-        totalRefunded += b.refundAmount || 0;
-        refundedCount++;
-        perDay[b.date].refunded += b.refundAmount || 0;
-      } else {
-        paidCount++;
-      }
-
-      // درآمد خالص هر نوبت را به خدمت اصلی نسبت می‌دهیم.
-      const net = b.amount - (b.refundAmount || 0);
-      const name = b.service?.name || 'نامشخص';
-      perService[name] = (perService[name] || 0) + net;
+      net += n; paidCount++;
+      refunded += b.refundAmount || 0;
+      const name = servicesLabelOf(b);
+      perService[name] = (perService[name] || 0) + n;
     } else if (b.paymentStatus === 'unpaid' && b.status !== 'cancelled') {
-      pendingUnpaid += b.amount;
-      unpaidCount++;
+      pending += b.amount;
     }
   }
+  const totalCount = filtered.length;
+  const avg = paidCount ? Math.round(net / paidCount) : 0;
 
-  const netIncome = grossReceived - totalRefunded; // چقدر واقعاً نگه داشته
-  const total = bookings.length;
-  const cancelRate = total > 0 ? Math.round((cancelledCount / total) * 100) : 0;
-  const days = Object.entries(perDay).sort(([a], [b]) => (a < b ? -1 : 1));
+  // ── داده‌ی نمودار درآمد ──
+  let chart = [];
+  if (chartMode === 'daily') {
+    const n = { today: 1, 7: 7, 30: 30 }[period] || 30;
+    const byDay = {};
+    for (const b of filtered) { const v = netOf(b); if (v) byDay[b.date] = (byDay[b.date] || 0) + v; }
+    for (let i = n - 1; i >= 0; i--) {
+      const iso = shiftIso(todayIso, -i);
+      chart.push({ label: toPersianDigits(formatJalaliDate(iso, { day: 'numeric' })), net: byDay[iso] || 0, full: formatJalaliDate(iso, { weekday: 'long', day: 'numeric', month: 'long' }) });
+    }
+  } else {
+    const byMonth = {};
+    for (const b of filtered) { const v = netOf(b); if (!v) continue; const { y, m } = jalaliYM(b.date); const k = `${y}-${String(m).padStart(2, '0')}`; byMonth[k] = (byMonth[k] || 0) + v; }
+    chart = Object.entries(byMonth).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, v]) => {
+      const [y, m] = k.split('-');
+      return { label: PERSIAN_MONTHS[parseInt(m, 10) - 1], net: v, full: `${PERSIAN_MONTHS[parseInt(m, 10) - 1]} ${toPersianDigits(y)}` };
+    });
+  }
+  const maxChart = Math.max(1, ...chart.map((c) => c.net));
+  const maxHour = Math.max(1, ...TIME_SLOTS.map((t) => perHour[t] || 0));
   const services = Object.entries(perService).sort(([, a], [, b]) => b - a);
+  const maxService = Math.max(1, ...services.map(([, v]) => v));
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-extrabold text-white">داشبورد مالی</h2>
-        <p className="text-xs text-zinc-400 mt-1">گردش مالی، درآمد و طلبِ آرایشگاه — با فیلتر بازه و آرایشگر</p>
+        <h2 className="text-2xl font-extrabold text-white">داشبورد</h2>
+        <p className="text-xs text-zinc-400 mt-1">درآمد و عملکردِ آرایشگاه در یک نگاه</p>
       </div>
 
-      <DashboardFilters from={from} to={to} />
-
-      {/* کارت‌های مالی اصلی */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card title="درآمد خالص (موجودی)" icon={Wallet} iconClass="text-emerald-500">
-          <p className="text-2xl font-extrabold text-emerald-500">{formatPrice(netIncome)}</p>
-          <div className="text-[10px] text-zinc-500 mt-2">پول واقعیِ نگه‌داشته‌شده</div>
-        </Card>
-
-        <Card title="کل دریافتی (ناخالص)" icon={TrendingUp} iconClass="text-amber-500">
-          <p className="text-2xl font-extrabold text-zinc-100">{formatPrice(grossReceived)}</p>
-          <div className="text-[10px] text-zinc-500 mt-2">{toPersianDigits(paidCount + refundedCount)} پرداخت موفق</div>
-        </Card>
-
-        <Card title="مسترد شده" icon={Undo2} iconClass="text-sky-400">
-          <p className="text-2xl font-extrabold text-sky-400">{formatPrice(totalRefunded)}</p>
-          <div className="text-[10px] text-zinc-500 mt-2">{toPersianDigits(refundedCount)} مورد لغو با استرداد</div>
-        </Card>
-
-        <Card title="در انتظار پرداخت (طلب)" icon={Hourglass} iconClass="text-amber-400">
-          <p className="text-2xl font-extrabold text-amber-400">{formatPrice(pendingUnpaid)}</p>
-          <div className="text-[10px] text-zinc-500 mt-2">{toPersianDigits(unpaidCount)} رزرو پرداخت‌نشده</div>
-        </Card>
+      {/* نوار نگاه کلی */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <GlanceCard icon={CalendarDays} label="درآمد امروز" value={incToday} tint="emerald" />
+        <GlanceCard icon={CalendarRange} label="درآمد این ماه" value={incMonth} tint="amber" />
+        <GlanceCard icon={Coins} label="درآمد امسال" value={incYear} tint="sky" />
       </div>
 
-      {/* کارت‌های آماری */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card title="کل نوبت‌ها" icon={Calendar} iconClass="text-amber-500">
-          <p className="text-2xl font-extrabold text-zinc-100">{toPersianDigits(total)}</p>
-          <div className="text-[10px] text-zinc-500 mt-2">در بازه‌ی انتخاب‌شده</div>
-        </Card>
-        <Card title="ضریب کنسلی" icon={XCircle} iconClass="text-red-500">
-          <p className="text-2xl font-extrabold text-red-500">{toPersianDigits(cancelRate)}٪</p>
-          <div className="text-[10px] text-zinc-500 mt-2">تعداد لغو: {toPersianDigits(cancelledCount)} مورد</div>
-        </Card>
-        <div className="glass p-5 rounded-2xl col-span-2">
-          <div className="flex items-center gap-2 mb-3">
+      {/* انتخابگر بازه */}
+      <DashboardPeriod value={period} />
+
+      {/* KPIهای بازه */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Kpi icon={Wallet} tint="text-emerald-400" label="درآمد خالص" value={formatPrice(net)} sub={PERIOD_LABELS[period]} big />
+        <Kpi icon={Receipt} tint="text-zinc-100" label="تعداد نوبت" value={toPersianDigits(totalCount)} sub={`${toPersianDigits(paidCount)} پرداخت‌شده`} />
+        <Kpi icon={TrendingUp} tint="text-amber-400" label="میانگین هر نوبت" value={formatPrice(avg)} sub="درآمد میانگین" />
+        <Kpi icon={Hourglass} tint="text-sky-300" label="در انتظار پرداخت" value={formatPrice(pending)} sub={refunded ? `${formatPrice(refunded)} مسترد` : 'طلب'} />
+      </div>
+
+      {/* نمودار درآمد */}
+      <div className="glass rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-amber-500" />
+            <span className="text-sm font-bold text-zinc-200">روند درآمد ({PERIOD_LABELS[period]})</span>
+          </div>
+          <span className="text-[11px] text-zinc-500">{chartMode === 'daily' ? 'روزانه' : 'ماهانه'}</span>
+        </div>
+        {chart.every((c) => c.net === 0) ? (
+          <p className="text-xs text-zinc-500 text-center py-12">در این بازه درآمدی ثبت نشده است.</p>
+        ) : (
+          <div className="flex items-end gap-1.5 h-44 overflow-x-auto pb-1">
+            {chart.map((c, i) => (
+              <div key={i} className="flex flex-col items-center justify-end gap-1.5 flex-1 min-w-[26px] group" title={`${c.full}: ${formatPrice(c.net)}`}>
+                <span className="text-[9px] text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{c.net ? toPersianDigits(Math.round(c.net / 1000)) + 'ه' : ''}</span>
+                <div
+                  className="w-full rounded-t-md bg-gradient-to-t from-amber-600 to-amber-400 hover:from-amber-500 hover:to-amber-300 transition-all"
+                  style={{ height: `${Math.max(2, Math.round((c.net / maxChart) * 100))}%` }}
+                />
+                <span className="text-[9px] text-zinc-500 whitespace-nowrap">{c.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* دو ستون: ساعت‌ها + خدمات */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="glass rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="w-4 h-4 text-amber-500" />
+            <span className="text-sm font-bold text-zinc-200">شلوغیِ ساعت‌ها</span>
+          </div>
+          <div className="space-y-2">
+            {TIME_SLOTS.map((t) => {
+              const c = perHour[t] || 0;
+              return (
+                <div key={t} className="flex items-center gap-3 text-[11px]">
+                  <span className="w-10 font-mono text-zinc-400 shrink-0">{toPersianDigits(t)}</span>
+                  <div className="flex-1 h-2.5 bg-zinc-900 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-l from-amber-500 to-amber-600 rounded-full" style={{ width: `${Math.round((c / maxHour) * 100)}%` }} />
+                  </div>
+                  <span className="w-12 text-left text-zinc-400 shrink-0">{toPersianDigits(c)} نوبت</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="glass rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-4">
             <Scissors className="w-4 h-4 text-amber-500" />
-            <span className="text-xs text-zinc-400 font-bold">درآمد خالص به تفکیک خدمت</span>
+            <span className="text-sm font-bold text-zinc-200">درآمد به تفکیک خدمت</span>
           </div>
           {services.length === 0 ? (
-            <p className="text-xs text-zinc-500">داده‌ای برای نمایش نیست.</p>
+            <p className="text-xs text-zinc-500 py-8 text-center">داده‌ای برای نمایش نیست.</p>
           ) : (
-            <div className="space-y-2">
-              {services.map(([name, amount]) => (
-                <div key={name} className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-300">{name}</span>
-                  <span className="font-extrabold text-emerald-500">{formatPrice(amount)}</span>
+            <div className="space-y-3">
+              {services.map(([name, v]) => (
+                <div key={name}>
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="text-zinc-300 font-semibold">{name}</span>
+                    <span className="text-emerald-500 font-extrabold">{formatPrice(v)}</span>
+                  </div>
+                  <div className="h-2 bg-zinc-900 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-l from-emerald-500 to-emerald-600 rounded-full" style={{ width: `${Math.round((v / maxService) * 100)}%` }} />
+                  </div>
                 </div>
               ))}
             </div>
           )}
-        </div>
-      </div>
-
-      {/* جدول گردش مالی روزانه */}
-      <div className="glass rounded-2xl overflow-hidden">
-        <div className="flex items-center gap-2 p-4 border-b border-zinc-900">
-          <TrendingUp className="w-4 h-4 text-amber-500" />
-          <span className="text-sm font-bold text-zinc-200">گردش مالی روزانه</span>
-        </div>
-        {days.length === 0 ? (
-          <p className="text-xs text-zinc-500 p-6 text-center">در این بازه تراکنشی ثبت نشده است.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-zinc-500 border-b border-zinc-900/60">
-                  <th className="text-right font-bold p-3">تاریخ</th>
-                  <th className="text-left font-bold p-3">دریافتی</th>
-                  <th className="text-left font-bold p-3">مسترد شده</th>
-                  <th className="text-left font-bold p-3">خالص روز</th>
-                </tr>
-              </thead>
-              <tbody>
-                {days.map(([date, v]) => (
-                  <tr key={date} className="border-b border-zinc-900/40 last:border-0">
-                    <td className="text-right p-3 text-zinc-300">{formatJalaliDate(date, { weekday: 'long', day: 'numeric', month: 'long' })}</td>
-                    <td className="text-left p-3 text-zinc-200 font-bold">{formatPrice(v.received)}</td>
-                    <td className="text-left p-3 text-sky-400">{v.refunded ? formatPrice(v.refunded) : '—'}</td>
-                    <td className="text-left p-3 text-emerald-500 font-extrabold">{formatPrice(v.received - v.refunded)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex items-center gap-2 mt-5 pt-4 border-t border-zinc-900">
+            <Pill label="تایید شده" count={confirmed} cls="bg-emerald-500/10 text-emerald-400 border-emerald-500/20" />
+            <Pill label="در انتظار" count={pend} cls="bg-amber-500/10 text-amber-400 border-amber-500/20" />
+            <Pill label="لغو" count={cancelled} cls="bg-red-500/10 text-red-400 border-red-500/20" />
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
 }
 
-function Card({ title, icon: Icon, iconClass, children }) {
+function GlanceCard({ icon: Icon, label, value, tint }) {
+  const tints = {
+    emerald: 'from-emerald-500/15 text-emerald-400 border-emerald-500/20',
+    amber: 'from-amber-500/15 text-amber-400 border-amber-500/20',
+    sky: 'from-sky-500/15 text-sky-300 border-sky-500/20',
+  };
   return (
-    <div className="glass p-5 rounded-2xl">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs text-zinc-500 font-bold">{title}</span>
-        <Icon className={cn('w-4 h-4', iconClass)} />
+    <div className={cn('rounded-2xl p-4 border bg-gradient-to-br to-transparent flex items-center justify-between', tints[tint])}>
+      <div>
+        <p className="text-[11px] text-zinc-300 font-bold mb-1">{label}</p>
+        <p className="text-lg md:text-xl font-extrabold">{formatPrice(value)}</p>
       </div>
-      {children}
+      <Icon className="w-8 h-8 opacity-40" />
     </div>
+  );
+}
+
+function Kpi({ icon: Icon, tint, label, value, sub, big }) {
+  return (
+    <div className="glass rounded-2xl p-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[11px] text-zinc-500 font-bold">{label}</span>
+        <Icon className={cn('w-4 h-4', tint)} />
+      </div>
+      <p className={cn('font-extrabold', big ? 'text-xl md:text-2xl' : 'text-lg md:text-xl', big ? tint : 'text-zinc-100')}>{value}</p>
+      <p className="text-[10px] text-zinc-500 mt-1">{sub}</p>
+    </div>
+  );
+}
+
+function Pill({ label, count, cls }) {
+  return (
+    <span className={cn('flex-1 text-center px-2 py-1.5 rounded-lg text-[10px] font-bold border', cls)}>
+      {label}: {toPersianDigits(count)}
+    </span>
   );
 }

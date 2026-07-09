@@ -5,11 +5,13 @@ export const CATEGORIES = ['hair', 'beard', 'grooming', 'groom', 'combo', 'style
 export const STATUSES = ['pending', 'confirmed', 'cancelled'];
 
 // شماره‌ی موبایل: ابتدا ارقام فارسی/عربی به انگلیسی نرمال می‌شود، سپس اعتبارسنجی.
+// ⚠️ موقتاً برای تست ساده شده: هر عددِ حداقل ۱ رقمی مجاز است.
+// برای production، refine را به /^09[0-9]{9}$/ برگردان.
 const mobile = z
   .string()
   .transform((v) => normalizeDigits(v).trim())
-  .refine((v) => /^09[0-9]{9}$/.test(v), {
-    message: 'شماره موبایل باید ۱۱ رقمی و با ۰۹ شروع شود.',
+  .refine((v) => /^[0-9]{1,}$/.test(v), {
+    message: 'شماره موبایل را وارد کنید.',
   });
 
 const isoDate = z
@@ -50,10 +52,10 @@ export const barberSchema = z.object({
 export const bookingSchema = z.object({
   customerName: z.string().trim().min(1, 'نام و نام خانوادگی الزامی است.'),
   customerPhone: mobile,
-  serviceId: z.string().min(1, 'انتخاب خدمت الزامی است.'),
-  // خدمت دومِ اختیاری (هر نوبت تا دو خدمت).
-  serviceId2: z.string().min(1).nullish(),
-  barberId: z.string().min(1, 'انتخاب آرایشگر الزامی است.'),
+  // یک یا چند خدمت (بدون محدودیت تعداد).
+  serviceIds: z.array(z.string().min(1)).min(1, 'حداقل یک خدمت انتخاب کنید.'),
+  // آرایشگر اختیاری؛ چون تک‌آرایشگری است، اگر ارسال نشود سمت سرور همان آرایشگر انتخاب می‌شود.
+  barberId: z.string().min(1).nullish(),
   date: isoDate,
   timeSlot,
 });

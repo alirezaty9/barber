@@ -59,9 +59,11 @@ model Booking {
   // در صورت حذف خدمت/آرایشگر، نوبت تاریخی حذف نشود؛ فقط مرجع null می‌شود.
   serviceId     String?
   service       Service? @relation("PrimaryService", fields: [serviceId], references: [id], onDelete: SetNull)
-  // خدمت دومِ اختیاری (هر نوبت می‌تواند تا دو خدمت داشته باشد).
+  // خدمت دومِ اختیاری (برای سازگاری با رکوردهای قدیمی؛ نمایشِ چند-خدمتی از servicesLabel است).
   serviceId2    String?
   service2      Service? @relation("SecondService", fields: [serviceId2], references: [id], onDelete: SetNull)
+  // برچسبِ کاملِ خدمات (چند خدمت با ' + ') — اسنپ‌شات هنگام رزرو برای نمایش.
+  servicesLabel String   @default("")
   barberId      String?
   barber        Barber?  @relation(fields: [barberId], references: [id], onDelete: SetNull)
   date          String // YYYY-MM-DD (میلادی؛ نمایش به کاربر جلالی است)

@@ -12,35 +12,24 @@ function overlap(aStart, aEnd, bStart, bEnd) {
 }
 
 /**
- * نگاشت روزِ هفته‌ی جاوااسکریپت (0=یکشنبه ... 6=شنبه) به اندیس workDays فارسی
- * (0=شنبه، 1=یکشنبه ... 6=جمعه).
- */
-export function jsDayToPersianIndex(jsDay) {
-  return jsDay === 6 ? 0 : jsDay + 1;
-}
-
-export function isBarberWorkingOnDate(workDays, isoDate) {
-  const jsDay = new Date(isoDate + 'T00:00:00').getDay();
-  return workDays.includes(jsDayToPersianIndex(jsDay));
-}
-
-/**
- * محاسبه‌ی وضعیت هر اسلات برای یک آرایشگر در یک روز مشخص، با لحاظ مدت‌زمان خدمت.
+ * محاسبه‌ی وضعیت هر اسلات برای یک روز مشخص، با لحاظ مدت‌زمان خدمت و بستن‌های زمان.
+ * تعطیلیِ روز فقط از طریق «بستن کل‌روز» (فیچر مرخصی) تعیین می‌شود؛ محدودیتِ روزهای
+ * هفتگی حذف شده تا مدیریت تعطیلی یکجا و ساده باشد.
  *
  * @param {object} p
  * @param {number} p.serviceDuration مدت خدمت موردنظر (دقیقه)
- * @param {number[]} p.workDays روزهای کاری آرایشگر
- * @param {string} p.date تاریخ ISO (YYYY-MM-DD)
  * @param {{timeSlot: string, duration: number}[]} p.existing نوبت‌های فعالِ همان آرایشگر/روز
  * @param {{timeSlot: string|null}[]} [p.blocks] بستن‌های زمان (مرخصی): timeSlot=null یعنی کل روز
+ * @param {number} [p.nowMinutes] اگر روزِ انتخابی «امروز» باشد، دقیقه‌ی فعلیِ روز؛ اسلات‌های
+ *   گذشته (تا این لحظه) غیرقابل‌انتخاب می‌شوند. مقدار -1 یعنی روزِ آینده (بدون محدودیت زمانی).
  * @returns {{ dayOff: boolean, slots: {time: string, available: boolean, reason?: string}[] }}
  */
-export function computeAvailability({ serviceDuration, workDays, date, existing, blocks = [] }) {
+export function computeAvailability({ serviceDuration, existing, blocks = [], nowMinutes = -1 }) {
   const duration = serviceDuration || SLOT_STEP_MIN;
 
-  // روز غیرکاری یا بستنِ کل‌روز (بلاکی بدون ساعت) → کل روز تعطیل.
+  // بستنِ کل‌روز (بلاکی بدون ساعت) → کل روز تعطیل.
   const fullDayBlocked = blocks.some((b) => !b.timeSlot);
-  if (!isBarberWorkingOnDate(workDays, date) || fullDayBlocked) {
+  if (fullDayBlocked) {
     return {
       dayOff: true,
       slots: TIME_SLOTS.map((time) => ({ time, available: false, reason: 'dayoff' })),
@@ -66,6 +55,10 @@ export function computeAvailability({ serviceDuration, workDays, date, existing,
 
     if (end > CLOSING_MIN) {
       return { time, available: false, reason: 'closing' };
+    }
+    // اگر امروز است، ساعت‌هایی که تا این لحظه گذشته‌اند قابل رزرو نیستند.
+    if (nowMinutes >= 0 && start <= nowMinutes) {
+      return { time, available: false, reason: 'past' };
     }
     if (blockedSlots.has(time)) {
       return { time, available: false, reason: 'blocked' };

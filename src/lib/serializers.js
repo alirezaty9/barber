@@ -24,3 +24,12 @@ export function serializeBarber(barber) {
 export function serializeBarbers(barbers) {
   return barbers.map(serializeBarber);
 }
+
+// برچسبِ نمایشِ خدماتِ یک نوبت: اول از servicesLabel (چند-خدمتی)، وگرنه از رابطه‌های قدیمی.
+export function servicesLabelOf(b) {
+  return (
+    b?.servicesLabel ||
+    [b?.service, b?.service2].filter(Boolean).map((s) => s.name).join(' + ') ||
+    'نامشخص'
+  );
+}

@@ -11,7 +11,7 @@ import { confirm } from '@/components/ui/confirm';
 import { Input } from '@/components/ui/Input';
 import Field from '@/components/ui/Field';
 import Button from '@/components/ui/Button';
-import JalaliDatePicker from '@/components/ui/JalaliDatePicker';
+import DayPicker from '@/components/ui/DayPicker';
 import { cn } from '@/lib/utils';
 
 export default function ManageTimeOff() {
@@ -98,12 +98,12 @@ export default function ManageTimeOff() {
           </Field>
 
           <Field label={mode === 'fullDay' ? 'از تاریخ:' : 'تاریخ:'}>
-            <JalaliDatePicker value={date} onChange={setDate} placeholder="روز را انتخاب کن" />
+            <DayPicker value={date} onChange={setDate} days={21} />
           </Field>
 
           {mode === 'fullDay' && (
             <Field label="تا تاریخ (اختیاری — برای چند روز پشت‌سرهم):">
-              <JalaliDatePicker value={dateTo} onChange={setDateTo} placeholder="اگر چند روز است، روز پایان را بزن" />
+              <DayPicker value={dateTo} onChange={setDateTo} days={21} />
             </Field>
           )}
 

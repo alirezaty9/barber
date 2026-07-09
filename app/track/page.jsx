@@ -9,6 +9,7 @@ import { Search, Scissors, Calendar, Clock, User, Scissors as ScissorsIcon, XCir
 import { lookupSchema } from '@/lib/validation';
 import { lookupBooking, cancelBooking } from '@/api/bookings';
 import { toPersianDigits, formatJalaliDate, formatPrice } from '@/lib/persian';
+import { servicesLabelOf } from '@/lib/serializers';
 import { STATUS_LABELS, STATUS_STYLES } from '@/lib/constants';
 import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -114,13 +115,7 @@ export default function TrackPage() {
                   </p>
                 </div>
 
-                <Row
-                  icon={ScissorsIcon}
-                  label="خدمت"
-                  value={
-                    [booking.service, booking.service2].filter(Boolean).map((s) => s.name).join(' + ') || 'نامشخص'
-                  }
-                />
+                <Row icon={ScissorsIcon} label="خدمت" value={servicesLabelOf(booking)} />
                 <Row icon={User} label="مشتری" value={booking.customerName} />
                 {booking.refundAmount > 0 && (
                   <Row icon={ScissorsIcon} label="مبلغ بازگشتی" value={formatPrice(booking.refundAmount)} />

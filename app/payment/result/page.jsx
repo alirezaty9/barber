@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Check, X, Search, Home } from 'lucide-react';
 import { prisma } from '@/lib/db';
 import { formatPrice, toPersianDigits, formatJalaliDate } from '@/lib/persian';
+import { servicesLabelOf } from '@/lib/serializers';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,9 +20,7 @@ export default async function PaymentResultPage({ searchParams }) {
     : null;
 
   const success = status === 'success' && booking?.paymentStatus === 'paid';
-  const services = booking
-    ? [booking.service?.name, booking.service2?.name].filter(Boolean).join(' + ')
-    : '';
+  const services = booking ? servicesLabelOf(booking) : '';
 
   return (
     <div className="min-h-screen bg-[#030303] text-zinc-100 flex items-center justify-center px-6 py-16">

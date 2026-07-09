@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Filter, Search, CheckCircle, XCircle, Trash2, AlertCircle, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { useBookings, useUpdateBookingStatus, useDeleteBooking } from '@/api/bookings';
 import { toPersianDigits, formatJalaliDate, formatPrice } from '@/lib/persian';
+import { servicesLabelOf } from '@/lib/serializers';
 import { STATUS_LABELS, PAYMENT_LABELS, STATUS_STYLES, PAYMENT_STYLES } from '@/lib/constants';
 import { confirm } from '@/components/ui/confirm';
 import Select from '@/components/ui/Select';
@@ -102,12 +103,8 @@ export default function BookingsManager() {
               </div>
 
               <div className="lg:col-span-3">
-                <p className="font-semibold text-xs text-zinc-300">
-                  {[b.service, b.service2].filter(Boolean).map((s) => s.name).join(' + ') || 'خدمت نامشخص'}
-                </p>
-                <p className="text-[10px] text-amber-500 font-extrabold mt-0.5">
-                  {(b.service || b.service2) ? formatPrice((b.service?.price || 0) + (b.service2?.price || 0)) : ''}
-                </p>
+                <p className="font-semibold text-xs text-zinc-300">{servicesLabelOf(b)}</p>
+                <p className="text-[10px] text-amber-500 font-extrabold mt-0.5">{formatPrice(b.amount || 0)}</p>
                 <p className="text-[10px] text-zinc-500 mt-0.5">آرایشگر: {b.barber?.name || 'نامشخص'}</p>
               </div>
 

@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { bookingSchema } from '@/lib/validation';
 import { resolveAvailability } from '@/lib/availability-server';
+import { resolveServices } from '@/lib/services-server';
 import { isAuthenticated } from '@/lib/auth';
 import { ok, guardAdmin, parseBody, conflict, badRequest, serverError, generateBookingCode } from '@/lib/api-helpers';
 
@@ -56,23 +57,20 @@ export async function POST(request) {
   if (response) return response;
 
   try {
-    const serviceId2 = data.serviceId2 || null;
-    const [service, service2] = await Promise.all([
-      prisma.service.findUnique({ where: { id: data.serviceId } }),
-      serviceId2 ? prisma.service.findUnique({ where: { id: serviceId2 } }) : Promise.resolve(null),
-    ]);
-    if (!service) return badRequest('خدمت انتخابی معتبر نیست.');
-    if (serviceId2 && !service2) return badRequest('خدمت دوم انتخابی معتبر نیست.');
+    // یک یا چند خدمت (بدون محدودیت تعداد) → مجموع قیمت/مدت و برچسبِ نمایش.
+    const svc = await resolveServices(data.serviceIds);
+    if (svc.error) return badRequest(svc.error);
 
-    // مدت‌زمان کل = مجموع مدت هر دو خدمت (برای محاسبه‌ی صحیح اشغال زمان).
-    const totalDuration = service.duration + (service2?.duration || 0);
-    const totalPrice = service.price + (service2?.price || 0);
+    // تک‌آرایشگری: اگر آرایشگر ارسال نشد، تنها آرایشگر انتخاب می‌شود.
+    const barberId = data.barberId
+      || (await prisma.barber.findFirst({ orderBy: { createdAt: 'asc' }, select: { id: true } }))?.id;
+    if (!barberId) return badRequest('آرایشگر معتبری در سیستم ثبت نشده است.');
 
     // موجودی با لحاظ نوبت‌های فعال و بستن‌های زمان (helper مشترک).
     const { error, dayOff, slots } = await resolveAvailability({
-      barberId: data.barberId,
+      barberId,
       date: data.date,
-      serviceDuration: totalDuration,
+      serviceDuration: svc.totalDuration,
     });
     if (error) return badRequest('آرایشگر انتخابی معتبر نیست.');
     if (dayOff) return conflict('آرایشگر در روز انتخاب‌شده مرخصی است.');
@@ -93,14 +91,15 @@ export async function POST(request) {
             code: generateBookingCode(),
             customerName: data.customerName,
             customerPhone: data.customerPhone,
-            serviceId: data.serviceId,
-            serviceId2,
-            barberId: data.barberId,
+            serviceId: svc.primaryId,
+            serviceId2: svc.secondId,
+            servicesLabel: svc.label,
+            barberId,
             date: data.date,
             timeSlot: data.timeSlot,
             status,
             // رزرو دستیِ ادمین ⇒ پرداخت حضوری/نقدی (paid)؛ در غیر این صورت unpaid.
-            amount: totalPrice,
+            amount: svc.totalPrice,
             paymentStatus: admin ? 'paid' : 'unpaid',
           },
           include: { service: true, service2: true, barber: true },

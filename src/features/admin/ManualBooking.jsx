@@ -5,17 +5,15 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { PlusCircle, Loader2 } from 'lucide-react';
+import { PlusCircle, Loader2, Check } from 'lucide-react';
 import { useServices } from '@/api/services';
 import { useBarbers } from '@/api/barbers';
 import { useAvailability, useCreateBooking } from '@/api/bookings';
 import { isValidIranMobile, toPersianDigits, formatPrice } from '@/lib/persian';
-import { jsDayToPersianIndex } from '@/lib/availability';
-import Select from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
 import Field from '@/components/ui/Field';
 import Button from '@/components/ui/Button';
-import JalaliDatePicker from '@/components/ui/JalaliDatePicker';
+import DayPicker from '@/components/ui/DayPicker';
 import { cn } from '@/lib/utils';
 
 const schema = z.object({
@@ -28,7 +26,7 @@ export default function ManualBooking() {
   const { data: barbers = [] } = useBarbers();
   const createBooking = useCreateBooking();
 
-  const [serviceId, setServiceId] = useState('');
+  const [serviceIds, setServiceIds] = useState([]);
   const [dateIso, setDateIso] = useState('');
   const [timeSlot, setTimeSlot] = useState('');
 
@@ -36,25 +34,31 @@ export default function ManualBooking() {
   const activeBarber = barbers[0];
   const barberId = activeBarber?.id || '';
 
+  // انتخاب/لغو خدمت — بدون محدودیت تعداد.
+  const toggleService = (id) => {
+    setServiceIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setTimeSlot('');
+  };
+  const totalPrice = services.filter((s) => serviceIds.includes(s.id)).reduce((sum, s) => sum + s.price, 0);
+
   const { register, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
     defaultValues: { customerName: '', customerPhone: '' },
   });
-  const { data: avail, isLoading: loadingSlots } = useAvailability(barberId, dateIso, serviceId, Boolean(barberId && dateIso));
-
-  const isDayDisabled = (jsDate) =>
-    activeBarber ? !activeBarber.workDays.includes(jsDayToPersianIndex(jsDate.getDay())) : false;
+  const { data: avail, isLoading: loadingSlots } = useAvailability(
+    barberId, dateIso, serviceIds.join(','), Boolean(barberId && dateIso && serviceIds.length)
+  );
 
   const onSubmit = async (form) => {
-    if (!serviceId || !barberId || !dateIso || !timeSlot) {
-      toast.error('لطفاً خدمت، تاریخ و ساعت را انتخاب کنید.');
+    if (!serviceIds.length || !barberId || !dateIso || !timeSlot) {
+      toast.error('لطفاً حداقل یک خدمت، تاریخ و ساعت را انتخاب کنید.');
       return;
     }
     try {
-      await createBooking.mutateAsync({ ...form, serviceId, barberId, date: dateIso, timeSlot });
+      await createBooking.mutateAsync({ ...form, serviceIds, barberId, date: dateIso, timeSlot });
       toast.success('نوبت با موفقیت ثبت و تایید شد.');
       reset();
-      setServiceId(''); setDateIso(''); setTimeSlot('');
+      setServiceIds([]); setDateIso(''); setTimeSlot('');
     } catch (e) {
       toast.error(e.message);
     }
@@ -79,18 +83,39 @@ export default function ManualBooking() {
           </Field>
         </div>
 
-        <Field label="خدمت:">
-          <Select value={serviceId} onChange={(e) => { setServiceId(e.target.value); setTimeSlot(''); }}>
-            <option value="">-- انتخاب خدمت --</option>
-            {services.map((s) => <option key={s.id} value={s.id}>{s.name} ({formatPrice(s.price)})</option>)}
-          </Select>
+        <Field label="خدمت (می‌توانید چند مورد انتخاب کنید):">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {services.map((s) => {
+              const selected = serviceIds.includes(s.id);
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => toggleService(s.id)}
+                  className={cn(
+                    'flex items-center gap-2 p-3 rounded-xl border text-right transition-all',
+                    selected ? 'bg-amber-500/10 border-amber-500/40 text-white' : 'bg-zinc-900/40 border-zinc-800 text-zinc-300 hover:border-zinc-700'
+                  )}
+                >
+                  <span className={cn('w-5 h-5 shrink-0 rounded-md border flex items-center justify-center', selected ? 'bg-amber-500 border-amber-500 text-black' : 'border-zinc-600')}>
+                    {selected && <Check className="w-3.5 h-3.5" />}
+                  </span>
+                  <span className="flex-1 text-xs font-bold">{s.name}</span>
+                  <span className="text-[11px] text-amber-500 font-extrabold whitespace-nowrap">{formatPrice(s.price)}</span>
+                </button>
+              );
+            })}
+          </div>
+          {serviceIds.length > 0 && (
+            <div className="mt-2 text-xs text-zinc-400 text-left">جمع: <span className="text-amber-500 font-extrabold">{formatPrice(totalPrice)}</span></div>
+          )}
         </Field>
 
         <Field label="تاریخ حضور:">
-          <JalaliDatePicker value={dateIso} onChange={(iso) => { setDateIso(iso); setTimeSlot(''); }} isDisabled={isDayDisabled} minDate={new Date()} />
+          <DayPicker value={dateIso} onChange={(iso) => { setDateIso(iso); setTimeSlot(''); }} days={14} />
         </Field>
 
-        {barberId && dateIso && (
+        {barberId && dateIso && serviceIds.length > 0 && (
           <Field label="ساعت حضور:">
             {loadingSlots ? (
               <div className="flex items-center gap-2 text-zinc-500 text-xs py-2"><Loader2 className="w-4 h-4 animate-spin" /> بررسی ساعات...</div>

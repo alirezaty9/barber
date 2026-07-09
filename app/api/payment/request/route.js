@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { bookingSchema } from '@/lib/validation';
 import { resolveAvailability } from '@/lib/availability-server';
+import { resolveServices } from '@/lib/services-server';
 import { requestPayment } from '@/lib/zarinpal';
 import { ok, parseBody, conflict, badRequest, serverError, generateBookingCode } from '@/lib/api-helpers';
 
@@ -20,28 +21,22 @@ export async function POST(request) {
   if (response) return response;
 
   try {
-    const serviceId2 = data.serviceId2 || null;
+    // یک یا چند خدمت → مجموع قیمت/مدت و برچسبِ نمایش.
+    const svc = await resolveServices(data.serviceIds);
+    if (svc.error) return badRequest(svc.error);
 
     // پروژه تک‌آرایشگره است: اگر barberId ارسال نشد، تنها آرایشگر انتخاب می‌شود.
     const barberId = data.barberId
       || (await prisma.barber.findFirst({ orderBy: { createdAt: 'asc' }, select: { id: true } }))?.id;
     if (!barberId) return badRequest('آرایشگر معتبری در سیستم ثبت نشده است.');
 
-    const [service, service2] = await Promise.all([
-      prisma.service.findUnique({ where: { id: data.serviceId } }),
-      serviceId2 ? prisma.service.findUnique({ where: { id: serviceId2 } }) : Promise.resolve(null),
-    ]);
-    if (!service) return badRequest('خدمت انتخابی معتبر نیست.');
-    if (serviceId2 && !service2) return badRequest('خدمت دوم انتخابی معتبر نیست.');
-
-    const totalDuration = service.duration + (service2?.duration || 0);
-    const totalPrice = service.price + (service2?.price || 0);
+    const totalPrice = svc.totalPrice;
 
     // موجودی با لحاظ نوبت‌های فعال و بستن‌های زمان (helper مشترک).
     const { error, barber, dayOff, slots } = await resolveAvailability({
       barberId,
       date: data.date,
-      serviceDuration: totalDuration,
+      serviceDuration: svc.totalDuration,
     });
     if (error) return badRequest('آرایشگر معتبری در سیستم ثبت نشده است.');
     if (dayOff) return conflict('آرایشگر در روز انتخاب‌شده مرخصی است.');
@@ -59,8 +54,9 @@ export async function POST(request) {
             code: generateBookingCode(),
             customerName: data.customerName,
             customerPhone: data.customerPhone,
-            serviceId: data.serviceId,
-            serviceId2,
+            serviceId: svc.primaryId,
+            serviceId2: svc.secondId,
+            servicesLabel: svc.label,
             barberId: barber.id,
             date: data.date,
             timeSlot: data.timeSlot,
@@ -77,10 +73,9 @@ export async function POST(request) {
 
     // شروع پرداخت زرین‌پال.
     const base = resolveBaseUrl(request);
-    const serviceNames = [service.name, service2?.name].filter(Boolean).join(' + ');
     const payment = await requestPayment({
       amount: totalPrice,
-      description: `رزرو نوبت ${serviceNames} — کد ${booking.code}`,
+      description: `رزرو نوبت ${svc.label} — کد ${booking.code}`,
       callbackUrl: `${base}/api/payment/verify`,
       mobile: data.customerPhone,
     });

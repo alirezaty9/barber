@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -10,10 +10,6 @@ import { useBarbers, useUpdateBarber } from '@/api/barbers';
 import { Input, Textarea } from '@/components/ui/Input';
 import Field from '@/components/ui/Field';
 import Button from '@/components/ui/Button';
-import { cn } from '@/lib/utils';
-
-const DAY_LABELS = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
-const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
 
 const formSchema = barberSchema.omit({ workDays: true });
 
@@ -24,8 +20,6 @@ export default function ManageBarbers() {
   const barber = barbers[0];
   const updateBarber = useUpdateBarber();
 
-  const [workDays, setWorkDays] = useState(ALL_DAYS);
-
   const { register, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: { name: '', specialty: '', avatar: '', image: '', rating: 5, bio: '' },
@@ -34,17 +28,13 @@ export default function ManageBarbers() {
   // وقتی داده‌ی آرایشگر رسید، فرم را با مقادیرش پر کن.
   useEffect(() => {
     if (!barber) return;
-    setWorkDays(barber.workDays);
     reset({ name: barber.name, specialty: barber.specialty, avatar: barber.avatar, image: barber.image, rating: barber.rating, bio: barber.bio });
   }, [barber?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const toggleDay = (d) =>
-    setWorkDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort((a, b) => a - b)));
 
   const onSubmit = async (data) => {
     if (!barber) return;
     try {
-      await updateBarber.mutateAsync({ id: barber.id, ...data, workDays });
+      await updateBarber.mutateAsync({ id: barber.id, ...data });
       toast.success('پروفایل آرایشگر ذخیره شد.');
     } catch (e) {
       toast.error(e.message);
@@ -88,25 +78,9 @@ export default function ManageBarbers() {
           <Textarea rows={2} placeholder="توضیح کوتاه درباره‌ی آرایشگر..." {...register('bio')} />
         </Field>
 
-        <Field label="روزهای کاری (سبز: کاری / خاکستری: مرخصی):">
-          <div className="flex flex-wrap gap-1.5">
-            {ALL_DAYS.map((d) => (
-              <button
-                type="button"
-                key={d}
-                onClick={() => toggleDay(d)}
-                className={cn(
-                  'px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all border',
-                  workDays.includes(d)
-                    ? 'bg-emerald-950/40 border-emerald-900 text-emerald-400'
-                    : 'bg-zinc-950 border-zinc-900 text-zinc-600'
-                )}
-              >
-                {DAY_LABELS[d]}
-              </button>
-            ))}
-          </div>
-        </Field>
+        <div className="text-[11px] text-zinc-500 leading-relaxed bg-zinc-900/40 border border-zinc-900 rounded-xl p-3">
+          برای بستن روزها یا ساعت‌های تعطیل، از تبِ <span className="text-amber-400 font-bold">«مرخصی و بستن ساعت»</span> استفاده کنید.
+        </div>
 
         <Button type="submit" className="w-full" loading={updateBarber.isPending}>
           <Pencil className="w-4 h-4" /> ذخیره تغییرات
