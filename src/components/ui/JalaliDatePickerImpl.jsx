@@ -17,18 +17,32 @@ function toIso(dateObject) {
 
 /**
  * انتخابگر تاریخ شمسی (جلالی) با نمایش/ناوبری ماه و غیرفعال‌کردن روزهای مرخصی.
- * @param {string} value تاریخ ISO فعلی
- * @param {(iso:string)=>void} onChange
- * @param {(jsDate:Date)=>boolean} isDisabled روزهایی که باید غیرفعال شوند
+ * محدوده‌ی تاریخ پارامتری است: رزرو از امروز تا +۷ روز محدود می‌شود، ولی فیلتر گزارش
+ * می‌تواند بدون محدودیت (شامل گذشته) باشد.
+ * @param {object} p
+ * @param {string} p.value تاریخ ISO فعلی
+ * @param {(iso:string)=>void} p.onChange
+ * @param {(jsDate:Date)=>boolean} [p.isDisabled] روزهایی که باید غیرفعال شوند
+ * @param {Date|null} [p.minDate] حداقل تاریخ مجاز (null = بدون محدودیت)
+ * @param {Date|null} [p.maxDate] حداکثر تاریخ مجاز (null = بدون محدودیت)
+ * @param {string} [p.placeholder] متن دکمه وقتی تاریخی انتخاب نشده
  */
-export default function JalaliDatePicker({ value, onChange, isDisabled }) {
+export default function JalaliDatePicker({
+  value,
+  onChange,
+  isDisabled,
+  minDate,
+  maxDate,
+  placeholder = 'برای انتخاب روز کلیک کنید',
+}) {
   return (
     <DatePicker
       calendar={persian}
       locale={persian_fa}
       value={value ? new Date(value) : null}
       onChange={(d) => onChange(toIso(d))}
-      minDate={new Date()}
+      minDate={minDate ?? undefined}
+      maxDate={maxDate ?? undefined}
       format="dddd D MMMM YYYY"
       calendarPosition="bottom-right"
       portal
@@ -46,7 +60,7 @@ export default function JalaliDatePicker({ value, onChange, isDisabled }) {
           onClick={openCalendar}
           className="w-full flex items-center justify-between gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-200 hover:border-zinc-700 transition-colors"
         >
-          <span className={val ? 'text-zinc-100' : 'text-zinc-500'}>{val || 'برای انتخاب روز کلیک کنید'}</span>
+          <span className={val ? 'text-zinc-100' : 'text-zinc-500'}>{val || placeholder}</span>
           <CalendarIcon className="w-4 h-4 text-amber-500" />
         </button>
       )}

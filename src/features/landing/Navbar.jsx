@@ -19,8 +19,7 @@ export default function Navbar() {
   const links = [
     { href: '#hero', label: 'خانه' },
     { href: '#services', label: 'خدمات' },
-    { href: '#barbers', label: 'آرایشگران' },
-    { href: '#reviews', label: 'نظرات مشتریان' },
+    { href: '#contact', label: 'ارتباط با ما' },
   ];
 
   return (
@@ -38,8 +37,8 @@ export default function Navbar() {
           <div className="p-2 bg-gradient-to-br from-amber-500 to-amber-700 rounded-lg shadow-lg">
             <Scissors className="w-5 h-5 text-black" />
           </div>
-          <span className="font-sans font-bold text-xl tracking-wider text-amber-500">
-            پیرایش <span className="text-zinc-100">رویال</span>
+          <span dir="ltr" className="font-sans font-bold text-xl tracking-wider text-amber-500">
+            banad <span className="text-zinc-100">barber</span>
           </span>
         </div>
 

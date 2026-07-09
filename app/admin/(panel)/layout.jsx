@@ -3,7 +3,7 @@ import AdminNav from '@/features/admin/AdminNav';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'پنل مدیریت | پیرایش رویال',
+  title: 'پنل مدیریت | banad barber',
 };
 
 // این layout فقط صفحات محافظت‌شده‌ی پنل را در بر می‌گیرد؛ صفحه‌ی /admin/login خارج از

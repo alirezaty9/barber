@@ -3,8 +3,6 @@ import { serializeBarbers } from '@/lib/serializers';
 import Navbar from '@/features/landing/Navbar';
 import LandingHero from '@/features/landing/LandingHero';
 import ServicesSection from '@/features/landing/ServicesSection';
-import BarbersSection from '@/features/landing/BarbersSection';
-import ReviewsSection from '@/features/landing/ReviewsSection';
 import Footer from '@/features/landing/Footer';
 import BookingLauncher from '@/features/booking/BookingLauncher';
 
@@ -14,10 +12,9 @@ import BookingLauncher from '@/features/booking/BookingLauncher';
 export const revalidate = 300;
 
 export default async function Home() {
-  const [services, barbersRaw, reviews] = await Promise.all([
+  const [services, barbersRaw] = await Promise.all([
     prisma.service.findMany({ orderBy: { createdAt: 'asc' } }),
     prisma.barber.findMany({ orderBy: { createdAt: 'asc' } }),
-    prisma.review.findMany({ orderBy: { createdAt: 'desc' } }),
   ]);
   const barbers = serializeBarbers(barbersRaw);
 
@@ -26,8 +23,6 @@ export default async function Home() {
       <Navbar />
       <LandingHero />
       <ServicesSection services={services} />
-      <BarbersSection barbers={barbers} />
-      <ReviewsSection reviews={reviews} />
       <Footer />
 
       {/* مودال رزرو — با Zustand کنترل می‌شود و داده‌ها را خودش از API می‌گیرد */}

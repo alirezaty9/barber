@@ -94,7 +94,7 @@ export default function ManualBooking() {
         </div>
 
         <Field label="تاریخ حضور:">
-          <JalaliDatePicker value={dateIso} onChange={(iso) => { setDateIso(iso); setTimeSlot(''); }} isDisabled={isDayDisabled} />
+          <JalaliDatePicker value={dateIso} onChange={(iso) => { setDateIso(iso); setTimeSlot(''); }} isDisabled={isDayDisabled} minDate={new Date()} />
         </Field>
 
         {barberId && dateIso && (

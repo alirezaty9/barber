@@ -19,7 +19,7 @@ const lalezar = Lalezar({
 });
 
 export const metadata = {
-  title: 'پیرایش رویال | رزرو آنلاین نوبت آرایشگاه',
+  title: 'banad barber | رزرو آنلاین نوبت آرایشگاه',
   description: 'سامانه رزرو آنلاین نوبت آرایشگاه با تم دارک مینیمال و پنل مدیریت مدرن',
 };
 

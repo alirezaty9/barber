@@ -68,6 +68,7 @@ export async function POST(request) {
 
     // مدت‌زمان کل = مجموع مدت هر دو خدمت (برای محاسبه‌ی صحیح اشغال زمان).
     const totalDuration = service.duration + (service2?.duration || 0);
+    const totalPrice = service.price + (service2?.price || 0);
 
     // نوبت‌های فعالِ همان آرایشگر در همان روز
     const existing = await prisma.booking.findMany({
@@ -114,6 +115,9 @@ export async function POST(request) {
             date: data.date,
             timeSlot: data.timeSlot,
             status,
+            // رزرو دستیِ ادمین ⇒ پرداخت حضوری/نقدی (paid)؛ در غیر این صورت unpaid.
+            amount: totalPrice,
+            paymentStatus: admin ? 'paid' : 'unpaid',
           },
           include: { service: true, service2: true, barber: true },
         });

@@ -37,7 +37,7 @@ export default function AdminNav() {
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-base font-extrabold text-white">پنل مدیریت رویال</h1>
+            <h1 className="text-base font-extrabold text-white">پنل مدیریت banad barber</h1>
             <p className="text-[10px] text-zinc-500">مدیریت نوبت‌ها، خدمات و آرایشگران</p>
           </div>
         </div>

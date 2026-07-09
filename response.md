@@ -1,113 +1,70 @@
 <div dir="rtl" align="right">
 
-![لوکال کانفیگ](https://img.shields.io/badge/%DA%A9%D8%A7%D9%86%D9%81%DB%8C%DA%AF%20%D9%84%D9%88%DA%A9%D8%A7%D9%84-%E2%9C%85%20%D8%AF%D8%B1%D8%B3%D8%AA%20(5432)-brightgreen) ![Vercel](https://img.shields.io/badge/Vercel-%D9%86%DB%8C%D8%A7%D8%B2%20%D8%A8%D9%87%20%DB%B2%20%D9%82%D8%AF%D9%85-orange) ![گیت](https://img.shields.io/badge/%D8%B1%D9%85%D8%B2%D9%87%D8%A7-%D8%A7%D9%85%D9%86-success)
+![پرداخت تستی](https://img.shields.io/badge/%D9%BE%D8%B1%D8%AF%D8%A7%D8%AE%D8%AA%20%D9%81%DB%8C%DA%A9-%E2%9C%85%20%DA%A9%D8%A7%D8%B1%20%D9%85%DB%8C%E2%80%8C%DA%A9%D9%86%D8%AF-2f9e44) ![نقشه](https://img.shields.io/badge/%D9%86%D9%82%D8%B4%D9%87-%D9%85%D8%AE%D8%AA%D8%B5%D8%A7%D8%AA%20%D8%AF%D9%82%DB%8C%D9%82-1c7ed6) ![خدمات](https://img.shields.io/badge/%D8%A7%D9%86%D8%AA%D8%AE%D8%A7%D8%A8%20%D8%AE%D8%AF%D9%85%D8%A7%D8%AA-%D9%86%D8%A7%D9%85%D8%AD%D8%AF%D9%88%D8%AF-success)
 
-# 🎯 «الان همه‌چی درسته؟» — جواب صادقانه + کارِ باقی‌مانده
+# 🎯 اصلاحات دور جدید — گزارش کامل
 
-## ✅ چیزی که تأیید شد
-- پورت دیتابیس لوکال: **5432** ✅
-- دیتابیس `barber` روی لوکال ساخته شده ✅
-- پس **کانفیگ فایلِ لوکال ۱۰۰٪ درست است** و نیازی به تغییر `.env` نیست.
-
-> ⚠️ اما **هنوز کامل آماده‌ی کار نیست.** پیکربندی فایل‌ها تمام است، ولی دو کارِ **داده‌ای** مانده که فقط تو (روی سیستم/داشبورد) می‌توانی انجام دهی. جدول‌ها و داده‌ها خودشان ساخته نمی‌شوند.
+<div style="background:#ebfbee;border-right:4px solid #2f9e44;color:#14532d;padding:8px 12px;border-radius:6px">✅ همه انجام شد. این دور <b>تغییر دیتابیس نداشت</b>، فقط قیمت‌ها عوض شد؛ پس کافی است <code>npm run db:seed</code> را بزنی (نیازی به db push نیست).</div>
 
 ---
 
-## 📊 وضعیت دقیق الان
+## 💳 خطای پرداخت حل شد — «پرداخت فیک» فعال شد
 
-| بخش | آماده؟ | کارِ مانده |
-|---|:---:|---|
-| کانفیگ لوکال (`.env` + پورت) | ✅ | — |
-| جدول‌ها و دیتای **لوکال** | ❌ | `prisma db push` + `db:seed` |
-| کانفیگ فایل‌های پروژه برای Vercel | ✅ | — |
-| متغیرهای محیطی روی **Vercel** | ❌ | ست در داشبورد Vercel |
-| جدول‌ها و دیتای **Supabase (آنلاین)** | ❌ | یک‌بار push + seed به Supabase |
+<div style="background:#e7f5ff;border-right:4px solid #1c7ed6;color:#0b3d66;padding:8px 12px;border-radius:6px">ℹ️ خطای «شناسه‌ی پذیرنده تنظیم نشده است» دیگر رخ نمی‌دهد.</div>
+
+- حالا وقتی `ZARINPAL_MERCHANT_ID` خالی باشد، سیستم وارد **حالت پرداخت تستی/فیک** می‌شود:
+  - یک پرداختِ **شبیه‌سازی‌شده‌ی موفق** انجام می‌شود و مستقیم به صفحه‌ی نتیجه با کد رهگیری برمی‌گردی.
+  - هیچ پول واقعی جابه‌جا نمی‌شود؛ کل جریان رزرو → پرداخت → نتیجه قابل تست است.
+- به‌محض اینکه Merchant ID واقعی را در `.env` بگذاری، خودکار به درگاه واقعی زرین‌پال سوییچ می‌کند.
 
 ---
 
-## 🖥️ بخش ۱) لوکال را کامل کن
+## ✂️ خدمات آرایشی
 
-در پوشه‌ی پروژه:
+- **بدون محدودیت انتخاب:** دیگر سقف ۲ خدمت نیست؛ هر تعداد که بخواهی انتخاب می‌شود.
+- **بدون تب دسته‌بندی:** تب‌های «همه/هیرکات/…» حذف شدند.
+- **هر خدمت در یک سطر:** همه‌ی خدمات به‌صورت کارت‌های ردیفی (عکس + جزئیات) نمایش داده می‌شوند.
+- **کلیک روی هر خدمت → مرحله‌ی اول رزرو:** ویزارد از **مرحله‌ی انتخاب خدمت** باز می‌شود و همان خدمت از پیش تیک خورده تا بتوانی موارد بیشتری هم اضافه کنی.
+
+### قیمت‌های اصلاح‌شده
+| خدمت | قیمت |
+|------|------|
+| هیرکات | **۱٬۰۰۰٬۰۰۰ تومان** |
+| ریش | **۵۰۰٬۰۰۰ تومان** |
+| استایل | **۵۰۰٬۰۰۰ تومان** |
+
+---
+
+## 🗺️ نقشه با مختصات دقیق
+
+- نقشه دقیقاً روی مختصات **۳۵٫۸۱۱۷۰۶ , ۵۰٫۹۰۳۳۸۶** پین شد.
+- دکمه‌ی **«مسیریابی روی نقشه»** اضافه شد (باز کردن Google Maps Directions به همان نقطه).
+- آدرس متنی حفظ شد: مهرشهر، بلوار ارم، نبش خیابان ۱۰۰ غربی، ساختمان آناهیتا، طبقه ۳، واحد ۱۲.
+
+---
+
+## 🔎 صفحه‌ی رهگیری نوبت
+- **نام آرایشگر حذف شد** (چون فقط یک آرایشگر داری).
+- اگر نوبتی مسترد شده باشد، **مبلغ بازگشتی** نمایش داده می‌شود.
+- برند به `banad barber` اصلاح شد.
+
+---
+
+## 🏷️ یکدست‌سازی برند
+تمام «پیرایش رویال»‌های باقی‌مانده به `banad barber` تغییر کردند: تایتل سایت (تب مرورگر)، تایتل پنل، و صفحه‌ی ورود ادمین.
+
+---
+
+## 📌 قدم لازم روی سیستم تو
 ```bash
-npx prisma db push     # ساخت جدول‌ها روی دیتابیس barber لوکال
-npm run db:seed        # ریختن داده‌ی نمونه (آرایشگرها/خدمات/…)
-npm run dev            # اجرا → http://localhost:3000
+npm run db:seed     # اعمال قیمت‌های جدید (۱٬۰۰۰٬۰۰۰ و ۵۰۰٬۰۰۰)
+npm run dev
 ```
-✅ بعد از این، لوکال با داده بالا می‌آید — بدون VPN.
+سپس یک رزرو تستی بزن: چند خدمت انتخاب کن → روز/ساعت → «پرداخت و رزرو نوبت» → پرداخت فیک موفق → صفحه‌ی نتیجه با کد رهگیری. ✅
 
 ---
 
-## ☁️ بخش ۲) Vercel + دیتابیس آنلاین (Supabase) را کامل کن
-
-### قدم ۱ — جدول‌ها و داده را روی Supabase بساز (یک‌بار، بدون دست‌زدن به `.env`)
-متغیرِ جلوی دستور، مقدار `.env` را **موقتاً** override می‌کند؛ پس `.env` لوکال دست‌نخورده می‌ماند:
-
-```bash
-# ساخت جدول‌ها روی Supabase
-DATABASE_URL="postgresql://postgres.wjbnictowdjcqhivhkbl:Rj7JAMPHkyJZOWMG@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1" \
-DIRECT_URL="postgresql://postgres.wjbnictowdjcqhivhkbl:Rj7JAMPHkyJZOWMG@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres" \
-npx prisma db push
-```
-
-```bash
-# (اختیاری) ریختن داده‌ی نمونه روی Supabase
-DATABASE_URL="postgresql://postgres.wjbnictowdjcqhivhkbl:Rj7JAMPHkyJZOWMG@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1" \
-DIRECT_URL="postgresql://postgres.wjbnictowdjcqhivhkbl:Rj7JAMPHkyJZOWMG@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres" \
-npm run db:seed
-```
-
-### قدم ۲ — ۴ متغیر را در Vercel ست کن
-مسیر: **Vercel → پروژه → Settings → Environment Variables** (برای هر سه محیط Production/Preview/Development تیک بزن):
-
-| نام | مقدار |
-|---|---|
-| `DATABASE_URL` | `postgresql://postgres.wjbnictowdjcqhivhkbl:Rj7JAMPHkyJZOWMG@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1` |
-| `DIRECT_URL` | `postgresql://postgres.wjbnictowdjcqhivhkbl:Rj7JAMPHkyJZOWMG@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres` |
-| `ADMIN_PASSWORD` | `admin` |
-| `SESSION_SECRET` | `pkud3Lk34rxY5PItvpnzTIC5pg1dDBJYJMC8CT4p4AY=` |
-
-### قدم ۳ — دیپلوی
-```bash
-git add -A && git commit -m "setup local + prod db" && git push
-```
-یا در Vercel دکمه‌ی **Redeploy** را بزن. بیلد خودش `prisma generate` (از `postinstall`) و `next build` را اجرا می‌کند.
-
----
-
-## 🔐 گیت — چی می‌رود، چی نمی‌رود (خلاصه)
-
-| فایل | در گیت؟ |
-|---|:---:|
-| `.env.example` | ✅ (بدون رمز) |
-| `.env` | ❌ (رمزهای لوکال) |
-| `*.db`, `node_modules/`, `.next/` | ❌ |
-
-> رمز Supabase فقط در `.env` لوکال و در داشبورد Vercel است؛ **هیچ‌وقت به گیت نمی‌رود.**
-
----
-
-## 📝 تصمیم‌ها (مزایا/معایب، شماره‌دار)
-
-### ۱) push به Supabase با متغیر جلوی دستور (به‌جای ویرایش `.env`)
-- **خوبی‌ها:** `.env` لوکال دست‌نخورده می‌ماند؛ خطای «یادم رفت برگردانم» صفر می‌شود.
-- **بدی‌ها:** دستور طولانی است.
-- **چرا این:** امن‌ترین راه؛ ریسک اجرای اشتباهی روی محیط اشتباه را حذف می‌کند.
-
-### ۲) seed روی Supabase «اختیاری»
-- **خوبی‌ها:** اگر می‌خواهی سایت آنلاین از ابتدا داده داشته باشد، بزنش.
-- **بدی‌ها:** اگر بعداً از پنل ادمین داده وارد می‌کنی، seed تکراری می‌شود.
-- **چرا اختیاری:** بستگی به این دارد که داده‌ی اولیه می‌خواهی یا خالی شروع می‌کنی.
-
-### ۳) هر دو URL (pooled + direct) روی Vercel
-- **خوبی‌ها:** `DATABASE_URL` پولد برای زمان اجرا (سریع، سازگار با Serverless)، `DIRECT_URL` برای migrate.
-- **بدی‌ها:** باید دو مقدار ست شود نه یکی.
-- **چرا این:** الگوی رسمی Supabase + Prisma؛ بدون `DIRECT_URL` مهاجرت‌ها روی Vercel می‌شکنند.
-
----
-
-## 📌 جمع‌بندی: «الان درسته؟»
-- **کانفیگ‌ها:** بله، آماده ✅
-- **کار عملی مانده:** (۱) لوکال: `db push`+`seed`+`dev` — (۲) آنلاین: push+seed به Supabase، ست ۴ متغیر Vercel، redeploy.
-- این‌ها را فقط خودت می‌توانی بزنی (Postgres و داشبورد Vercel روی دسترسی من نیستند). هر جا خطا خوردی، همان خطا را بفرست تا رفعش کنم.
+## 📂 فایل‌های این دور
+`zarinpal.js` (حالت فیک) · `prisma/seed.js` (قیمت‌ها) · `ServicesSection.jsx` (بازنویسی) · `BookingWizard.jsx` (نامحدود + شروع از مرحله ۱) · `Footer.jsx` (مختصات نقشه) · `track/page.jsx` · `layout.jsx` · `admin/(panel)/layout.jsx` · `admin/login/page.jsx`.
 
 </div>

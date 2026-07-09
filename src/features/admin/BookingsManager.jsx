@@ -6,7 +6,7 @@ import { Filter, Search, CheckCircle, XCircle, Trash2, AlertCircle, ChevronRight
 import { useBookings, useUpdateBookingStatus, useDeleteBooking } from '@/api/bookings';
 import { useBarbers } from '@/api/barbers';
 import { toPersianDigits, formatJalaliDate, formatPrice } from '@/lib/persian';
-import { STATUS_LABELS } from '@/lib/constants';
+import { STATUS_LABELS, PAYMENT_LABELS } from '@/lib/constants';
 import { confirm } from '@/components/ui/confirm';
 import Select from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
@@ -17,6 +17,13 @@ const STATUS_STYLES = {
   pending: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
   confirmed: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
   cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
+};
+
+const PAYMENT_STYLES = {
+  paid: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  unpaid: 'bg-zinc-700/20 text-zinc-400 border-zinc-700/40',
+  failed: 'bg-red-500/10 text-red-400 border-red-500/20',
+  refunded: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
 };
 
 const BORDER = {
@@ -127,11 +134,22 @@ export default function BookingsManager() {
                 <p>{formatJalaliDate(b.date, { weekday: 'long', day: 'numeric', month: 'short' })}</p>
                 <p className="font-bold text-zinc-200 mt-1">ساعت {toPersianDigits(b.timeSlot)}</p>
                 <p className="font-mono text-[10px] text-zinc-600 mt-0.5">{b.code}</p>
+                {b.paymentRefId && (
+                  <p className="font-mono text-[10px] text-zinc-600 mt-0.5">کد پرداخت: {toPersianDigits(b.paymentRefId)}</p>
+                )}
+                {b.refundAmount > 0 && (
+                  <p className="text-[10px] text-sky-400 mt-0.5">
+                    مسترد: {formatPrice(b.refundAmount)} {b.cancelledBy === 'admin' ? '(توسط مدیریت)' : '(توسط مشتری)'}
+                  </p>
+                )}
               </div>
 
-              <div className="lg:col-span-1 lg:text-center">
+              <div className="lg:col-span-1 lg:text-center flex flex-row lg:flex-col items-center lg:items-center gap-1.5">
                 <span className={cn('px-2.5 py-1 rounded-full text-[10px] font-bold border whitespace-nowrap', STATUS_STYLES[b.status])}>
                   {STATUS_LABELS[b.status]}
+                </span>
+                <span className={cn('px-2.5 py-1 rounded-full text-[10px] font-bold border whitespace-nowrap', PAYMENT_STYLES[b.paymentStatus] || PAYMENT_STYLES.unpaid)}>
+                  {PAYMENT_LABELS[b.paymentStatus] || PAYMENT_LABELS.unpaid}
                 </span>
               </div>
 

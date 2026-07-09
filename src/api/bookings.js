@@ -39,6 +39,13 @@ export function useCreateBooking() {
   });
 }
 
+// شروع پرداخت آنلاین (مشتری) — رزرو موقت ساخته و آدرس درگاه زرین‌پال برگردانده می‌شود.
+export function useRequestPayment() {
+  return useMutation({
+    mutationFn: (data) => http('/api/payment/request', { method: 'POST', body: JSON.stringify(data) }),
+  });
+}
+
 // تغییر وضعیت نوبت (ادمین)
 export function useUpdateBookingStatus() {
   const qc = useQueryClient();

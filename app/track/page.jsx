@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { Search, Scissors, Calendar, Clock, User, Scissors as ScissorsIcon, XCircle } from 'lucide-react';
 import { lookupSchema } from '@/lib/validation';
 import { lookupBooking, cancelBooking } from '@/api/bookings';
-import { toPersianDigits, formatJalaliDate } from '@/lib/persian';
+import { toPersianDigits, formatJalaliDate, formatPrice } from '@/lib/persian';
 import { STATUS_LABELS } from '@/lib/constants';
 import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -71,8 +71,8 @@ export default function TrackPage() {
           <div className="p-2.5 bg-gradient-to-br from-amber-500 to-amber-700 rounded-lg shadow-lg">
             <Scissors className="w-5 h-5 text-black" />
           </div>
-          <span className="font-sans font-extrabold text-xl tracking-wider text-amber-500">
-            پیرایش <span className="text-white">رویال</span>
+          <span dir="ltr" className="font-sans font-extrabold text-xl tracking-wider text-amber-500">
+            banad <span className="text-white">barber</span>
           </span>
         </Link>
 
@@ -127,8 +127,10 @@ export default function TrackPage() {
                     [booking.service, booking.service2].filter(Boolean).map((s) => s.name).join(' + ') || 'نامشخص'
                   }
                 />
-                <Row icon={User} label="آرایشگر" value={booking.barber?.name || 'نامشخص'} />
                 <Row icon={User} label="مشتری" value={booking.customerName} />
+                {booking.refundAmount > 0 && (
+                  <Row icon={ScissorsIcon} label="مبلغ بازگشتی" value={formatPrice(booking.refundAmount)} />
+                )}
 
                 {booking.status !== 'cancelled' && (
                   <Button

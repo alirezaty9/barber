@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { normalizeDigits } from './persian';
 
-export const CATEGORIES = ['hair', 'beard', 'grooming', 'groom', 'combo'];
+export const CATEGORIES = ['hair', 'beard', 'grooming', 'groom', 'combo', 'style'];
 export const STATUSES = ['pending', 'confirmed', 'cancelled'];
 
 // شماره‌ی موبایل: ابتدا ارقام فارسی/عربی به انگلیسی نرمال می‌شود، سپس اعتبارسنجی.

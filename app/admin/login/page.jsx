@@ -40,8 +40,8 @@ export default function AdminLoginPage() {
         <div className="p-2.5 bg-gradient-to-br from-amber-500 to-amber-700 rounded-lg shadow-lg">
           <Scissors className="w-5 h-5 text-black" />
         </div>
-        <span className="font-sans font-extrabold text-xl tracking-wider text-amber-500">
-          پیرایش <span className="text-white">رویال</span>
+        <span dir="ltr" className="font-sans font-extrabold text-xl tracking-wider text-amber-500">
+          banad <span className="text-white">barber</span>
         </span>
       </Link>
 

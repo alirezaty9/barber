@@ -15,7 +15,7 @@ export default function BookingLauncher({ services, barbers }) {
       open={open}
       onOpenChange={(o) => !o && close()}
       title="رزرو نوبت"
-      description="انتخاب خدمت، آرایشگر، زمان و ثبت اطلاعات تماس"
+      description="انتخاب خدمت، زمان، ثبت اطلاعات تماس و پرداخت"
     >
       {open && <BookingWizard key="wizard" services={services} barbers={barbers} onClose={close} />}
     </Modal>

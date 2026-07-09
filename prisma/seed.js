@@ -4,46 +4,24 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
+// تنها آرایشگرِ مجموعه (پروژه تک‌آرایشگره است؛ مشتری آرایشگر انتخاب نمی‌کند).
 const BARBERS = [
   {
     id: 'b1',
-    name: 'سهراب امینی',
-    specialty: 'متخصص هیرکات مدرن و فید',
+    name: 'استاد بند',
+    specialty: 'هیرکات، ریش و استایل تخصصی',
     avatar: '/images/barber-b1-avatar.jpg',
     rating: 4.9,
-    bio: 'سهراب با بیش از ۸ سال تجربه در زمینه انواع هیرکات‌های مدرن و استایل‌های ژورنالی، تخصص ویژه‌ای در اجرای فید‌های دقیق و کارهای خلاقانه دارد.',
+    bio: 'با بیش از ۸ سال تجربه در انواع هیرکات‌های مدرن، طراحی ریش و استایل‌های ژورنالی؛ تمرکز بر ظرافت، دقت و رضایت کامل مشتری.',
     image: '/images/barber-b1.jpg',
-    workDays: '0,1,2,3,4,6',
-  },
-  {
-    id: 'b2',
-    name: 'آرش راد',
-    specialty: 'استایلیست کلاسیک و گریم تخصصی',
-    avatar: '/images/barber-b2-avatar.jpg',
-    rating: 4.8,
-    bio: 'آرش استاد اجرای مدل‌های کلاسیک، قیچی‌کاری‌های حرفه‌ای و گریم داماد است. ظرافت و حوصله در کار، امضای اوست.',
-    image: '/images/barber-b2.jpg',
-    workDays: '0,1,2,4,5',
-  },
-  {
-    id: 'b3',
-    name: 'کیان مهرزاد',
-    specialty: 'طراح ریش و خط زن حرفه‌ای',
-    avatar: '/images/barber-b3-avatar.jpg',
-    rating: 4.95,
-    bio: 'اگر به دنبال یک استایل ریش بی‌نقص و طراحی متناسب با آناتومی صورت خود هستید، کیان با اصلاح‌های گرم با حوله داغ بهترین انتخاب شماست.',
-    image: '/images/barber-b3.jpg',
-    workDays: '0,1,2,3,4,5',
+    workDays: '0,1,2,3,4,5,6',
   },
 ];
 
 const SERVICES = [
-  { id: 's1', name: 'اصلاح مو مدرن (هیرکات و فید)', price: 320000, duration: 45, description: 'شستشو با شامپوی حرفه‌ای، اصلاح مو متناسب با آناتومی چهره، سشوار و حالت‌دهی با محصولات پریمیوم.', category: 'hair' },
-  { id: 's2', name: 'اصلاح و طراحی ریش مدرن', price: 180000, duration: 30, description: 'اصلاح کلاسیک با حوله داغ، استفاده از روغن ریش لوکس، طراحی دقیق خط ریش و فرم‌دهی متناسب با مو.', category: 'beard' },
-  { id: 's3', name: 'پکیج رویال (هیرکات + ریش + گریم صورت)', price: 650000, duration: 90, description: 'کامل‌ترین خدمات شامل هیرکات مدرن، اصلاح ریش، پاکسازی و ماسک حبابی صورت، ماساژ سر و ریلکسیشن شانه.', category: 'combo' },
-  { id: 's4', name: 'پاکسازی و آبرسانی پوست', price: 250000, duration: 45, description: 'لایه‌برداری عمیق پوست، از بین بردن جوش‌های سرسیاه، آبرسانی با بخور سرد و ماسک ورقه‌ای مغذی پوست.', category: 'grooming' },
-  { id: 's5', name: 'اصلاح مو کلاسیک قیچی', price: 280000, duration: 40, description: 'اصلاح کامل سنتی فقط با قیچی و شانه بدون استفاده از ماشین، همراه با ماساژ و شستشو.', category: 'hair' },
-  { id: 's6', name: 'گریم داماد', price: 850000, duration: 120, description: 'پکیج کامل آراستگی داماد در روز مراسم: اصلاح و حالت‌دهی مو، پیرایش و فرم‌دهی ریش، پاکسازی و گریم تخصصی صورت و آماده‌سازی نهایی ظاهر.', category: 'groom' },
+  { id: 's1', name: 'هیرکات', price: 1000000, duration: 45, description: 'شستشو با شامپوی حرفه‌ای، اصلاح مو متناسب با آناتومی چهره، سشوار و حالت‌دهی با محصولات پریمیوم.', category: 'hair' },
+  { id: 's2', name: 'ریش', price: 500000, duration: 30, description: 'اصلاح و طراحی ریش با حوله داغ، استفاده از روغن ریش لوکس، طراحی دقیق خط ریش و فرم‌دهی متناسب با مو.', category: 'beard' },
+  { id: 's3', name: 'استایل', price: 500000, duration: 60, description: 'حالت‌دهی و استایل تخصصی مو با جدیدترین متدها و محصولات روز دنیا، متناسب با فرم چهره و سلیقه شما.', category: 'style' },
 ];
 
 const REVIEWS = [
@@ -73,10 +51,10 @@ async function main() {
   const tomorrow = dateStr(1);
 
   const bookings = [
-    { code: 'BK1001', customerName: 'رضا علوی', customerPhone: '09121112233', serviceId: 's1', barberId: 'b1', date: today, timeSlot: '11:00', status: 'confirmed' },
-    { code: 'BK1002', customerName: 'محمد احمدی', customerPhone: '09194445566', serviceId: 's2', barberId: 'b3', date: today, timeSlot: '14:00', status: 'confirmed' },
-    { code: 'BK1003', customerName: 'سامان کریمی', customerPhone: '09107778899', serviceId: 's3', barberId: 'b2', date: tomorrow, timeSlot: '16:00', status: 'pending' },
-    { code: 'BK1004', customerName: 'مهران شکیبا', customerPhone: '09351234567', serviceId: 's4', barberId: 'b1', date: tomorrow, timeSlot: '18:00', status: 'pending' },
+    { code: 'BK1001', customerName: 'رضا علوی', customerPhone: '09121112233', serviceId: 's1', barberId: 'b1', date: today, timeSlot: '11:00', status: 'confirmed', amount: 1000000, paymentStatus: 'paid', paymentRefId: '100001' },
+    { code: 'BK1002', customerName: 'محمد احمدی', customerPhone: '09194445566', serviceId: 's2', barberId: 'b1', date: today, timeSlot: '14:00', status: 'confirmed', amount: 500000, paymentStatus: 'paid', paymentRefId: '100002' },
+    { code: 'BK1003', customerName: 'سامان کریمی', customerPhone: '09107778899', serviceId: 's3', barberId: 'b1', date: tomorrow, timeSlot: '16:00', status: 'pending', amount: 500000, paymentStatus: 'paid', paymentRefId: '100003' },
+    { code: 'BK1004', customerName: 'مهران شکیبا', customerPhone: '09351234567', serviceId: 's1', barberId: 'b1', date: tomorrow, timeSlot: '18:00', status: 'pending', amount: 1000000, paymentStatus: 'paid', paymentRefId: '100004' },
   ];
   for (const bk of bookings) await prisma.booking.create({ data: bk });
 

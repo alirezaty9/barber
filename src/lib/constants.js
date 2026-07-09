@@ -17,15 +17,23 @@ export const TIME_SLOTS = [
 export const SLOT_STEP_MIN = 60;
 
 export const CATEGORY_LABELS = {
-  hair: 'اصلاح مو',
-  beard: 'اصلاح ریش',
+  hair: 'هیرکات',
+  beard: 'ریش',
   grooming: 'پاکسازی و گریم',
   groom: 'گریم داماد',
   combo: 'پکیج ویژه',
+  style: 'استایل',
 };
 
 export const STATUS_LABELS = {
   pending: 'منتظر تایید',
   confirmed: 'تایید شده',
   cancelled: 'لغو شده',
+};
+
+export const PAYMENT_LABELS = {
+  unpaid: 'پرداخت‌نشده',
+  paid: 'پرداخت‌شده',
+  failed: 'ناموفق',
+  refunded: 'مسترد شده',
 };

@@ -52,3 +52,20 @@ export function generateBookingCode() {
   const rand = Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
   return `BK${rand}`;
 }
+
+/**
+ * محاسبه‌ی patch لغو نوبت + استرداد.
+ * قاعده: اگر «مشتری» لغو کند ۵۰٪ و اگر «ادمین/آرایشگر» لغو کند ۱۰۰٪ مبلغِ پرداخت‌شده مسترد می‌شود.
+ * فقط نوبت‌های «پرداخت‌شده» مشمول استرداد هستند.
+ * @param {{paymentStatus:string, amount:number}} booking
+ * @param {'customer'|'admin'} cancelledBy
+ */
+export function buildCancelPatch(booking, cancelledBy) {
+  const patch = { status: 'cancelled', cancelledBy };
+  if (booking.paymentStatus === 'paid' && booking.amount > 0) {
+    const ratio = cancelledBy === 'admin' ? 1 : 0.5;
+    patch.paymentStatus = 'refunded';
+    patch.refundAmount = Math.floor(booking.amount * ratio);
+  }
+  return patch;
+}

@@ -53,6 +53,14 @@ model Booking {
   date          String // YYYY-MM-DD (میلادی؛ نمایش به کاربر جلالی است)
   timeSlot      String // HH:MM
   status        String   @default("pending") // pending | confirmed | cancelled
+  // فیلدهای پرداخت آنلاین (زرین‌پال)
+  amount           Int     @default(0)        // مبلغ کل (تومان) اسنپ‌شات هنگام رزرو
+  paymentStatus    String  @default("unpaid") // unpaid | paid | failed | refunded
+  paymentAuthority String?                    // Authority زرین‌پال برای یافتن رزرو در callback
+  paymentRefId     String?                    // کد پیگیری زرین‌پال بعد از verify موفق
+  // استرداد در صورت لغو: مشتری ۵۰٪ برمی‌گردد، آرایشگر(ادمین) ۱۰۰٪.
+  cancelledBy      String?                    // customer | admin — لغوکننده
+  refundAmount     Int     @default(0)        // مبلغ مستردشده (تومان)
   createdAt     DateTime @default(now())
 
   @@index([barberId, date])
