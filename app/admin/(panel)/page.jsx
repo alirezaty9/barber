@@ -1,10 +1,11 @@
 import { prisma } from '@/lib/db';
-import { Wallet, CalendarDays, CalendarRange, TrendingUp, Coins, Clock, Scissors, Hourglass, Receipt } from 'lucide-react';
+import { TrendingUp, Hourglass, Receipt, Clock, Scissors, XCircle } from 'lucide-react';
 import { formatPrice, toPersianDigits, formatJalaliDate } from '@/lib/persian';
 import { servicesLabelOf } from '@/lib/serializers';
 import { TIME_SLOTS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import DashboardPeriod from '@/features/admin/DashboardPeriod';
+import RevenueChart from '@/features/admin/RevenueChart';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,21 +70,20 @@ export default async function AdminDashboard({ searchParams }) {
     else if (b.status === 'pending') pend++;
     else if (b.status === 'cancelled') cancelled++;
 
-    if (b.status !== 'cancelled') {
-      perHour[b.timeSlot] = (perHour[b.timeSlot] || 0) + 1;
-    }
+    if (b.status !== 'cancelled') perHour[b.timeSlot] = (perHour[b.timeSlot] || 0) + 1;
+
     const n = netOf(b);
     if (b.paymentStatus === 'paid' || b.paymentStatus === 'refunded') {
       net += n; paidCount++;
       refunded += b.refundAmount || 0;
-      const name = servicesLabelOf(b);
-      perService[name] = (perService[name] || 0) + n;
+      perService[servicesLabelOf(b)] = (perService[servicesLabelOf(b)] || 0) + n;
     } else if (b.paymentStatus === 'unpaid' && b.status !== 'cancelled') {
       pending += b.amount;
     }
   }
   const totalCount = filtered.length;
   const avg = paidCount ? Math.round(net / paidCount) : 0;
+  const cancelRate = totalCount ? Math.round((cancelled / totalCount) * 100) : 0;
 
   // ── داده‌ی نمودار درآمد ──
   let chart = [];
@@ -103,112 +103,94 @@ export default async function AdminDashboard({ searchParams }) {
       return { label: PERSIAN_MONTHS[parseInt(m, 10) - 1], net: v, full: `${PERSIAN_MONTHS[parseInt(m, 10) - 1]} ${toPersianDigits(y)}` };
     });
   }
-  const maxChart = Math.max(1, ...chart.map((c) => c.net));
+  const emptyChart = chart.every((c) => c.net === 0);
+
+  // ── متریک‌های دقیق ──
   const maxHour = Math.max(1, ...TIME_SLOTS.map((t) => perHour[t] || 0));
   const services = Object.entries(perService).sort(([, a], [, b]) => b - a);
   const maxService = Math.max(1, ...services.map(([, v]) => v));
+  let peakHour = null, peakHourN = 0;
+  for (const t of TIME_SLOTS) if ((perHour[t] || 0) > peakHourN) { peakHourN = perHour[t]; peakHour = t; }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-extrabold text-white">داشبورد</h2>
-        <p className="text-xs text-zinc-400 mt-1">درآمد و عملکردِ آرایشگاه در یک نگاه</p>
-      </div>
-
-      {/* نوار نگاه کلی */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <GlanceCard icon={CalendarDays} label="درآمد امروز" value={incToday} tint="emerald" />
-        <GlanceCard icon={CalendarRange} label="درآمد این ماه" value={incMonth} tint="amber" />
-        <GlanceCard icon={Coins} label="درآمد امسال" value={incYear} tint="sky" />
-      </div>
-
-      {/* انتخابگر بازه */}
-      <DashboardPeriod value={period} />
-
-      {/* KPIهای بازه */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Kpi icon={Wallet} tint="text-emerald-400" label="درآمد خالص" value={formatPrice(net)} sub={PERIOD_LABELS[period]} big />
-        <Kpi icon={Receipt} tint="text-zinc-100" label="تعداد نوبت" value={toPersianDigits(totalCount)} sub={`${toPersianDigits(paidCount)} پرداخت‌شده`} />
-        <Kpi icon={TrendingUp} tint="text-amber-400" label="میانگین هر نوبت" value={formatPrice(avg)} sub="درآمد میانگین" />
-        <Kpi icon={Hourglass} tint="text-sky-300" label="در انتظار پرداخت" value={formatPrice(pending)} sub={refunded ? `${formatPrice(refunded)} مسترد` : 'طلب'} />
-      </div>
-
-      {/* نمودار درآمد */}
-      <div className="glass rounded-2xl p-5">
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-amber-500" />
-            <span className="text-sm font-bold text-zinc-200">روند درآمد ({PERIOD_LABELS[period]})</span>
-          </div>
-          <span className="text-[11px] text-zinc-500">{chartMode === 'daily' ? 'روزانه' : 'ماهانه'}</span>
+      {/* سرصفحه + انتخابگر بازه */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-bold tracking-[0.2em] text-amber-500/80">پنل مدیریت</p>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-white mt-1.5">داشبورد</h1>
         </div>
-        {chart.every((c) => c.net === 0) ? (
-          <p className="text-xs text-zinc-500 text-center py-12">در این بازه درآمدی ثبت نشده است.</p>
-        ) : (
-          <div className="flex items-end gap-1.5 h-44 overflow-x-auto pb-1">
-            {chart.map((c, i) => (
-              <div key={i} className="flex flex-col items-center justify-end gap-1.5 flex-1 min-w-[26px] group" title={`${c.full}: ${formatPrice(c.net)}`}>
-                <span className="text-[9px] text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{c.net ? toPersianDigits(Math.round(c.net / 1000)) + 'ه' : ''}</span>
-                <div
-                  className="w-full rounded-t-md bg-gradient-to-t from-amber-600 to-amber-400 hover:from-amber-500 hover:to-amber-300 transition-all"
-                  style={{ height: `${Math.max(2, Math.round((c.net / maxChart) * 100))}%` }}
-                />
-                <span className="text-[9px] text-zinc-500 whitespace-nowrap">{c.label}</span>
-              </div>
-            ))}
+        <DashboardPeriod value={period} />
+      </div>
+
+      {/* درآمدِ همیشگی: امروز / این ماه / امسال */}
+      <div className="grid grid-cols-3 gap-3">
+        <Glance label="امروز" value={incToday} />
+        <Glance label="این ماه" value={incMonth} />
+        <Glance label="امسال" value={incYear} />
+      </div>
+
+      {/* پنلِ اصلی: روند درآمدِ بازه (امضای صفحه) */}
+      <div className="glass rounded-2xl p-5 md:p-6">
+        <div className="flex items-start justify-between gap-4 mb-6">
+          <div>
+            <p className="text-[11px] font-bold tracking-[0.15em] text-zinc-500">روند درآمد · {PERIOD_LABELS[period]}</p>
+            <p className="text-3xl md:text-4xl font-extrabold text-emerald-400 mt-2 tabular-nums">{formatPrice(net)}</p>
+            <p className="text-[11px] text-zinc-500 mt-1.5">درآمد خالصِ این بازه · {toPersianDigits(paidCount)} پرداختِ موفق</p>
           </div>
+          <span className="shrink-0 text-[10px] text-zinc-400 border border-white/10 rounded-full px-3 py-1">{chartMode === 'daily' ? 'روزانه' : 'ماهانه'}</span>
+        </div>
+        {emptyChart ? (
+          <p className="text-xs text-zinc-500 text-center py-14">در این بازه درآمدی ثبت نشده است.</p>
+        ) : (
+          <RevenueChart data={chart} />
         )}
       </div>
 
-      {/* دو ستون: ساعت‌ها + خدمات */}
+      {/* KPIهای بازه */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Kpi icon={Receipt} label="تعداد نوبت" value={toPersianDigits(totalCount)} sub={`${toPersianDigits(paidCount)} پرداخت‌شده`} />
+        <Kpi icon={TrendingUp} tone="amber" label="میانگین هر نوبت" value={formatPrice(avg)} sub="به‌ازای هر پرداخت" />
+        <Kpi icon={Hourglass} tone="sky" label="در انتظار پرداخت" value={formatPrice(pending)} sub={refunded ? `${formatPrice(refunded)} مسترد` : 'طلبِ وصول‌نشده'} />
+        <Kpi icon={XCircle} tone="rose" label="نرخ لغو" value={`${toPersianDigits(cancelRate)}٪`} sub={`${toPersianDigits(cancelled)} لغو از ${toPersianDigits(totalCount)}`} />
+      </div>
+
+      {/* دو ستون: شلوغیِ ساعت‌ها + درآمدِ خدمات */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="glass rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Clock className="w-4 h-4 text-amber-500" />
-            <span className="text-sm font-bold text-zinc-200">شلوغیِ ساعت‌ها</span>
-          </div>
-          <div className="space-y-2">
-            {TIME_SLOTS.map((t) => {
-              const c = perHour[t] || 0;
-              return (
-                <div key={t} className="flex items-center gap-3 text-[11px]">
-                  <span className="w-10 font-mono text-zinc-400 shrink-0">{toPersianDigits(t)}</span>
-                  <div className="flex-1 h-2.5 bg-zinc-900 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-l from-amber-500 to-amber-600 rounded-full" style={{ width: `${Math.round((c / maxHour) * 100)}%` }} />
-                  </div>
-                  <span className="w-12 text-left text-zinc-400 shrink-0">{toPersianDigits(c)} نوبت</span>
-                </div>
-              );
-            })}
+          <SectionTitle icon={Clock} title="شلوغیِ ساعت‌ها" note={peakHour ? `اوج: ${toPersianDigits(peakHour)}` : null} />
+          <div className="space-y-2.5 mt-5">
+            {TIME_SLOTS.map((t) => (
+              <div key={t} className="flex items-center gap-3">
+                <span className="w-10 shrink-0 text-[11px] font-mono text-zinc-400 tabular-nums">{toPersianDigits(t)}</span>
+                <Bar pct={Math.round(((perHour[t] || 0) / maxHour) * 100)} />
+                <span className="w-8 shrink-0 text-left text-[11px] text-zinc-500 tabular-nums">{toPersianDigits(perHour[t] || 0)}</span>
+              </div>
+            ))}
           </div>
         </div>
 
         <div className="glass rounded-2xl p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Scissors className="w-4 h-4 text-amber-500" />
-            <span className="text-sm font-bold text-zinc-200">درآمد به تفکیک خدمت</span>
-          </div>
+          <SectionTitle icon={Scissors} title="درآمد به تفکیک خدمت" note={services.length ? `${toPersianDigits(services.length)} خدمت` : null} />
           {services.length === 0 ? (
-            <p className="text-xs text-zinc-500 py-8 text-center">داده‌ای برای نمایش نیست.</p>
+            <p className="text-xs text-zinc-500 py-10 text-center">داده‌ای برای نمایش نیست.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3.5 mt-5">
               {services.map(([name, v]) => (
                 <div key={name}>
-                  <div className="flex items-center justify-between text-xs mb-1">
+                  <div className="flex items-center justify-between text-xs mb-1.5">
                     <span className="text-zinc-300 font-semibold">{name}</span>
-                    <span className="text-emerald-500 font-extrabold">{formatPrice(v)}</span>
+                    <span className="text-emerald-400 font-extrabold tabular-nums">{formatPrice(v)}</span>
                   </div>
-                  <div className="h-2 bg-zinc-900 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-l from-emerald-500 to-emerald-600 rounded-full" style={{ width: `${Math.round((v / maxService) * 100)}%` }} />
-                  </div>
+                  <Bar pct={Math.round((v / maxService) * 100)} tone="emerald" />
                 </div>
               ))}
             </div>
           )}
-          <div className="flex items-center gap-2 mt-5 pt-4 border-t border-zinc-900">
-            <Pill label="تایید شده" count={confirmed} cls="bg-emerald-500/10 text-emerald-400 border-emerald-500/20" />
-            <Pill label="در انتظار" count={pend} cls="bg-amber-500/10 text-amber-400 border-amber-500/20" />
-            <Pill label="لغو" count={cancelled} cls="bg-red-500/10 text-red-400 border-red-500/20" />
+          <div className="flex items-center gap-2 mt-5 pt-4 border-t border-white/5">
+            <Pill label="تایید" count={confirmed} cls="text-emerald-400" />
+            <Pill label="در انتظار" count={pend} cls="text-amber-400" />
+            <Pill label="لغو" count={cancelled} cls="text-rose-400" />
           </div>
         </div>
       </div>
@@ -216,39 +198,55 @@ export default async function AdminDashboard({ searchParams }) {
   );
 }
 
-function GlanceCard({ icon: Icon, label, value, tint }) {
-  const tints = {
-    emerald: 'from-emerald-500/15 text-emerald-400 border-emerald-500/20',
-    amber: 'from-amber-500/15 text-amber-400 border-amber-500/20',
-    sky: 'from-sky-500/15 text-sky-300 border-sky-500/20',
-  };
+function Glance({ label, value }) {
   return (
-    <div className={cn('rounded-2xl p-4 border bg-gradient-to-br to-transparent flex items-center justify-between', tints[tint])}>
-      <div>
-        <p className="text-[11px] text-zinc-300 font-bold mb-1">{label}</p>
-        <p className="text-lg md:text-xl font-extrabold">{formatPrice(value)}</p>
-      </div>
-      <Icon className="w-8 h-8 opacity-40" />
+    <div className="glass rounded-2xl px-4 py-3.5">
+      <p className="text-[11px] text-zinc-500 font-bold">درآمد {label}</p>
+      <p className="text-base md:text-lg font-extrabold text-emerald-400 mt-1.5 tabular-nums">{formatPrice(value)}</p>
     </div>
   );
 }
 
-function Kpi({ icon: Icon, tint, label, value, sub, big }) {
+function Kpi({ icon: Icon, tone, label, value, sub }) {
+  const tones = { amber: 'text-amber-400', sky: 'text-sky-300', rose: 'text-rose-400' };
   return (
     <div className="glass rounded-2xl p-4">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between">
         <span className="text-[11px] text-zinc-500 font-bold">{label}</span>
-        <Icon className={cn('w-4 h-4', tint)} />
+        <Icon className="w-3.5 h-3.5 text-zinc-600" />
       </div>
-      <p className={cn('font-extrabold', big ? 'text-xl md:text-2xl' : 'text-lg md:text-xl', big ? tint : 'text-zinc-100')}>{value}</p>
+      <p className={cn('text-xl font-extrabold mt-2 tabular-nums', tones[tone] || 'text-zinc-100')}>{value}</p>
       <p className="text-[10px] text-zinc-500 mt-1">{sub}</p>
+    </div>
+  );
+}
+
+function SectionTitle({ icon: Icon, title, note }) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <Icon className="w-4 h-4 text-amber-500" />
+        <span className="text-sm font-bold text-zinc-200">{title}</span>
+      </div>
+      {note && <span className="text-[10px] text-zinc-500">{note}</span>}
+    </div>
+  );
+}
+
+function Bar({ pct, tone = 'amber' }) {
+  return (
+    <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
+      <div
+        className={cn('h-full rounded-full bg-gradient-to-l', tone === 'emerald' ? 'from-emerald-500 to-emerald-600' : 'from-amber-500 to-amber-600')}
+        style={{ width: `${pct}%` }}
+      />
     </div>
   );
 }
 
 function Pill({ label, count, cls }) {
   return (
-    <span className={cn('flex-1 text-center px-2 py-1.5 rounded-lg text-[10px] font-bold border', cls)}>
+    <span className={cn('flex-1 text-center px-2 py-1.5 rounded-lg text-[10px] font-bold bg-white/[0.03] border border-white/5', cls)}>
       {label}: {toPersianDigits(count)}
     </span>
   );
