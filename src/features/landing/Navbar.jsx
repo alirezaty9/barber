@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Scissors, Settings, Calendar, Menu, X, Search } from 'lucide-react';
+import { Scissors, Calendar, Menu, X, Search } from 'lucide-react';
 import { useBookingStore } from '@/features/booking/store';
 
 export default function Navbar() {
@@ -58,13 +58,6 @@ export default function Navbar() {
             <Search className="w-4 h-4 text-amber-500" />
             <span>رهگیری نوبت</span>
           </Link>
-          <Link
-            href="/admin/login"
-            className="flex items-center gap-2 px-4 py-2 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-zinc-100 text-sm font-medium rounded-lg transition-all bg-zinc-900/40"
-          >
-            <Settings className="w-4 h-4 text-amber-500" />
-            <span>پنل مدیریت</span>
-          </Link>
           <button
             onClick={openBooking}
             className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black text-sm font-bold rounded-lg transition-all duration-300 transform active:scale-95 shadow-lg shadow-amber-500/10"
@@ -102,10 +95,6 @@ export default function Navbar() {
             <Link href="/track" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-center gap-2 px-4 py-2.5 border border-zinc-800 text-zinc-300 text-sm font-medium rounded-lg">
               <Search className="w-4 h-4 text-amber-500" />
               <span>رهگیری نوبت</span>
-            </Link>
-            <Link href="/admin/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-center gap-2 px-4 py-2.5 border border-zinc-800 text-zinc-300 text-sm font-medium rounded-lg">
-              <Settings className="w-4 h-4 text-amber-500" />
-              <span>پنل مدیریت</span>
             </Link>
             <button
               onClick={() => {
