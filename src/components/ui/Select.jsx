@@ -25,4 +25,6 @@ const Select = forwardRef(function Select({ className, children, error, ...props
   );
 });
 
+Select.displayName = 'Select';
+
 export default Select;

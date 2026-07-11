@@ -5,22 +5,40 @@ import Link from 'next/link';
 import { Scissors, Calendar, Menu, X, Search } from 'lucide-react';
 import { useBookingStore } from '@/features/booking/store';
 
+// ثابت و مستقل از رندر — لازم نیست در هر رندر بازساخته شود.
+const LINKS = [
+  { href: '#hero', label: 'خانه' },
+  { href: '#services', label: 'خدمات' },
+  { href: '#contact', label: 'ارتباط با ما' },
+];
+
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const openBooking = useBookingStore((s) => s.openBooking);
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 80);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    let raf = 0;
+    const handleScroll = () => {
+      // throttle با requestAnimationFrame: حداکثر یک محاسبه در هر فریم.
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        // گاردِ برابری: اگر مقدار عوض نشده، همان prev برگردانده می‌شود تا
+        // React از رندرِ اضافه صرف‌نظر کند (bail-out). پس اسکرول داخلِ یک ناحیه رندر نمی‌سازد.
+        setIsScrolled((prev) => {
+          const next = window.scrollY > 80;
+          return prev === next ? prev : next;
+        });
+      });
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll(); // همگام‌سازیِ مقدار اولیه (مثلاً وقتی صفحه از وسط باز می‌شود).
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, []);
-
-  const links = [
-    { href: '#hero', label: 'خانه' },
-    { href: '#services', label: 'خدمات' },
-    { href: '#contact', label: 'ارتباط با ما' },
-  ];
 
   return (
     <nav
@@ -43,7 +61,7 @@ export default function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center gap-8">
-          {links.map((l) => (
+          {LINKS.map((l) => (
             <a key={l.href} href={l.href} className="text-sm font-medium text-zinc-400 hover:text-amber-500 transition-colors">
               {l.label}
             </a>
@@ -80,7 +98,7 @@ export default function Navbar() {
 
       {mobileMenuOpen && (
         <div className="md:hidden glass border-t border-zinc-900 mt-4 px-6 py-5 flex flex-col gap-4 pointer-events-auto">
-          {links.map((l) => (
+          {LINKS.map((l) => (
             <a
               key={l.href}
               href={l.href}

@@ -36,6 +36,7 @@ export const PAYMENT_LABELS = {
   paid: 'پرداخت‌شده',
   failed: 'ناموفق',
   refunded: 'مسترد شده',
+  refundPending: 'در انتظار استرداد',
 };
 
 // کلاس‌های استایل بَج‌ها — متمرکز تا در چند صفحه تکرار نشوند.
@@ -50,4 +51,5 @@ export const PAYMENT_STYLES = {
   unpaid: 'bg-zinc-700/20 text-zinc-400 border-zinc-700/40',
   failed: 'bg-red-500/10 text-red-400 border-red-500/20',
   refunded: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
+  refundPending: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
 };

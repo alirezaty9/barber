@@ -3,7 +3,10 @@ import { bookingSchema } from '@/lib/validation';
 import { resolveAvailability } from '@/lib/availability-server';
 import { resolveServices } from '@/lib/services-server';
 import { requestPayment } from '@/lib/zarinpal';
-import { ok, parseBody, conflict, badRequest, serverError, generateBookingCode } from '@/lib/api-helpers';
+import { createLogger } from '@/lib/logger';
+import { ok, parseBody, badRequest, serverError, generateBookingCode, ApiError } from '@/lib/api-helpers';
+
+const log = createLogger('payment:request');
 
 // آدرس پایه برای ساخت callback مطلق: ابتدا از env، سپس از هدرهای درخواست.
 function resolveBaseUrl(request) {
@@ -32,44 +35,8 @@ export async function POST(request) {
 
     const totalPrice = svc.totalPrice;
 
-    // موجودی با لحاظ نوبت‌های فعال و بستن‌های زمان (helper مشترک).
-    const { error, barber, dayOff, slots } = await resolveAvailability({
-      barberId,
-      date: data.date,
-      serviceDuration: svc.totalDuration,
-    });
-    if (error) return badRequest('آرایشگر معتبری در سیستم ثبت نشده است.');
-    if (dayOff) return conflict('آرایشگر در روز انتخاب‌شده مرخصی است.');
-    const slot = slots.find((s) => s.time === data.timeSlot);
-    if (!slot || !slot.available) {
-      return conflict('این ساعت در دسترس نیست. لطفاً زمان دیگری انتخاب کنید.');
-    }
-
-    // ساخت رزرو موقتِ پرداخت‌نشده (کد یکتا با چند تلاش در صورت برخورد).
-    let booking = null;
-    for (let attempt = 0; attempt < 5 && !booking; attempt++) {
-      try {
-        booking = await prisma.booking.create({
-          data: {
-            code: generateBookingCode(),
-            customerName: data.customerName,
-            customerPhone: data.customerPhone,
-            serviceId: svc.primaryId,
-            serviceId2: svc.secondId,
-            servicesLabel: svc.label,
-            barberId: barber.id,
-            date: data.date,
-            timeSlot: data.timeSlot,
-            status: 'pending',
-            amount: totalPrice,
-            paymentStatus: 'unpaid',
-          },
-        });
-      } catch (e) {
-        if (e?.code !== 'P2002') throw e;
-      }
-    }
-    if (!booking) return serverError('ثبت نوبت ناموفق بود. دوباره تلاش کنید.');
+    // ساختِ رزروِ موقتِ pending/unpaid با حفاظت در برابرِ رزروِ همزمان (تراکنشِ Serializable).
+    const booking = await createPendingBookingSafely({ data, svc, barberId, totalPrice });
 
     // شروع پرداخت زرین‌پال.
     const base = resolveBaseUrl(request);
@@ -95,7 +62,50 @@ export async function POST(request) {
     });
 
     return ok({ paymentUrl: payment.url, code: booking.code }, { status: 201 });
-  } catch {
+  } catch (e) {
+    if (e instanceof ApiError) return e.toResponse();
+    log.error('payment request failed', e);
     return serverError();
   }
+}
+
+// چکِ موجودی و ساختِ رزروِ pending داخلِ یک تراکنشِ Serializable (ضدِ race)؛
+// در برخوردِ همزمان (P2034/P2002) دوباره تلاش می‌کنیم.
+async function createPendingBookingSafely({ data, svc, barberId, totalPrice }) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const { error, dayOff, slots } = await resolveAvailability(
+          { barberId, date: data.date, serviceDuration: svc.totalDuration },
+          tx,
+        );
+        if (error) throw new ApiError(400, 'آرایشگر معتبری در سیستم ثبت نشده است.');
+        if (dayOff) throw new ApiError(409, 'آرایشگر در روز انتخاب‌شده مرخصی است.');
+        const slot = slots.find((s) => s.time === data.timeSlot);
+        if (!slot || !slot.available) {
+          throw new ApiError(409, 'این ساعت در دسترس نیست. لطفاً زمان دیگری انتخاب کنید.');
+        }
+        return tx.booking.create({
+          data: {
+            code: generateBookingCode(),
+            customerName: data.customerName,
+            customerPhone: data.customerPhone,
+            serviceId: svc.primaryId,
+            serviceId2: svc.secondId,
+            servicesLabel: svc.label,
+            barberId,
+            date: data.date,
+            timeSlot: data.timeSlot,
+            status: 'pending',
+            amount: totalPrice,
+            paymentStatus: 'unpaid',
+          },
+        });
+      }, { isolationLevel: 'Serializable' });
+    } catch (e) {
+      if (e?.code === 'P2002' || e?.code === 'P2034') continue;
+      throw e;
+    }
+  }
+  throw new ApiError(409, 'این ساعت هم‌اکنون رزرو شد. لطفاً زمان دیگری انتخاب کنید.');
 }

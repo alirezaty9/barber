@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Filter, Search, CheckCircle, XCircle, Trash2, AlertCircle, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { useBookings, useUpdateBookingStatus, useDeleteBooking } from '@/api/bookings';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { toPersianDigits, formatJalaliDate, formatPrice } from '@/lib/persian';
 import { servicesLabelOf } from '@/lib/serializers';
 import { STATUS_LABELS, PAYMENT_LABELS, STATUS_STYLES, PAYMENT_STYLES } from '@/lib/constants';
@@ -20,8 +21,17 @@ const BORDER = {
 };
 
 export default function BookingsManager() {
-  const [filters, setFilters] = useState({ status: 'all', date: 'all', q: '', page: 1, pageSize: 10 });
-  const { data, isLoading, isFetching } = useBookings(filters);
+  const [filters, setFilters] = useState({ status: 'all', date: 'all', page: 1, pageSize: 10 });
+  // ورودیِ جست‌وجو جدا نگه داشته می‌شود و فقط بعد از ۳۵۰ms سکوت وارد queryKey می‌شود
+  // تا به‌ازای هر کاراکتر یک درخواست به سرور نرود (جلوگیری از طوفانِ درخواست).
+  const [qInput, setQInput] = useState('');
+  const debouncedQ = useDebouncedValue(qInput, 350);
+
+  // با تغییرِ عبارتِ جست‌وجو به صفحه‌ی اول برگرد.
+  useEffect(() => { setFilters((f) => ({ ...f, page: 1 })); }, [debouncedQ]);
+
+  const query = { ...filters, q: debouncedQ };
+  const { data, isLoading, isFetching } = useBookings(query);
   const updateStatus = useUpdateBookingStatus();
   const deleteBooking = useDeleteBooking();
 
@@ -60,8 +70,8 @@ export default function BookingsManager() {
           <Search className="w-4 h-4 text-zinc-500 absolute right-3 top-1/2 -translate-y-1/2" />
           <Input
             placeholder="جست‌وجوی نام یا موبایل..."
-            value={filters.q}
-            onChange={(e) => setFilter({ q: e.target.value })}
+            value={qInput}
+            onChange={(e) => setQInput(e.target.value)}
             className="pr-9"
           />
         </div>
@@ -156,11 +166,11 @@ export default function BookingsManager() {
         <div className="flex items-center justify-between mt-6 text-xs text-zinc-400">
           <span>نمایش {toPersianDigits(items.length)} از {toPersianDigits(total)} نوبت</span>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled={filters.page <= 1} onClick={() => setFilter({ page: filters.page - 1 })}>
+            <Button variant="outline" size="sm" disabled={filters.page <= 1 || isFetching} onClick={() => setFilter({ page: filters.page - 1 })}>
               <ChevronRight className="w-4 h-4" /> قبلی
             </Button>
             <span className="px-2">صفحه {toPersianDigits(filters.page)} از {toPersianDigits(totalPages)}</span>
-            <Button variant="outline" size="sm" disabled={filters.page >= totalPages} onClick={() => setFilter({ page: filters.page + 1 })}>
+            <Button variant="outline" size="sm" disabled={filters.page >= totalPages || isFetching} onClick={() => setFilter({ page: filters.page + 1 })}>
               بعدی <ChevronLeft className="w-4 h-4" />
             </Button>
           </div>

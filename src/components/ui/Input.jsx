@@ -16,6 +16,8 @@ export const Input = forwardRef(function Input({ className, error, ...props }, r
   );
 });
 
+Input.displayName = 'Input';
+
 export const Textarea = forwardRef(function Textarea({ className, error, ...props }, ref) {
   return (
     <textarea
@@ -25,3 +27,5 @@ export const Textarea = forwardRef(function Textarea({ className, error, ...prop
     />
   );
 });
+
+Textarea.displayName = 'Textarea';

@@ -6,6 +6,14 @@
 
 const IS_SANDBOX = process.env.ZARINPAL_SANDBOX === 'true';
 const MERCHANT_ID = process.env.ZARINPAL_MERCHANT_ID || '';
+const IS_PROD = process.env.NODE_ENV === 'production';
+
+// در production نباید بی‌صدا وارد حالتِ mock شویم؛ نبودِ Merchant ID یعنی «همه رایگان پرداخت‌شده».
+function assertConfigured() {
+  if (!MERCHANT_ID && IS_PROD) {
+    throw new Error('ZARINPAL_MERCHANT_ID تنظیم نشده است — حالتِ mock در production مجاز نیست.');
+  }
+}
 
 // در sandbox هم API و هم صفحه‌ی پرداخت روی دامنه‌ی sandbox است.
 const API_BASE = IS_SANDBOX
@@ -27,6 +35,7 @@ const ACCESS_TOKEN = process.env.ZARINPAL_ACCESS_TOKEN || '';
  * @returns {Promise<{ok:boolean, authority?:string, url?:string, error?:string}>}
  */
 export async function requestPayment({ amount, description, callbackUrl, mobile }) {
+  assertConfigured();
   // حالت تستی/فیک: اگر Merchant ID تنظیم نشده باشد، به‌جای اتصال واقعی، یک پرداختِ
   // شبیه‌سازی‌شده‌ی موفق می‌سازیم و مستقیم به callback خودمان با Status=OK برمی‌گردیم.
   if (!MERCHANT_ID) {
@@ -65,9 +74,10 @@ export async function requestPayment({ amount, description, callbackUrl, mobile 
  * @returns {Promise<{ok:boolean, refId?:string, error?:string}>}
  */
 export async function verifyPayment({ amount, authority }) {
+  assertConfigured();
   // حالت تستی/فیک: بدون Merchant ID، تأیید همیشه موفق است با یک کد پیگیریِ ساختگی.
   if (!MERCHANT_ID) {
-    return { ok: true, refId: 'MOCK' + Math.floor(Math.random() * 900000 + 100000) };
+    return { ok: true, refId: 'MOCK' + Math.floor(Math.random() * 900000 + 100000), paidAmount: amount };
   }
   try {
     const res = await fetch(`${API_BASE}/verify.json`, {
@@ -79,7 +89,9 @@ export async function verifyPayment({ amount, authority }) {
     const code = json?.data?.code;
     // 100 = تأیید موفق، 101 = قبلاً تأیید شده (هر دو یعنی پرداخت انجام شده).
     if (code === 100 || code === 101) {
-      return { ok: true, refId: String(json?.data?.ref_id ?? '') };
+      // مبلغِ واقعیِ تأییدشده را هم برمی‌گردانیم تا route با مبلغِ رزرو مقایسه کند.
+      const paidAmount = typeof json?.data?.amount === 'number' ? json.data.amount : null;
+      return { ok: true, refId: String(json?.data?.ref_id ?? ''), paidAmount };
     }
     const err = Array.isArray(json?.errors) ? json.errors[0] : json?.errors;
     return { ok: false, error: err?.message || 'تأیید پرداخت ناموفق بود.' };

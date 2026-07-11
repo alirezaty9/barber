@@ -1,6 +1,10 @@
 import { prisma } from '@/lib/db';
 import { blockSchema } from '@/lib/validation';
+import { rangeISO } from '@/lib/time';
 import { ok, guardAdmin, parseBody, badRequest, serverError } from '@/lib/api-helpers';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('blocks');
 
 // GET /api/blocks?barberId=  — فهرست بستن‌های زمانِ یک آرایشگر (فقط ادمین).
 export async function GET(request) {
@@ -19,22 +23,10 @@ export async function GET(request) {
       orderBy: [{ date: 'asc' }, { timeSlot: 'asc' }],
     });
     return ok(blocks);
-  } catch {
+  } catch (e) {
+    log.error('GET blocks failed', e);
     return serverError();
   }
-}
-
-// فهرست تاریخ‌های ISO از date تا dateTo (شامل هر دو). اگر dateTo نباشد فقط همان یک روز.
-function dateRange(fromIso, toIso) {
-  const out = [];
-  const start = new Date(`${fromIso}T00:00:00`);
-  const end = new Date(`${(toIso || fromIso)}T00:00:00`);
-  if (end < start) return [fromIso];
-  // سقف ایمنی ۹۰ روز تا از حلقه‌ی بی‌پایان/ورودی نامعقول جلوگیری شود.
-  for (let d = start, i = 0; d <= end && i < 90; d.setDate(d.getDate() + 1), i++) {
-    out.push(d.toISOString().split('T')[0]);
-  }
-  return out;
 }
 
 // POST /api/blocks — بستنِ کل روز(ها) یا ساعت‌های مشخص (فقط ادمین).
@@ -53,7 +45,7 @@ export async function POST(request) {
     // ساعت‌های مشخص → یک رکورد برای هر ساعت (فقط روی روزِ شروع).
     const rows = [];
     if (data.fullDay) {
-      for (const date of dateRange(data.date, data.dateTo)) {
+      for (const date of rangeISO(data.date, data.dateTo)) {
         rows.push({ barberId: data.barberId, date, timeSlot: null, reason: data.reason });
       }
     } else {
@@ -73,7 +65,8 @@ export async function POST(request) {
 
     if (fresh.length) await prisma.barberBlock.createMany({ data: fresh });
     return ok({ created: fresh.length }, { status: 201 });
-  } catch {
+  } catch (e) {
+    log.error('POST blocks failed', e);
     return serverError();
   }
 }

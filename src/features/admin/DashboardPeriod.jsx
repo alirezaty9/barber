@@ -20,7 +20,7 @@ export default function DashboardPeriod({ value }) {
       {PERIODS.map((p) => (
         <button
           key={p.key}
-          onClick={() => router.push(p.key === '30' ? '/admin' : `/admin?period=${p.key}`)}
+          onClick={() => router.replace(p.key === '30' ? '/admin' : `/admin?period=${p.key}`)}
           className={cn(
             'px-4 py-2 rounded-xl text-xs font-bold transition-all border',
             value === p.key

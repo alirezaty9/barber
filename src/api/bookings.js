@@ -70,6 +70,12 @@ export function lookupBooking(payload) {
   return http('/api/bookings/lookup', { method: 'POST', body: JSON.stringify(payload) });
 }
 
+// گامِ ۱ لغو: درخواستِ کدِ تأییدِ دومرحله‌ای (به موبایلِ همان نوبت ارسال می‌شود).
+export function requestCancelOtp(payload) {
+  return http('/api/bookings/cancel/request', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+// گامِ ۲ لغو: ارسالِ کد + OTP برای لغوِ نهایی.
 export function cancelBooking(payload) {
   return http('/api/bookings/cancel', { method: 'POST', body: JSON.stringify(payload) });
 }

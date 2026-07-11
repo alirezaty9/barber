@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { randomBytes } from 'crypto';
 import { isAuthenticated } from './auth';
 
 export function ok(data, init) {
@@ -25,6 +26,26 @@ export function serverError(message = 'خطای داخلی سرور.') {
   return NextResponse.json({ error: message }, { status: 500 });
 }
 
+export function tooManyRequests(message = 'درخواست‌های زیاد. کمی بعد دوباره تلاش کنید.') {
+  return NextResponse.json({ error: message }, { status: 429 });
+}
+
+/**
+ * خطای قابلِ‌تبدیل به پاسخِ HTTP — مخصوصاً برای throw از داخلِ تراکنش‌ها
+ * تا کنترلِ جریانِ «چک شکست خورد → پاسخِ ۴۰۹/۴۰۰» به بیرونِ تراکنش منتقل شود.
+ */
+export class ApiError extends Error {
+  constructor(status, message, details) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.details = details;
+  }
+  toResponse() {
+    return NextResponse.json({ error: this.message, details: this.details }, { status: this.status });
+  }
+}
+
 /** اگر کاربر ادمین نباشد یک Response 401 برمی‌گرداند؛ در غیر این صورت null. */
 export async function guardAdmin() {
   const authed = await isAuthenticated();
@@ -47,9 +68,9 @@ export async function parseBody(request, schema) {
   return { data: result.data };
 }
 
-/** تولید کد رهگیریِ خوانا. */
+/** تولید کد رهگیریِ خوانا با تصادفِ رمزنگارانه (نه Math.random) — چون این کد اعتبارنامه‌ی لغو است. */
 export function generateBookingCode() {
-  const rand = Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  const rand = randomBytes(4).toString('hex').toUpperCase().slice(0, 6);
   return `BK${rand}`;
 }
 

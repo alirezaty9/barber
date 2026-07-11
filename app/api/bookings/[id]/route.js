@@ -1,7 +1,10 @@
 import { prisma } from '@/lib/db';
 import { statusUpdateSchema } from '@/lib/validation';
 import { refundPayment } from '@/lib/zarinpal';
-import { ok, guardAdmin, parseBody, notFound, buildCancelPatch } from '@/lib/api-helpers';
+import { ok, guardAdmin, parseBody, notFound, serverError, buildCancelPatch } from '@/lib/api-helpers';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('bookings:id');
 
 // PATCH — تغییر وضعیت نوبت (فقط ادمین).
 // قاعده: لغو توسط ادمین/آرایشگر ⇒ ۱۰۰٪ مبلغِ پرداخت‌شده مسترد می‌شود.
@@ -22,11 +25,16 @@ export async function PATCH(request, { params }) {
     if (data.status === 'cancelled' && existing.status !== 'cancelled') {
       updateData = buildCancelPatch(existing, 'admin');
       if (updateData.refundAmount > 0) {
-        await refundPayment({
+        const refund = await refundPayment({
           amount: updateData.refundAmount,
           authority: existing.paymentAuthority,
           description: `استرداد کامل لغو نوبت ${existing.code} توسط مدیریت`,
         });
+        // استردادِ ناموفق → «در انتظار استرداد» تا وضعیت واقعی منعکس شود.
+        if (!refund.ok) {
+          log.warn(`admin refund failed for ${existing.code}: ${refund.error || 'unknown'}`);
+          updateData.paymentStatus = 'refundPending';
+        }
       }
     } else {
       updateData = { status: data.status };
@@ -38,8 +46,10 @@ export async function PATCH(request, { params }) {
       include: { service: true, service2: true, barber: true },
     });
     return ok(booking);
-  } catch {
-    return notFound('نوبت موردنظر یافت نشد.');
+  } catch (e) {
+    if (e?.code === 'P2025') return notFound('نوبت موردنظر یافت نشد.');
+    log.error('PATCH booking failed', e);
+    return serverError();
   }
 }
 
@@ -52,7 +62,9 @@ export async function DELETE(request, { params }) {
   try {
     await prisma.booking.delete({ where: { id } });
     return ok({ success: true });
-  } catch {
-    return notFound('نوبت موردنظر یافت نشد.');
+  } catch (e) {
+    if (e?.code === 'P2025') return notFound('نوبت موردنظر یافت نشد.');
+    log.error('DELETE booking failed', e);
+    return serverError();
   }
 }

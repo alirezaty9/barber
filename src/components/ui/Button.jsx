@@ -1,5 +1,6 @@
 'use client';
 
+import { forwardRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,7 +19,7 @@ const SIZES = {
   lg: 'px-8 py-3.5 text-base',
 };
 
-export default function Button({
+const Button = forwardRef(function Button({
   children,
   variant = 'primary',
   size = 'md',
@@ -27,9 +28,10 @@ export default function Button({
   className,
   type = 'button',
   ...props
-}) {
+}, ref) {
   return (
     <button
+      ref={ref}
       type={type}
       disabled={disabled || loading}
       className={cn(
@@ -44,4 +46,6 @@ export default function Button({
       {children}
     </button>
   );
-}
+});
+
+export default Button;

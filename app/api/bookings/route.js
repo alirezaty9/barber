@@ -3,7 +3,11 @@ import { bookingSchema } from '@/lib/validation';
 import { resolveAvailability } from '@/lib/availability-server';
 import { resolveServices } from '@/lib/services-server';
 import { isAuthenticated } from '@/lib/auth';
-import { ok, guardAdmin, parseBody, conflict, badRequest, serverError, generateBookingCode } from '@/lib/api-helpers';
+import { tehranTodayISO, shiftISO } from '@/lib/time';
+import { createLogger } from '@/lib/logger';
+import { ok, guardAdmin, parseBody, badRequest, serverError, generateBookingCode, ApiError } from '@/lib/api-helpers';
+
+const log = createLogger('bookings');
 
 // GET — فهرست نوبت‌ها برای ادمین، با فیلتر/جست‌وجو/صفحه‌بندی.
 export async function GET(request) {
@@ -23,9 +27,8 @@ export async function GET(request) {
   if (status && status !== 'all') where.status = status;
 
   if (dateFilter === 'today' || dateFilter === 'tomorrow') {
-    const d = new Date();
-    if (dateFilter === 'tomorrow') d.setDate(d.getDate() + 1);
-    where.date = d.toISOString().split('T')[0];
+    // به وقتِ ایران (نه UTCِ سرور) تا نزدیکِ نیمه‌شب خطای یک‌روزه ندهد.
+    where.date = dateFilter === 'tomorrow' ? shiftISO(tehranTodayISO(), 1) : tehranTodayISO();
   }
   if (q) {
     where.OR = [
@@ -46,7 +49,8 @@ export async function GET(request) {
       prisma.booking.count({ where }),
     ]);
     return ok({ items, total, page, pageSize });
-  } catch {
+  } catch (e) {
+    log.error('GET bookings failed', e);
     return serverError();
   }
 }
@@ -66,27 +70,37 @@ export async function POST(request) {
       || (await prisma.barber.findFirst({ orderBy: { createdAt: 'asc' }, select: { id: true } }))?.id;
     if (!barberId) return badRequest('آرایشگر معتبری در سیستم ثبت نشده است.');
 
-    // موجودی با لحاظ نوبت‌های فعال و بستن‌های زمان (helper مشترک).
-    const { error, dayOff, slots } = await resolveAvailability({
-      barberId,
-      date: data.date,
-      serviceDuration: svc.totalDuration,
-    });
-    if (error) return badRequest('آرایشگر انتخابی معتبر نیست.');
-    if (dayOff) return conflict('آرایشگر در روز انتخاب‌شده مرخصی است.');
-    const slot = slots.find((s) => s.time === data.timeSlot);
-    if (!slot || !slot.available) {
-      return conflict('این ساعت برای آرایشگر موردنظر در دسترس نیست. لطفاً زمان دیگری انتخاب کنید.');
-    }
-
     const admin = await isAuthenticated();
     const status = admin ? 'confirmed' : 'pending';
 
-    // تولید کد یکتا با چند تلاش در صورت برخورد
-    let booking = null;
-    for (let attempt = 0; attempt < 5 && !booking; attempt++) {
-      try {
-        booking = await prisma.booking.create({
+    // ── جلوگیری از رزروِ همزمان (race) ──
+    // چکِ موجودی و ساختِ رزرو داخلِ یک تراکنشِ Serializable انجام می‌شود تا دو درخواستِ
+    // همزمان نتوانند یک اسلات را دوبار بگیرند؛ در برخورد (P2034/P2002) دوباره تلاش می‌کنیم.
+    const booking = await createBookingSafely({ data, svc, barberId, status, admin });
+    return ok(booking, { status: 201 });
+  } catch (e) {
+    if (e instanceof ApiError) return e.toResponse();
+    log.error('POST booking failed', e);
+    return serverError();
+  }
+}
+
+// ساختِ رزرو با حفاظت در برابرِ race و برخوردِ کدِ یکتا.
+async function createBookingSafely({ data, svc, barberId, status, admin }) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const { error, dayOff, slots } = await resolveAvailability(
+          { barberId, date: data.date, serviceDuration: svc.totalDuration },
+          tx,
+        );
+        if (error) throw new ApiError(400, 'آرایشگر انتخابی معتبر نیست.');
+        if (dayOff) throw new ApiError(409, 'آرایشگر در روز انتخاب‌شده مرخصی است.');
+        const slot = slots.find((s) => s.time === data.timeSlot);
+        if (!slot || !slot.available) {
+          throw new ApiError(409, 'این ساعت برای آرایشگر موردنظر در دسترس نیست. لطفاً زمان دیگری انتخاب کنید.');
+        }
+        return tx.booking.create({
           data: {
             code: generateBookingCode(),
             customerName: data.customerName,
@@ -104,14 +118,13 @@ export async function POST(request) {
           },
           include: { service: true, service2: true, barber: true },
         });
-      } catch (e) {
-        if (e?.code !== 'P2002') throw e; // فقط برخورد کد یکتا را دوباره تلاش کن
-      }
+      }, { isolationLevel: 'Serializable' });
+    } catch (e) {
+      // P2002 = برخوردِ کدِ یکتا، P2034 = برخوردِ تراکنشِ همزمان → تلاشِ دوباره.
+      if (e?.code === 'P2002' || e?.code === 'P2034') continue;
+      throw e;
     }
-    if (!booking) return serverError('ثبت نوبت ناموفق بود. دوباره تلاش کنید.');
-
-    return ok(booking, { status: 201 });
-  } catch {
-    return serverError();
   }
+  // بعد از چند تلاشِ ناموفق، یعنی همان لحظه اسلات پر شد.
+  throw new ApiError(409, 'این ساعت هم‌اکنون رزرو شد. لطفاً زمان دیگری انتخاب کنید.');
 }

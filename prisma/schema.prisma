@@ -77,6 +77,10 @@ model Booking {
   // استرداد در صورت لغو: مشتری ۵۰٪ برمی‌گردد، آرایشگر(ادمین) ۱۰۰٪.
   cancelledBy      String?                    // customer | admin — لغوکننده
   refundAmount     Int     @default(0)        // مبلغ مستردشده (تومان)
+  // کدِ تأییدِ دومرحله‌ایِ لغو (توسط مشتری). خودِ کد هرگز ذخیره نمی‌شود؛ فقط hashِ آن.
+  cancelOtpHash      String?
+  cancelOtpExpiresAt DateTime?
+  cancelOtpAttempts  Int     @default(0)
   createdAt     DateTime @default(now())
 
   @@index([barberId, date])

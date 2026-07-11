@@ -5,14 +5,19 @@ export const CATEGORIES = ['hair', 'beard', 'grooming', 'groom', 'combo', 'style
 export const STATUSES = ['pending', 'confirmed', 'cancelled'];
 
 // شماره‌ی موبایل: ابتدا ارقام فارسی/عربی به انگلیسی نرمال می‌شود، سپس اعتبارسنجی.
-// ⚠️ موقتاً برای تست ساده شده: هر عددِ حداقل ۱ رقمی مجاز است.
-// برای production، refine را به /^09[0-9]{9}$/ برگردان.
+// قالبِ معتبر: ۱۱ رقمی که با ۰۹ شروع شود.
 const mobile = z
   .string()
   .transform((v) => normalizeDigits(v).trim())
-  .refine((v) => /^[0-9]{1,}$/.test(v), {
-    message: 'شماره موبایل را وارد کنید.',
+  .refine((v) => /^09[0-9]{9}$/.test(v), {
+    message: 'شماره موبایل باید ۱۱ رقمی و با ۰۹ شروع شود.',
   });
+
+// کدِ تأییدِ ۶ رقمی (OTP) — ارقام فارسی/عربی هم پذیرفته و نرمال می‌شوند.
+const otp = z
+  .string()
+  .transform((v) => normalizeDigits(v).trim())
+  .refine((v) => /^[0-9]{6}$/.test(v), { message: 'کد تأیید باید ۶ رقمی باشد.' });
 
 const isoDate = z
   .string()
@@ -73,9 +78,15 @@ export const lookupSchema = z.object({
   phone: mobile,
 });
 
-// لغو نوبت با کد رهگیریِ همان نوبت (از نتیجه‌ی رهگیری برداشته می‌شود).
+// درخواستِ کدِ تأییدِ لغو: فقط با کدِ رهگیری؛ سرور OTP را به موبایلِ همان نوبت می‌فرستد.
+export const cancelRequestSchema = z.object({
+  code: z.string().trim().min(1, 'کد رهگیری نامعتبر است.'),
+});
+
+// لغو نوبت: کدِ رهگیری + کدِ تأییدِ دومرحله‌ای.
 export const cancelSchema = z.object({
   code: z.string().trim().min(1, 'کد رهگیری نامعتبر است.'),
+  otp,
 });
 
 // بستن زمان (مرخصی/تعطیلی): کل روز (fullDay=true، از date تا dateTo) یا ساعت‌های مشخص (slots).

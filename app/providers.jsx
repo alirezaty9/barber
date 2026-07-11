@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import ConfirmHost from '@/components/ui/ConfirmHost';
+import WebVitals from '@/features/dev/WebVitals';
 
 export default function Providers({ children }) {
   // یک نمونه QueryClient پایدار به‌ازای هر بارگذاری اپ (نه در هر رندر).
@@ -22,6 +23,8 @@ export default function Providers({ children }) {
 
   return (
     <QueryClientProvider client={queryClient}>
+      {/* ابزارِ سنجشِ Web Vitals فقط در توسعه؛ در production بارگذاری/اجرا نمی‌شود. */}
+      {process.env.NODE_ENV !== 'production' && <WebVitals />}
       {children}
       <ConfirmHost />
       <Toaster

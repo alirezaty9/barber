@@ -45,8 +45,10 @@ export default function ManualBooking() {
     resolver: zodResolver(schema),
     defaultValues: { customerName: '', customerPhone: '' },
   });
+  // کلیدِ خدمات را مرتب می‌کنیم تا ترتیبِ انتخاب باعثِ refetchِ اضافه نشود.
+  const serviceKey = [...serviceIds].sort().join(',');
   const { data: avail, isLoading: loadingSlots } = useAvailability(
-    barberId, dateIso, serviceIds.join(','), Boolean(barberId && dateIso && serviceIds.length)
+    barberId, dateIso, serviceKey, Boolean(barberId && dateIso && serviceIds.length)
   );
 
   const onSubmit = async (form) => {
@@ -91,6 +93,7 @@ export default function ManualBooking() {
                 <button
                   key={s.id}
                   type="button"
+                  aria-pressed={selected}
                   onClick={() => toggleService(s.id)}
                   className={cn(
                     'flex items-center gap-2 p-3 rounded-xl border text-right transition-all',
@@ -127,6 +130,7 @@ export default function ManualBooking() {
                   <button
                     type="button"
                     key={slot.time}
+                    aria-pressed={timeSlot === slot.time}
                     disabled={!slot.available}
                     onClick={() => setTimeSlot(slot.time)}
                     className={cn(

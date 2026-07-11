@@ -2,7 +2,10 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
 import { barberSchema } from '@/lib/validation';
 import { serializeBarber, workDaysToCsv } from '@/lib/serializers';
-import { ok, guardAdmin, parseBody, notFound } from '@/lib/api-helpers';
+import { ok, guardAdmin, parseBody, notFound, serverError } from '@/lib/api-helpers';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('barbers:id');
 
 export async function PATCH(request, { params }) {
   const denied = await guardAdmin();
@@ -20,8 +23,10 @@ export async function PATCH(request, { params }) {
     const barber = await prisma.barber.update({ where: { id }, data: payload });
     revalidatePath('/');
     return ok(serializeBarber(barber));
-  } catch {
-    return notFound('آرایشگر موردنظر یافت نشد.');
+  } catch (e) {
+    if (e?.code === 'P2025') return notFound('آرایشگر موردنظر یافت نشد.');
+    log.error('PATCH barber failed', e);
+    return serverError();
   }
 }
 
@@ -34,7 +39,9 @@ export async function DELETE(request, { params }) {
     await prisma.barber.delete({ where: { id } });
     revalidatePath('/');
     return ok({ success: true });
-  } catch {
-    return notFound('آرایشگر موردنظر یافت نشد.');
+  } catch (e) {
+    if (e?.code === 'P2025') return notFound('آرایشگر موردنظر یافت نشد.');
+    log.error('DELETE barber failed', e);
+    return serverError();
   }
 }

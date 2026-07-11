@@ -19,18 +19,21 @@ function tehranNow() {
 
 // helper سروریِ مشترکِ محاسبه‌ی موجودی — از تکرارِ همان بلوک در سه روت جلوگیری می‌کند.
 // آرایشگر، نوبت‌های فعال و بستن‌های زمانِ (blocks) همان روز را می‌خواند و اسلات‌ها را می‌سازد.
+// پارامترِ client اختیاری است: هنگامِ ساختِ رزرو، برای جلوگیری از race باید کلاینتِ تراکنش
+// (tx) پاس داده شود تا این خواندن‌ها و INSERTِ بعدی در یک تراکنشِ Serializable باشند.
 // @param {{barberId:string, date:string, serviceDuration:number}} p
+// @param {import('@prisma/client').PrismaClient} [client]
 // @returns {Promise<{error?:string, barber?:object, dayOff:boolean, slots:object[]}>}
-export async function resolveAvailability({ barberId, date, serviceDuration }) {
-  const barber = await prisma.barber.findUnique({ where: { id: barberId } });
+export async function resolveAvailability({ barberId, date, serviceDuration }, client = prisma) {
+  const barber = await client.barber.findUnique({ where: { id: barberId } });
   if (!barber) return { error: 'آرایشگر یافت نشد.', dayOff: true, slots: [] };
 
   const [existing, blocks] = await Promise.all([
-    prisma.booking.findMany({
+    client.booking.findMany({
       where: { barberId, date, status: { not: 'cancelled' } },
       include: { service: true, service2: true },
     }),
-    prisma.barberBlock.findMany({ where: { barberId, date } }),
+    client.barberBlock.findMany({ where: { barberId, date } }),
   ]);
 
   // اگر روزِ انتخابی «امروزِ ایران» است، ساعت‌های گذشته را غیرفعال کن.

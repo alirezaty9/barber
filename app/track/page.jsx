@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { Search, Scissors, Calendar, Clock, User, Scissors as ScissorsIcon, XCircle } from 'lucide-react';
+import { Search, Scissors, User, Scissors as ScissorsIcon, XCircle, ShieldCheck, Loader2 } from 'lucide-react';
 import { lookupSchema } from '@/lib/validation';
-import { lookupBooking, cancelBooking } from '@/api/bookings';
+import { lookupBooking, requestCancelOtp, cancelBooking } from '@/api/bookings';
 import { toPersianDigits, formatJalaliDate, formatPrice } from '@/lib/persian';
 import { servicesLabelOf } from '@/lib/serializers';
 import { STATUS_LABELS, STATUS_STYLES } from '@/lib/constants';
@@ -19,14 +19,24 @@ import { cn } from '@/lib/utils';
 
 export default function TrackPage() {
   const [bookings, setBookings] = useState(null);
-  const [cancellingCode, setCancellingCode] = useState(null);
+  // نوبتی که در حالِ لغو است و منتظرِ کدِ تأیید می‌ماند: { code, phoneMasked } یا null.
+  const [otpFor, setOtpFor] = useState(null);
+  const [otpValue, setOtpValue] = useState('');
+  const [sendingCode, setSendingCode] = useState(null); // کدِ نوبتی که در حالِ ارسال/ارسالِ مجددِ کدِ تأیید است
+  const [cancelling, setCancelling] = useState(false); // در حالِ لغوِ نهایی
 
   const { register, handleSubmit, getValues, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(lookupSchema),
     defaultValues: { phone: '' },
   });
 
+  const refreshList = async () => {
+    const refreshed = await lookupBooking({ phone: getValues('phone') });
+    setBookings(Array.isArray(refreshed) ? refreshed : [refreshed]);
+  };
+
   const onSubmit = async (data) => {
+    setOtpFor(null);
     try {
       const result = await lookupBooking(data);
       setBookings(Array.isArray(result) ? result : [result]);
@@ -36,26 +46,47 @@ export default function TrackPage() {
     }
   };
 
-  const onCancel = async (code) => {
+  // ارسال/ارسالِ مجددِ کدِ تأیید (بدونِ دیالوگِ تأیید).
+  const sendOtp = async (code) => {
+    setSendingCode(code);
+    try {
+      const res = await requestCancelOtp({ code });
+      setOtpFor({ code, phoneMasked: res?.phoneMasked || '' });
+      setOtpValue('');
+      toast.success('کد تأیید ارسال شد.');
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setSendingCode(null);
+    }
+  };
+
+  // گامِ ۱ لغو: تأیید + درخواستِ کدِ دومرحله‌ای.
+  const onRequestCancel = async (code) => {
     const ok = await confirm({
       title: 'لغو نوبت',
-      description: 'آیا از لغو این نوبت مطمئن هستید؟ این کار قابل بازگشت نیست.',
-      confirmText: 'بله، لغو شود',
+      description: 'برای لغو، یک کد تأیید به موبایلِ ثبت‌شده‌ی شما ارسال می‌شود. ادامه می‌دهید؟',
+      confirmText: 'ارسال کد تأیید',
       cancelText: 'انصراف',
       danger: true,
     });
-    if (!ok) return;
-    setCancellingCode(code);
+    if (ok) await sendOtp(code);
+  };
+
+  // گامِ ۲ لغو: ارسالِ کد + OTP.
+  const onConfirmCancel = async () => {
+    if (!otpFor) return;
+    setCancelling(true);
     try {
-      await cancelBooking({ code });
-      // فهرست را با همان شماره دوباره می‌گیریم تا وضعیت به‌روز شود.
-      const refreshed = await lookupBooking({ phone: getValues('phone') });
-      setBookings(Array.isArray(refreshed) ? refreshed : [refreshed]);
+      await cancelBooking({ code: otpFor.code, otp: otpValue });
+      setOtpFor(null);
+      setOtpValue('');
+      await refreshList();
       toast.success('نوبت شما لغو شد.');
     } catch (e) {
       toast.error(e.message);
     } finally {
-      setCancellingCode(null);
+      setCancelling(false);
     }
   };
 
@@ -121,16 +152,54 @@ export default function TrackPage() {
                   <Row icon={ScissorsIcon} label="مبلغ بازگشتی" value={formatPrice(booking.refundAmount)} />
                 )}
 
-                {booking.status !== 'cancelled' && (
+                {booking.status !== 'cancelled' && otpFor?.code !== booking.code && (
                   <Button
                     variant="danger"
                     className="w-full mt-2"
-                    loading={cancellingCode === booking.code}
-                    onClick={() => onCancel(booking.code)}
+                    loading={sendingCode === booking.code}
+                    onClick={() => onRequestCancel(booking.code)}
                   >
                     <XCircle className="w-4 h-4" />
                     لغو این نوبت
                   </Button>
+                )}
+
+                {/* گامِ تأییدِ دومرحله‌ای برای همین نوبت */}
+                {otpFor?.code === booking.code && (
+                  <div className="mt-2 rounded-2xl border border-amber-500/25 bg-amber-500/[0.04] p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-amber-400">
+                      <ShieldCheck className="w-4 h-4" />
+                      <span className="text-xs font-bold">تأیید لغو</span>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 leading-relaxed">
+                      کد تأیید به شماره‌ی {otpFor.phoneMasked ? <span dir="ltr" className="font-mono text-zinc-300">{otpFor.phoneMasked}</span> : 'موبایلِ شما'} ارسال شد. آن را وارد کنید:
+                    </p>
+                    <Input
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="------"
+                      value={otpValue}
+                      onChange={(e) => setOtpValue(e.target.value)}
+                      style={{ direction: 'ltr', textAlign: 'center', letterSpacing: '0.4em' }}
+                    />
+                    <div className="flex items-center gap-2">
+                      <Button variant="danger" className="flex-1" loading={cancelling} disabled={otpValue.length < 6} onClick={onConfirmCancel}>
+                        تأیید و لغو نوبت
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => { setOtpFor(null); setOtpValue(''); }}>
+                        انصراف
+                      </Button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => sendOtp(booking.code)}
+                      disabled={sendingCode === booking.code}
+                      className="text-[11px] text-zinc-500 hover:text-amber-400 transition-colors flex items-center gap-1 disabled:opacity-50"
+                    >
+                      {sendingCode === booking.code && <Loader2 className="w-3 h-3 animate-spin" />}
+                      ارسال دوباره‌ی کد
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
@@ -145,14 +214,14 @@ export default function TrackPage() {
   );
 }
 
-function Row({ icon: Icon, label, value, mono }) {
+function Row({ icon: Icon, label, value }) {
   return (
     <div className="flex items-center justify-between text-xs">
       <span className="text-zinc-500 flex items-center gap-2">
         {Icon && <Icon className="w-4 h-4 text-amber-500" />}
         {label}:
       </span>
-      <span className={cn('font-bold text-white', mono && 'font-mono text-amber-500')}>{value}</span>
+      <span className="font-bold text-white">{value}</span>
     </div>
   );
 }

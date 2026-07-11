@@ -46,10 +46,8 @@ export function formatJalaliDate(isoDate, options = { day: 'numeric', month: 'lo
 }
 
 /**
- * اعتبارسنجی شماره‌ی موبایل.
- * ⚠️ موقتاً برای تست ساده شده: هر عددِ حداقل ۱ رقمی مجاز است.
- * برای production این را به /^09[0-9]{9}$/ برگردان.
+ * اعتبارسنجی شماره‌ی موبایل: ۱۱ رقمی که با ۰۹ شروع شود (بعد از نرمال‌سازیِ ارقام).
  */
 export function isValidIranMobile(value) {
-  return /^[0-9]{1,}$/.test(normalizeDigits(value).trim());
+  return /^09[0-9]{9}$/.test(normalizeDigits(value).trim());
 }
