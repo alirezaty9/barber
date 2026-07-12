@@ -5,9 +5,9 @@ import { createHash, randomInt } from 'crypto';
 export const OTP_TTL_MS = 2 * 60 * 1000; // اعتبارِ کد: ۲ دقیقه
 export const OTP_MAX_ATTEMPTS = 5; // حداکثر تلاشِ اشتباه پیش از باطل‌شدنِ کد
 
-// کدِ ۶ رقمی با randomInt (امن، نه Math.random).
+// کدِ ۵ رقمیِ عددی با randomInt (امن، نه Math.random) — بازه‌ی ۱۰۰۰۰ تا ۹۹۹۹۹.
 export function generateOtp() {
-  return String(randomInt(100000, 1000000));
+  return String(randomInt(10000, 100000));
 }
 
 export function hashOtp(otp) {

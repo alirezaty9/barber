@@ -90,6 +90,9 @@ export default function TrackPage() {
     }
   };
 
+  // نوبتی که در حالِ لغو است (برای نمایشِ زمان در صفحه‌ی تأیید).
+  const cancelTarget = otpFor ? bookings?.find((b) => b.code === otpFor.code) : null;
+
   return (
     <div className="min-h-screen bg-[#030303] text-zinc-100 px-6 py-12">
       <div className="max-w-lg mx-auto">
@@ -102,112 +105,139 @@ export default function TrackPage() {
           </span>
         </Link>
 
-        <div className="glass p-8 rounded-3xl border border-zinc-800">
-          <div className="flex flex-col items-center text-center mb-6">
-            <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-2xl mb-3">
-              <Search className="w-6 h-6" />
+        {/* حالتِ ۱ — تأیید لغو: صفحه فقط کدِ ۵ رقمی را نشان می‌دهد */}
+        {otpFor ? (
+          <div className="glass p-8 rounded-3xl border border-amber-500/20">
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-2xl mb-3">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <h1 className="text-xl font-extrabold text-white">تأیید لغو نوبت</h1>
+              <p className="text-xs text-zinc-400 mt-2 leading-relaxed">
+                کد تأیید به شماره‌ی{' '}
+                {otpFor.phoneMasked
+                  ? <span dir="ltr" className="font-mono text-zinc-200">{otpFor.phoneMasked}</span>
+                  : 'موبایلِ شما'}{' '}
+                ارسال شد. کد ۵ رقمی را وارد کنید:
+              </p>
+              {cancelTarget && (
+                <p className="text-[11px] text-amber-400/80 mt-2">
+                  نوبتِ {formatJalaliDate(cancelTarget.date, { day: 'numeric', month: 'long' })} — ساعت {toPersianDigits(cancelTarget.timeSlot)}
+                </p>
+              )}
             </div>
-            <h1 className="text-xl font-extrabold text-white">رهگیری نوبت</h1>
-            <p className="text-xs text-zinc-400 mt-1">شماره موبایلی که هنگام رزرو وارد کردید را بنویسید تا نوبت‌هایتان را ببینید.</p>
+
+            <div className="space-y-4">
+              <Input
+                autoFocus
+                inputMode="numeric"
+                maxLength={5}
+                placeholder="-----"
+                value={otpValue}
+                onChange={(e) => setOtpValue(e.target.value)}
+                style={{ direction: 'ltr', textAlign: 'center', letterSpacing: '0.6em', fontSize: '1.25rem' }}
+              />
+              <Button variant="danger" className="w-full" size="lg" loading={cancelling} disabled={otpValue.length < 5} onClick={onConfirmCancel}>
+                تأیید و لغو نوبت
+              </Button>
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => { setOtpFor(null); setOtpValue(''); }}
+                  className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+                >
+                  ← بازگشت
+                </button>
+                <button
+                  type="button"
+                  onClick={() => sendOtp(otpFor.code)}
+                  disabled={sendingCode === otpFor.code}
+                  className="text-[11px] text-zinc-500 hover:text-amber-400 transition-colors flex items-center gap-1 disabled:opacity-50"
+                >
+                  {sendingCode === otpFor.code && <Loader2 className="w-3 h-3 animate-spin" />}
+                  ارسال دوباره‌ی کد
+                </button>
+              </div>
+            </div>
           </div>
+        ) : bookings ? (
+          /* حالتِ ۲ — نتیجه‌ی رهگیری: فقط نوبت‌ها (بدونِ فرمِ جست‌وجو) */
+          <div className="space-y-4">
+            {bookings.length === 0 ? (
+              <div className="glass p-8 rounded-3xl border border-zinc-800 text-center">
+                <p className="text-sm text-zinc-300 font-bold">نوبتی با این شماره یافت نشد.</p>
+                <p className="text-xs text-zinc-500 mt-1">شماره را بررسی کنید و دوباره جست‌وجو کنید.</p>
+              </div>
+            ) : (
+              bookings.map((booking) => (
+                <div key={booking.code} className="glass p-5 rounded-3xl border border-zinc-800 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-sm text-amber-500">{booking.code}</span>
+                    <span className={cn('px-2.5 py-1 rounded-full text-[10px] font-bold border', STATUS_STYLES[booking.status])}>
+                      {STATUS_LABELS[booking.status]}
+                    </span>
+                  </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <Field label="شماره موبایل:" error={errors.phone?.message}>
-              <Input type="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" style={{ direction: 'ltr', textAlign: 'left' }} error={errors.phone} {...register('phone')} />
-            </Field>
-            <Button type="submit" loading={isSubmitting} className="w-full" size="lg">
-              نمایش نوبت‌های من
-            </Button>
-          </form>
-        </div>
-
-        {bookings && bookings.length === 0 && (
-          <p className="text-center text-zinc-500 text-sm mt-6">نوبتی با این شماره یافت نشد.</p>
-        )}
-
-        {bookings && bookings.length > 0 && (
-          <div className="mt-6 space-y-4">
-            <p className="text-xs text-zinc-400 text-center">
-              {toPersianDigits(bookings.length)} نوبت برای این شماره ثبت شده است:
-            </p>
-            {bookings.map((booking) => (
-              <div key={booking.code} className="glass p-6 rounded-3xl border border-zinc-800 space-y-4">
-                <div className="flex items-center justify-between border-b border-zinc-900 pb-4">
-                  <span className="text-sm font-bold text-zinc-300">کد: <span className="font-mono text-amber-500">{booking.code}</span></span>
-                  <span className={cn('px-2.5 py-1 rounded-full text-[10px] font-bold border', STATUS_STYLES[booking.status])}>
-                    {STATUS_LABELS[booking.status]}
-                  </span>
-                </div>
-
-                <div className="bg-amber-500/5 border border-amber-500/15 rounded-2xl p-4 text-center">
-                  <p className="text-[11px] text-zinc-400 mb-1">زمان نوبت شما</p>
-                  <p className="text-sm font-extrabold text-amber-400">
+                  <p className="text-base font-extrabold text-amber-400">
                     {formatJalaliDate(booking.date, { weekday: 'long', day: 'numeric', month: 'long' })} — ساعت {toPersianDigits(booking.timeSlot)}
                   </p>
-                </div>
 
-                <Row icon={ScissorsIcon} label="خدمت" value={servicesLabelOf(booking)} />
-                <Row icon={User} label="مشتری" value={booking.customerName} />
-                {booking.refundAmount > 0 && (
-                  <Row icon={ScissorsIcon} label="مبلغ بازگشتی" value={formatPrice(booking.refundAmount)} />
-                )}
-
-                {booking.status !== 'cancelled' && otpFor?.code !== booking.code && (
-                  <Button
-                    variant="danger"
-                    className="w-full mt-2"
-                    loading={sendingCode === booking.code}
-                    onClick={() => onRequestCancel(booking.code)}
-                  >
-                    <XCircle className="w-4 h-4" />
-                    لغو این نوبت
-                  </Button>
-                )}
-
-                {/* گامِ تأییدِ دومرحله‌ای برای همین نوبت */}
-                {otpFor?.code === booking.code && (
-                  <div className="mt-2 rounded-2xl border border-amber-500/25 bg-amber-500/[0.04] p-4 space-y-3">
-                    <div className="flex items-center gap-2 text-amber-400">
-                      <ShieldCheck className="w-4 h-4" />
-                      <span className="text-xs font-bold">تأیید لغو</span>
-                    </div>
-                    <p className="text-[11px] text-zinc-400 leading-relaxed">
-                      کد تأیید به شماره‌ی {otpFor.phoneMasked ? <span dir="ltr" className="font-mono text-zinc-300">{otpFor.phoneMasked}</span> : 'موبایلِ شما'} ارسال شد. آن را وارد کنید:
-                    </p>
-                    <Input
-                      inputMode="numeric"
-                      maxLength={6}
-                      placeholder="------"
-                      value={otpValue}
-                      onChange={(e) => setOtpValue(e.target.value)}
-                      style={{ direction: 'ltr', textAlign: 'center', letterSpacing: '0.4em' }}
-                    />
-                    <div className="flex items-center gap-2">
-                      <Button variant="danger" className="flex-1" loading={cancelling} disabled={otpValue.length < 6} onClick={onConfirmCancel}>
-                        تأیید و لغو نوبت
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => { setOtpFor(null); setOtpValue(''); }}>
-                        انصراف
-                      </Button>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => sendOtp(booking.code)}
-                      disabled={sendingCode === booking.code}
-                      className="text-[11px] text-zinc-500 hover:text-amber-400 transition-colors flex items-center gap-1 disabled:opacity-50"
-                    >
-                      {sendingCode === booking.code && <Loader2 className="w-3 h-3 animate-spin" />}
-                      ارسال دوباره‌ی کد
-                    </button>
+                  <div className="space-y-2 border-t border-zinc-900 pt-3">
+                    <Row icon={ScissorsIcon} label="خدمت" value={servicesLabelOf(booking)} />
+                    <Row icon={User} label="مشتری" value={booking.customerName} />
+                    {booking.refundAmount > 0 && (
+                      <Row icon={ScissorsIcon} label="مبلغ بازگشتی" value={formatPrice(booking.refundAmount)} />
+                    )}
                   </div>
-                )}
+
+                  {booking.status !== 'cancelled' && (
+                    <Button
+                      variant="danger"
+                      className="w-full"
+                      loading={sendingCode === booking.code}
+                      onClick={() => onRequestCancel(booking.code)}
+                    >
+                      <XCircle className="w-4 h-4" />
+                      لغو این نوبت
+                    </Button>
+                  )}
+                </div>
+              ))
+            )}
+
+            <button
+              type="button"
+              onClick={() => setBookings(null)}
+              className="w-full text-center text-xs text-zinc-400 hover:text-zinc-200 transition-colors py-2"
+            >
+              رهگیریِ شماره‌ی دیگر
+            </button>
+          </div>
+        ) : (
+          /* حالتِ ۳ — جست‌وجو */
+          <div className="glass p-8 rounded-3xl border border-zinc-800">
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-2xl mb-3">
+                <Search className="w-6 h-6" />
               </div>
-            ))}
+              <h1 className="text-xl font-extrabold text-white">رهگیری نوبت</h1>
+              <p className="text-xs text-zinc-400 mt-1">شماره موبایلی که هنگام رزرو وارد کردید را بنویسید تا نوبت‌تان را ببینید.</p>
+            </div>
+
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <Field label="شماره موبایل:" error={errors.phone?.message}>
+                <Input type="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" style={{ direction: 'ltr', textAlign: 'left' }} error={errors.phone} {...register('phone')} />
+              </Field>
+              <Button type="submit" loading={isSubmitting} className="w-full" size="lg">
+                نمایش نوبت‌های من
+              </Button>
+            </form>
           </div>
         )}
 
-        <Link href="/" className="block text-center text-xs text-zinc-500 hover:text-zinc-300 mt-6 transition-colors">
-          ← بازگشت به سایت
+        {/* بازگشت به صفحه‌ی اصلی — همیشه در دسترس */}
+        <Link href="/" className="block text-center text-xs text-zinc-500 hover:text-amber-400 mt-6 transition-colors">
+          ← بازگشت به صفحه‌ی اصلی
         </Link>
       </div>
     </div>

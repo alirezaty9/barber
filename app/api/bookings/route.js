@@ -91,7 +91,7 @@ async function createBookingSafely({ data, svc, barberId, status, admin }) {
     try {
       return await prisma.$transaction(async (tx) => {
         const { error, dayOff, slots } = await resolveAvailability(
-          { barberId, date: data.date, serviceDuration: svc.totalDuration },
+          { barberId, date: data.date },
           tx,
         );
         if (error) throw new ApiError(400, 'آرایشگر انتخابی معتبر نیست.');

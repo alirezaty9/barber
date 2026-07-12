@@ -76,7 +76,7 @@ async function createPendingBookingSafely({ data, svc, barberId, totalPrice }) {
     try {
       return await prisma.$transaction(async (tx) => {
         const { error, dayOff, slots } = await resolveAvailability(
-          { barberId, date: data.date, serviceDuration: svc.totalDuration },
+          { barberId, date: data.date },
           tx,
         );
         if (error) throw new ApiError(400, 'آرایشگر معتبری در سیستم ثبت نشده است.');

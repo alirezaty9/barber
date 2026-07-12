@@ -19,19 +19,20 @@ function tehranNow() {
 
 // helper سروریِ مشترکِ محاسبه‌ی موجودی — از تکرارِ همان بلوک در سه روت جلوگیری می‌کند.
 // آرایشگر، نوبت‌های فعال و بستن‌های زمانِ (blocks) همان روز را می‌خواند و اسلات‌ها را می‌سازد.
+// موجودی مستقل از خدمات است: هر نوبت دقیقاً یک اسلات (۱ ساعت) می‌گیرد.
 // پارامترِ client اختیاری است: هنگامِ ساختِ رزرو، برای جلوگیری از race باید کلاینتِ تراکنش
 // (tx) پاس داده شود تا این خواندن‌ها و INSERTِ بعدی در یک تراکنشِ Serializable باشند.
-// @param {{barberId:string, date:string, serviceDuration:number}} p
+// @param {{barberId:string, date:string}} p
 // @param {import('@prisma/client').PrismaClient} [client]
 // @returns {Promise<{error?:string, barber?:object, dayOff:boolean, slots:object[]}>}
-export async function resolveAvailability({ barberId, date, serviceDuration }, client = prisma) {
+export async function resolveAvailability({ barberId, date }, client = prisma) {
   const barber = await client.barber.findUnique({ where: { id: barberId } });
   if (!barber) return { error: 'آرایشگر یافت نشد.', dayOff: true, slots: [] };
 
   const [existing, blocks] = await Promise.all([
     client.booking.findMany({
       where: { barberId, date, status: { not: 'cancelled' } },
-      include: { service: true, service2: true },
+      select: { timeSlot: true },
     }),
     client.barberBlock.findMany({ where: { barberId, date } }),
   ]);
@@ -40,15 +41,6 @@ export async function resolveAvailability({ barberId, date, serviceDuration }, c
   const now = tehranNow();
   const nowMinutes = date === now.iso ? now.minutes : -1;
 
-  const { dayOff, slots } = computeAvailability({
-    serviceDuration,
-    existing: existing.map((b) => ({
-      timeSlot: b.timeSlot,
-      duration: (b.service?.duration || 0) + (b.service2?.duration || 0) || 60,
-    })),
-    blocks,
-    nowMinutes,
-  });
-
+  const { dayOff, slots } = computeAvailability({ existing, blocks, nowMinutes });
   return { barber, dayOff, slots };
 }
