@@ -3,9 +3,9 @@
 // داک: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/manifest
 export default function manifest() {
   return {
-    name: 'بَنَد باربر | رزرو آنلاین نوبت آرایشگاه',
-    short_name: 'بَنَد باربر',
-    description: 'رزرو آنلاین نوبت آرایشگاه و پنل مدیریت',
+    name: 'banad barber',
+    short_name: 'banad barber',
+    description: 'رزرو آنلاین نوبت آرایشگاه بناد و پنل مدیریت',
     id: '/',
     start_url: '/',
     scope: '/',

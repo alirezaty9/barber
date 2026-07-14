@@ -1,6 +1,6 @@
 import { WifiOff } from 'lucide-react';
 
-export const metadata = { title: 'آفلاین | بَنَد باربر' };
+export const metadata = { title: 'آفلاین | banad barber' };
 
 // صفحه‌ی فال‌بکِ آفلاین — وقتی کاربر اینترنت ندارد و صفحه در کش نیست نمایش داده می‌شود.
 export default function OfflinePage() {

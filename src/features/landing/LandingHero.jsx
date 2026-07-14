@@ -3,13 +3,33 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Calendar, MapPin, Phone, Instagram, Search, Smartphone } from 'lucide-react';
+import { toast } from 'sonner';
 import { useBookingStore } from '@/features/booking/store';
+import { usePwaInstall } from '@/features/pwa/usePwaInstall';
 
 export default function LandingHero() {
   const openBooking = useBookingStore((s) => s.openBooking);
+  const { promptInstall } = usePwaInstall();
 
-  // آیکون‌های میان‌بر همگی طلایی (هم‌رنگ متن برند). PWA فعلاً بدون عملکرد است.
+  // آیکون‌های میان‌بر همگی طلایی (هم‌رنگ متن برند).
   const iconLink = 'p-3.5 bg-zinc-900/60 border border-zinc-800 hover:border-amber-500/50 text-amber-500 hover:text-amber-400 rounded-2xl transition-all duration-300 hover:-translate-y-1';
+
+  // کلیک روی آیکونِ نصب: دیالوگِ نصبِ نیتیو را باز می‌کند؛ اگر مرورگر پشتیبانی نکند
+  // (مثل iOS)، راهنمای دستی نشان می‌دهد.
+  const handleInstall = async () => {
+    const outcome = await promptInstall();
+    if (outcome === 'accepted') {
+      toast.success('اپ روی صفحه‌ی اصلیِ دستگاه شما اضافه شد ✅');
+    } else if (outcome === 'unavailable') {
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      toast(
+        isIOS
+          ? 'برای نصب: دکمه‌ی اشتراک‌گذاریِ سافاری را بزن و «Add to Home Screen» را انتخاب کن.'
+          : 'برای نصب، از منوی مرورگر گزینه‌ی «نصب برنامه / Install app» را انتخاب کن.',
+        { duration: 6000 }
+      );
+    }
+  };
 
   return (
     <header id="hero" className="relative min-h-screen flex flex-col justify-center overflow-hidden bg-[#030303] text-zinc-100">
@@ -63,10 +83,18 @@ export default function LandingHero() {
           <a href="#social" aria-label="اینستاگرام" className={iconLink}>
             <Instagram className="w-5 h-5" />
           </a>
-          {/* دکمه‌ی نصب اپ (PWA) — فعلاً بدون عملکرد */}
-          <button type="button" aria-label="نصب اپلیکیشن" className={iconLink}>
-            <Smartphone className="w-5 h-5" />
-          </button>
+          {/* دکمه‌ی نصب اپ (PWA) — با تولتیپِ «pwa» روی هاور */}
+          <div className="relative group">
+            <button type="button" onClick={handleInstall} aria-label="نصب PWA" className={iconLink}>
+              <Smartphone className="w-5 h-5" />
+            </button>
+            <span
+              role="tooltip"
+              className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 whitespace-nowrap rounded-lg bg-zinc-900 px-2.5 py-1 text-[11px] font-bold text-amber-400 border border-amber-500/20 shadow-lg opacity-0 translate-y-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0"
+            >
+              pwa
+            </span>
+          </div>
         </div>
       </div>
     </header>

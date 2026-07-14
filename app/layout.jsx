@@ -22,11 +22,11 @@ const lalezar = Lalezar({
 export const metadata = {
   title: 'banad barber | رزرو آنلاین نوبت آرایشگاه',
   description: 'سامانه رزرو آنلاین نوبت آرایشگاه با تم دارک مینیمال و پنل مدیریت مدرن',
-  applicationName: 'بَنَد باربر',
+  applicationName: 'banad barber',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'بَنَد باربر',
+    title: 'banad barber',
   },
   icons: {
     icon: [
