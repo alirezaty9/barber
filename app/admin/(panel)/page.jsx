@@ -1,11 +1,13 @@
 import { prisma } from '@/lib/db';
-import { TrendingUp, Hourglass, Receipt, Clock, Scissors, XCircle } from 'lucide-react';
+import { TrendingUp, Hourglass, Receipt, Clock, Scissors, XCircle, PieChart } from 'lucide-react';
 import { formatPrice, toPersianDigits, formatJalaliDate } from '@/lib/persian';
 import { servicesLabelOf } from '@/lib/serializers';
 import { TIME_SLOTS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import DashboardPeriod from '@/features/admin/DashboardPeriod';
 import RevenueChart from '@/features/admin/RevenueChart';
+import PeakHoursChart from '@/features/admin/PeakHoursChart';
+import StatusDonut from '@/features/admin/StatusDonut';
 
 export const dynamic = 'force-dynamic';
 
@@ -106,11 +108,23 @@ export default async function AdminDashboard({ searchParams }) {
   const emptyChart = chart.every((c) => c.net === 0);
 
   // ── متریک‌های دقیق ──
-  const maxHour = Math.max(1, ...TIME_SLOTS.map((t) => perHour[t] || 0));
   const services = Object.entries(perService).sort(([, a], [, b]) => b - a);
   const maxService = Math.max(1, ...services.map(([, v]) => v));
-  let peakHour = null, peakHourN = 0;
-  for (const t of TIME_SLOTS) if ((perHour[t] || 0) > peakHourN) { peakHourN = perHour[t]; peakHour = t; }
+
+  // داده‌ی نمودارِ شلوغیِ ساعت‌ها (ستونی).
+  const hoursData = TIME_SLOTS.map((t) => ({
+    label: toPersianDigits(t.slice(0, 2)),
+    value: perHour[t] || 0,
+    full: toPersianDigits(t),
+  }));
+  const hoursTotal = TIME_SLOTS.reduce((s, t) => s + (perHour[t] || 0), 0);
+
+  // داده‌ی نمودارِ دوناتِ وضعیت.
+  const statusSegments = [
+    { label: 'تایید شده', value: confirmed, color: '#34d399' },
+    { label: 'در انتظار', value: pend, color: '#fbbf24' },
+    { label: 'لغو شده', value: cancelled, color: '#fb7185' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -155,21 +169,20 @@ export default async function AdminDashboard({ searchParams }) {
         <Kpi icon={XCircle} tone="rose" label="نرخ لغو" value={`${toPersianDigits(cancelRate)}٪`} sub={`${toPersianDigits(cancelled)} لغو از ${toPersianDigits(totalCount)}`} />
       </div>
 
-      {/* دو ستون: شلوغیِ ساعت‌ها + درآمدِ خدمات */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="glass rounded-2xl p-5">
-          <SectionTitle icon={Clock} title="شلوغیِ ساعت‌ها" note={peakHour ? `اوج: ${toPersianDigits(peakHour)}` : null} />
-          <div className="space-y-2.5 mt-5">
-            {TIME_SLOTS.map((t) => (
-              <div key={t} className="flex items-center gap-3">
-                <span className="w-10 shrink-0 text-[11px] font-mono text-zinc-400 tabular-nums">{toPersianDigits(t)}</span>
-                <Bar pct={Math.round(((perHour[t] || 0) / maxHour) * 100)} />
-                <span className="w-8 shrink-0 text-left text-[11px] text-zinc-500 tabular-nums">{toPersianDigits(perHour[t] || 0)}</span>
-              </div>
-            ))}
-          </div>
+      {/* نمودارِ ستونیِ شلوغیِ ساعت‌ها (تمام‌عرض) */}
+      <div className="glass rounded-2xl p-5 md:p-6">
+        <SectionTitle icon={Clock} title="شلوغیِ ساعت‌ها" note={`${toPersianDigits(hoursTotal)} نوبت در این بازه`} />
+        <div className="mt-5">
+          {hoursTotal === 0 ? (
+            <p className="text-xs text-zinc-500 text-center py-14">در این بازه نوبتی ثبت نشده است.</p>
+          ) : (
+            <PeakHoursChart data={hoursData} />
+          )}
         </div>
+      </div>
 
+      {/* دو ستون: درآمدِ خدمات + دوناتِ وضعیت */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="glass rounded-2xl p-5">
           <SectionTitle icon={Scissors} title="درآمد به تفکیک خدمت" note={services.length ? `${toPersianDigits(services.length)} خدمت` : null} />
           {services.length === 0 ? (
@@ -187,10 +200,12 @@ export default async function AdminDashboard({ searchParams }) {
               ))}
             </div>
           )}
-          <div className="flex items-center gap-2 mt-5 pt-4 border-t border-white/5">
-            <Pill label="تایید" count={confirmed} cls="text-emerald-400" />
-            <Pill label="در انتظار" count={pend} cls="text-amber-400" />
-            <Pill label="لغو" count={cancelled} cls="text-rose-400" />
+        </div>
+
+        <div className="glass rounded-2xl p-5">
+          <SectionTitle icon={PieChart} title="ترکیب وضعیت نوبت‌ها" note={`${toPersianDigits(totalCount)} کل`} />
+          <div className="mt-6">
+            <StatusDonut segments={statusSegments} total={totalCount} />
           </div>
         </div>
       </div>
@@ -244,10 +259,3 @@ function Bar({ pct, tone = 'amber' }) {
   );
 }
 
-function Pill({ label, count, cls }) {
-  return (
-    <span className={cn('flex-1 text-center px-2 py-1.5 rounded-lg text-[10px] font-bold bg-white/[0.03] border border-white/5', cls)}>
-      {label}: {toPersianDigits(count)}
-    </span>
-  );
-}
