@@ -89,7 +89,10 @@ export default function Footer() {
 
       <div className="max-w-7xl mx-auto border-t border-zinc-900/60 mt-12 pt-6 text-center text-[10px] text-zinc-600 flex flex-col sm:flex-row items-center justify-between gap-4">
         <p>© {toPersianDigits(currentYear)} banad barber. تمامی حقوق مادی و معنوی محفوظ است.</p>
-        <p className="text-zinc-700">طراحی شده با تم دارک مینیمال جهت رزرو نوبت آنلاین سریع</p>
+        <div className="flex items-center gap-4">
+          <a href="/admin" className="text-zinc-700 hover:text-amber-500 transition-colors">پنل مدیریت</a>
+          <p className="text-zinc-700">طراحی شده با تم دارک مینیمال جهت رزرو نوبت آنلاین سریع</p>
+        </div>
       </div>
     </footer>
   );
