@@ -42,6 +42,14 @@ Thumbs.db
 # ===== Deploy =====
 .vercel
 
+# ===== Database dumps / backups (هرگز دیتای واقعی commit نشود) =====
+# الگوهای هدفمند تا فایل‌های لازمِ prisma/sql/*.sql commit شوند.
+*.dump
+*.pgdump
+supabase-dump*.sql
+db-backup*.sql
+backup-*.sql
+
 # ===== Claude Code (تنظیمات محلی) =====
 .claude/
 
