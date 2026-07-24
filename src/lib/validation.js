@@ -48,6 +48,24 @@ const timeSlot = z
   .string()
   .regex(/^\d{2}:\d{2}$/, { message: 'ساعت نامعتبر است.' });
 
+// تصویرِ خدمت: خالی، یا آدرسِ http(s)/مسیرِ لوکال، یا data URLِ عکس (آپلودِ ادمین).
+// سقفِ حجم گذاشته می‌شود تا یک data URLِ خیلی بزرگ دیتابیس/پاسخ را سنگین نکند.
+const serviceImage = z
+  .string()
+  .trim()
+  .default('')
+  .refine(
+    (v) =>
+      v === '' ||
+      /^https?:\/\//.test(v) ||
+      v.startsWith('/') ||
+      /^data:image\/(png|jpe?g|webp);base64,/.test(v),
+    { message: 'تصویر نامعتبر است.' },
+  )
+  .refine((v) => v.length <= 900_000, {
+    message: 'حجم تصویر زیاد است؛ عکسِ کوچک‌تری انتخاب کن.',
+  });
+
 export const serviceSchema = z.object({
   name: z.string().trim().min(1, 'عنوان خدمت الزامی است.'),
   price: z.coerce.number().int().positive('قیمت باید بزرگ‌تر از صفر باشد.'),
@@ -56,6 +74,7 @@ export const serviceSchema = z.object({
   duration: z.coerce.number().int().positive().default(75),
   description: z.string().trim().default(''),
   category: z.enum(CATEGORIES),
+  image: serviceImage,
 });
 
 // آدرس تصویر: هم URL کامل (https://...) و هم مسیر لوکال (/images/...) پذیرفته می‌شود.

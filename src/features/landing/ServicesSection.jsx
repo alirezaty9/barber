@@ -16,16 +16,31 @@ const CATEGORY_IMAGES = {
   style: '/images/service-hair.jpg',
 };
 
-// عکس کارت خدمت؛ اگر فایل عکس موجود نبود، به‌جای تصویر شکسته یک طرح جایگزین (آیکن قیچی) نشان می‌دهد.
-function ServiceCardImage({ category, name }) {
+// عکس کارت خدمت: اگر خدمت عکسِ اختصاصی داشته باشد از آن استفاده می‌شود، وگرنه از تصویرِ
+// پیش‌فرضِ دسته‌بندی. اگر هیچ‌کدام نبود/خراب بود، طرحِ جایگزین (آیکن قیچی) نشان داده می‌شود.
+function ServiceCardImage({ image, category, name }) {
   const [errored, setErrored] = useState(false);
-  const src = CATEGORY_IMAGES[category];
+  const uploaded = image?.trim();
+  const src = uploaded || CATEGORY_IMAGES[category];
 
   if (!src || errored) {
     return (
       <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-zinc-900 to-black">
         <Scissors className="w-10 h-10 text-amber-500/40" />
       </div>
+    );
+  }
+
+  // عکسِ اختصاصی (data URL یا آدرسِ دلخواه) با <img> ساده رندر می‌شود، چون next/image
+  // برای data URL و هاستِ دلخواه محدودیت دارد. تصویرِ پیش‌فرضِ لوکال با next/image بهینه می‌شود.
+  if (uploaded) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        onError={() => setErrored(true)}
+        className="absolute inset-0 w-full h-full object-cover transition duration-500 group-hover:brightness-110"
+      />
     );
   }
 
@@ -69,7 +84,7 @@ export default function ServicesSection({ services }) {
                 className="glass rounded-2xl overflow-hidden hover:border-amber-500/30 transition-all duration-300 flex flex-col sm:flex-row group text-right hover:-translate-y-0.5"
               >
                 <div className="relative w-full sm:w-56 h-44 shrink-0 overflow-hidden bg-zinc-900">
-                  <ServiceCardImage category={service.category} name={service.name} />
+                  <ServiceCardImage image={service.image} category={service.category} name={service.name} />
                 </div>
 
                 <div className="p-5 flex-1 flex flex-col justify-center">

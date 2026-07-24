@@ -17,6 +17,8 @@ model Service {
   duration    Int // به دقیقه
   description String    @default("")
   category    String    @default("hair") // hair | beard | grooming | combo
+  // تصویرِ اختصاصیِ خدمت: data URL (آپلودِ ادمین) یا آدرس. خالی = از روی دسته‌بندی.
+  image       String    @default("")
   createdAt   DateTime  @default(now())
   // یک خدمت می‌تواند خدمتِ اصلی یا خدمتِ دومِ چند نوبت باشد (هر نوبت تا دو خدمت).
   bookings    Booking[] @relation("PrimaryService")
@@ -81,6 +83,9 @@ model Booking {
   cancelOtpHash      String?
   cancelOtpExpiresAt DateTime?
   cancelOtpAttempts  Int     @default(0)
+  // یادآوریِ ۲ ساعت قبل از نوبت: زمانِ ارسالِ پیامکِ یادآوری. null یعنی هنوز نرفته —
+  // برای جلوگیری از ارسالِ تکراری (هر نوبت فقط یک‌بار یادآوری می‌شود).
+  reminderSentAt DateTime?
   createdAt     DateTime @default(now())
 
   @@index([barberId, date])
