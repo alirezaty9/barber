@@ -40,12 +40,14 @@ export async function GET(request) {
     }
 
     // تأیید نهایی با زرین‌پال — و تطبیقِ مبلغِ واقعیِ پرداخت‌شده با مبلغِ رزرو (ضدِ دستکاری).
+    // fail-closed: اگر درگاه مبلغ را برنگرداند (null) پرداخت را «نامعتبر» می‌گیریم، نه معتبر.
     const verify = await verifyPayment({ amount: booking.amount, authority });
-    const amountOk = verify.paidAmount == null || verify.paidAmount === booking.amount;
+    const amountOk = verify.paidAmount != null && verify.paidAmount === booking.amount;
     if (verify.ok && amountOk) {
+      // پرداخت موفق ⇒ نوبت خودکار «تایید» می‌شود (دیگر نیازی به تاییدِ دستیِ آرایشگر نیست).
       await prisma.booking.update({
         where: { id: booking.id },
-        data: { paymentStatus: 'paid', paymentRefId: verify.refId || null },
+        data: { paymentStatus: 'paid', status: 'confirmed', paymentRefId: verify.refId || null },
       });
       return NextResponse.redirect(resultUrl(`status=success&code=${booking.code}`));
     }

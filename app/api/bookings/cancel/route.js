@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/db';
 import { cancelSchema } from '@/lib/validation';
 import { refundPayment } from '@/lib/zarinpal';
-import { ok, parseBody, notFound, conflict, badRequest, serverError, buildCancelPatch } from '@/lib/api-helpers';
+import { ok, parseBody, notFound, conflict, badRequest, serverError, tooManyRequests, buildCancelPatch } from '@/lib/api-helpers';
 import { hashOtp, OTP_MAX_ATTEMPTS } from '@/lib/otp';
+import { rateLimit, clientIp } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('cancel');
@@ -10,6 +11,10 @@ const log = createLogger('cancel');
 // POST — لغو نوبت توسط مشتری با کدِ رهگیری + کدِ تأییدِ دومرحله‌ای (OTP).
 // قاعده: لغو توسط مشتری ⇒ ۵۰٪ مبلغِ پرداخت‌شده مسترد می‌شود.
 export async function POST(request) {
+  // ضدِ brute-force: حداکثر ۱۰ تلاشِ تأیید در هر دقیقه به‌ازای هر IP (علاوه بر سقفِ per-booking).
+  const limit = rateLimit({ key: `cancel:${clientIp(request)}`, limit: 10, windowMs: 60_000 });
+  if (!limit.ok) return tooManyRequests('تلاش‌های زیاد. کمی بعد دوباره تلاش کنید.');
+
   const { data, response } = await parseBody(request, cancelSchema);
   if (response) return response;
 

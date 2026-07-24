@@ -12,6 +12,10 @@ function safeEqual(a, b) {
   return timingSafeEqual(ba, bb);
 }
 
+// ⚠️ به‌درخواستِ صریحِ صاحبِ پروژه، سخت‌گیریِ «حداقل قدرتِ رمز» برداشته شد تا رمزِ دلخواه
+// (از جمله admin) پذیرفته شود. توصیه‌ی امنیتی: هر وقت خواستی، فقط کافی است مقدارِ
+// ADMIN_PASSWORD را در .env / Vercel به یک رمزِ قوی عوض کنی — هیچ تغییرِ کدی لازم نیست.
+
 // POST — ورود ادمین با رمز عبور (ADMIN_PASSWORD در .env).
 export async function POST(request) {
   // محدودیتِ نرخ: حداکثر ۵ تلاش در هر ۶۰ ثانیه به‌ازای هر IP (ضدِ brute-force).

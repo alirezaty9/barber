@@ -1,7 +1,7 @@
-import BookingsManager from '@/features/admin/BookingsManager';
+import BookingsView from '@/features/admin/BookingsView';
 
 export const dynamic = 'force-dynamic';
 
 export default function AdminBookingsPage() {
-  return <BookingsManager />;
+  return <BookingsView />;
 }

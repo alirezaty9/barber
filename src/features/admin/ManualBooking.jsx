@@ -115,7 +115,7 @@ export default function ManualBooking() {
         </Field>
 
         <Field label="تاریخ حضور:">
-          <DayPicker value={dateIso} onChange={(iso) => { setDateIso(iso); setTimeSlot(''); }} days={14} />
+          <DayPicker value={dateIso} onChange={(iso) => { setDateIso(iso); setTimeSlot(''); }} days={8} />
         </Field>
 
         {barberId && dateIso && serviceIds.length > 0 && (

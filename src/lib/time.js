@@ -19,6 +19,15 @@ export function shiftISO(iso, deltaDays) {
   return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
 }
 
+// شماره‌ی روزِ هفته به قراردادِ پروژه (۰=شنبه ... ۶=جمعه) از یک تاریخِ ISO میلادی.
+// مستقل از تایم‌زون: تاریخ را به‌صورتِ UTC می‌سازیم تا getUTCDay ثابت بماند.
+// getUTCDay: ۰=یکشنبه ... ۶=شنبه ⇒ با (dow+1)%7 به ۰=شنبه نگاشت می‌شود.
+export function weekdayIndexSaturday(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  return (dow + 1) % 7;
+}
+
 // فهرستِ تاریخ‌های ISO از from تا to (شاملِ هر دو) با سقفِ ایمنی.
 export function rangeISO(fromIso, toIso, cap = 90) {
   const end = toIso || fromIso;

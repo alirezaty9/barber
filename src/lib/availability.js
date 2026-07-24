@@ -19,12 +19,13 @@ export function timeToMin(hhmm) {
  * @param {{timeSlot: string|null}[]} [p.blocks] بستن‌های زمان (مرخصی): timeSlot=null یعنی کل روز
  * @param {number} [p.nowMinutes] اگر روزِ انتخابی «امروز» باشد، دقیقه‌ی فعلیِ روز؛ اسلات‌های
  *   گذشته غیرقابل‌انتخاب می‌شوند. مقدار -1 یعنی روزِ آینده (بدون محدودیت زمانی).
+ * @param {boolean} [p.isWorkingDay] آیا این روز جزوِ روزهای کاریِ آرایشگر است؟ اگر نه، کل روز تعطیل.
  * @returns {{ dayOff: boolean, slots: {time: string, available: boolean, reason?: string}[] }}
  */
-export function computeAvailability({ existing, blocks = [], nowMinutes = -1 }) {
-  // بستنِ کل‌روز (بلاکی بدون ساعت) → کل روز تعطیل.
+export function computeAvailability({ existing, blocks = [], nowMinutes = -1, isWorkingDay = true }) {
+  // تعطیلیِ روز: یا «بستنِ کل‌روز» (بلاکی بدون ساعت) یا «روزِ غیرکاریِ آرایشگر» (workDays).
   const fullDayBlocked = blocks.some((b) => !b.timeSlot);
-  if (fullDayBlocked) {
+  if (fullDayBlocked || !isWorkingDay) {
     return {
       dayOff: true,
       slots: TIME_SLOTS.map((time) => ({ time, available: false, reason: 'dayoff' })),

@@ -53,12 +53,10 @@ export default function BookingWizard({ services, barbers, onClose }) {
     defaultValues: { customerName: '', customerPhone: '' },
   });
 
-  // اسلات‌های آزاد (فقط در مرحله‌ی ۲ و وقتی روز انتخاب شده)
-  // ترتیبِ خدمات در محاسبه‌ی موجودی بی‌اثر است؛ پس کلید را مرتب می‌کنیم تا [a,b] و [b,a]
-  // یک کلیدِ یکسان بسازند و refetchِ اضافه رخ ندهد.
-  const serviceKey = [...serviceIds].sort().join(',');
+  // اسلات‌های آزاد (فقط در مرحله‌ی ۲ و وقتی روز انتخاب شده).
+  // موجودی مستقل از خدماتِ انتخابی است، پس تغییرِ خدمت باعثِ واکشیِ دوباره نمی‌شود.
   const { data: avail, isLoading: loadingSlots } = useAvailability(
-    barberId, dateIso, serviceKey, step === 2 && Boolean(dateIso)
+    barberId, dateIso, step === 2 && Boolean(dateIso)
   );
 
   const canNext =
@@ -150,7 +148,6 @@ export default function BookingWizard({ services, barbers, onClose }) {
                   </div>
                   <div className="text-left">
                     <div className="text-amber-500 font-extrabold text-sm whitespace-nowrap">{formatPrice(service.price)}</div>
-                    <span className="text-zinc-500 text-[10px] block mt-1">{toPersianDigits(service.duration)} دقیقه</span>
                   </div>
                 </button>
               );

@@ -15,7 +15,7 @@ import Select from '@/components/ui/Select';
 import Field from '@/components/ui/Field';
 import Button from '@/components/ui/Button';
 
-const EMPTY = { name: '', price: '', duration: 30, description: '', category: 'hair' };
+const EMPTY = { name: '', price: '', description: '', category: 'hair' };
 
 export default function ManageServices() {
   const { data: services = [] } = useServices();
@@ -31,7 +31,7 @@ export default function ManageServices() {
 
   const startEdit = (svc) => {
     setEditingId(svc.id);
-    reset({ name: svc.name, price: svc.price, duration: svc.duration, description: svc.description, category: svc.category });
+    reset({ name: svc.name, price: svc.price, description: svc.description, category: svc.category });
   };
 
   const cancelEdit = () => { setEditingId(null); reset(EMPTY); };
@@ -77,16 +77,12 @@ export default function ManageServices() {
             <Field label="قیمت (تومان):" error={errors.price?.message}>
               <Input type="number" placeholder="۳۰۰۰۰۰" error={errors.price} {...register('price')} />
             </Field>
-            <Field label="مدت (دقیقه):" error={errors.duration?.message}>
-              <Input type="number" error={errors.duration} {...register('duration')} />
+            <Field label="دسته‌بندی:" error={errors.category?.message}>
+              <Select {...register('category')}>
+                {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
+              </Select>
             </Field>
           </div>
-
-          <Field label="دسته‌بندی:" error={errors.category?.message}>
-            <Select {...register('category')}>
-              {CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
-            </Select>
-          </Field>
 
           <Field label="توضیحات:" error={errors.description?.message}>
             <Textarea rows={2} placeholder="توضیح کوتاه درباره‌ی خدمت..." {...register('description')} />
@@ -110,7 +106,7 @@ export default function ManageServices() {
             <div key={svc.id} className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-xl flex items-center justify-between">
               <div>
                 <h4 className="text-xs font-bold text-zinc-200">{svc.name}</h4>
-                <span className="text-[10px] text-zinc-500">{CATEGORY_LABELS[svc.category]} · {toPersianDigits(svc.duration)} دقیقه</span>
+                <span className="text-[10px] text-zinc-500">{CATEGORY_LABELS[svc.category]}</span>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs font-extrabold text-amber-500">{formatPrice(svc.price)}</span>

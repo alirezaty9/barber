@@ -27,10 +27,19 @@ function shiftIso(iso, delta) {
   dt.setUTCDate(dt.getUTCDate() + delta);
   return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
 }
+// فرمترِ شمسی یک‌بار ساخته می‌شود (ساختِ Intl.DateTimeFormat گران است) و بین همه‌ی
+// رکوردها بازاستفاده می‌شود؛ به‌علاوه نتیجه‌ی هر تاریخ در یک Map کش می‌شود تا برای
+// رکوردهای هم‌تاریخ دوباره محاسبه نشود. (قبلاً برای هر رکورد یک فرمترِ جدید ساخته می‌شد.)
+const PERSIAN_YM_FMT = new Intl.DateTimeFormat('en-US-u-ca-persian', { year: 'numeric', month: 'numeric' });
+const _ymCache = new Map();
 // سال و ماهِ شمسیِ یک تاریخِ ISO میلادی (اعداد لاتین).
 function jalaliYM(iso) {
-  const p = new Intl.DateTimeFormat('en-US-u-ca-persian', { year: 'numeric', month: 'numeric' }).formatToParts(new Date(iso + 'T00:00:00'));
-  return { y: p.find((x) => x.type === 'year')?.value, m: parseInt(p.find((x) => x.type === 'month')?.value, 10) };
+  const hit = _ymCache.get(iso);
+  if (hit) return hit;
+  const p = PERSIAN_YM_FMT.formatToParts(new Date(iso + 'T00:00:00'));
+  const val = { y: p.find((x) => x.type === 'year')?.value, m: parseInt(p.find((x) => x.type === 'month')?.value, 10) };
+  _ymCache.set(iso, val);
+  return val;
 }
 const netOf = (b) => (b.paymentStatus === 'paid' || b.paymentStatus === 'refunded' ? b.amount - (b.refundAmount || 0) : 0);
 
@@ -38,7 +47,15 @@ export default async function AdminDashboard({ searchParams }) {
   const sp = (await searchParams) || {};
   const period = sp.period || '30';
 
-  const all = await prisma.booking.findMany({ include: { service: true, service2: true }, orderBy: [{ date: 'asc' }, { timeSlot: 'asc' }] });
+  // فقط ستون‌های موردنیازِ محاسبات (نه کلِ رکورد + دو join). servicesLabel اسنپ‌شاتِ نامِ
+  // خدمات است، پس برای درآمدِ هر خدمت به include نیازی نیست.
+  const all = await prisma.booking.findMany({
+    select: {
+      date: true, timeSlot: true, status: true,
+      paymentStatus: true, amount: true, refundAmount: true, servicesLabel: true,
+    },
+    orderBy: [{ date: 'asc' }, { timeSlot: 'asc' }],
+  });
 
   const todayIso = tehranTodayIso();
   const tj = jalaliYM(todayIso);

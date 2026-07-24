@@ -2,7 +2,9 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { http } from './http';
 
 export const bookingsKey = (filters) => ['bookings', filters];
-export const availabilityKey = (barberId, date, serviceId) => ['availability', barberId, date, serviceId];
+// موجودی مستقل از خدمات است (هر نوبت = ۱ اسلات)، پس serviceId در کلید/درخواست نمی‌آید.
+export const availabilityKey = (barberId, date) => ['availability', barberId, date];
+export const dayScheduleKey = (barberId, date) => ['day-schedule', barberId, date];
 
 // فهرست نوبت‌ها (ادمین) با فیلتر/جست‌وجو/صفحه‌بندی
 export function useBookings(filters) {
@@ -18,11 +20,19 @@ export function useBookings(filters) {
 }
 
 // اسلات‌های آزاد یک آرایشگر در یک روز
-export function useAvailability(barberId, date, serviceId, enabled = true) {
+export function useAvailability(barberId, date, enabled = true) {
   return useQuery({
-    queryKey: availabilityKey(barberId, date, serviceId),
-    queryFn: () =>
-      http(`/api/bookings/availability?barberId=${barberId}&date=${date}&serviceId=${serviceId || ''}`),
+    queryKey: availabilityKey(barberId, date),
+    queryFn: () => http(`/api/bookings/availability?barberId=${barberId}&date=${date}`),
+    enabled: Boolean(enabled && barberId && date),
+  });
+}
+
+// برنامه‌ی یک روز برای ادمین — اسلات‌ها + جزئیاتِ رزروِ هر ساعت (نام مشتری و…)
+export function useDaySchedule(barberId, date, enabled = true) {
+  return useQuery({
+    queryKey: dayScheduleKey(barberId, date),
+    queryFn: () => http(`/api/bookings/day?barberId=${barberId}&date=${date}`),
     enabled: Boolean(enabled && barberId && date),
   });
 }

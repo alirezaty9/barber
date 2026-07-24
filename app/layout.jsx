@@ -1,23 +1,9 @@
 import './globals.css';
-import { Vazirmatn, Lalezar } from 'next/font/google';
 import Providers from './providers';
 import ServiceWorkerRegister from '@/features/pwa/ServiceWorkerRegister';
 
-// بارگذاری فونت با next/font (به‌جای @import در CSS) → بدون درخواست اضافه به Google،
-// خودکار self-host می‌شود، از پرش متن (CLS) جلوگیری می‌کند و متغیر CSS می‌سازد.
-const vazirmatn = Vazirmatn({
-  subsets: ['arabic'],
-  display: 'swap',
-  variable: '--font-vazir',
-});
-
-// فونت نمایشیِ مخصوص تیترها (متفاوت از فونت متن) برای حال‌وهوای لوکس‌تر.
-const lalezar = Lalezar({
-  subsets: ['arabic'],
-  weight: '400',
-  display: 'swap',
-  variable: '--font-display',
-});
+// فونت‌ها به‌صورت self-host از داخلِ پروژه لود می‌شوند (فایل‌های public/fonts + @font-face
+// در globals.css) — مستقل از گوگل‌فونت، پس لوکال و ورسل کاملاً یکسان‌اند.
 
 export const metadata = {
   title: 'banad barber | رزرو آنلاین نوبت آرایشگاه',
@@ -47,7 +33,7 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="fa" dir="rtl" className={`${vazirmatn.variable} ${lalezar.variable}`}>
+    <html lang="fa" dir="rtl">
       <body>
         <Providers>{children}</Providers>
         <ServiceWorkerRegister />

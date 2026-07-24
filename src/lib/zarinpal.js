@@ -6,12 +6,15 @@
 
 const IS_SANDBOX = process.env.ZARINPAL_SANDBOX === 'true';
 const MERCHANT_ID = process.env.ZARINPAL_MERCHANT_ID || '';
-const IS_PROD = process.env.NODE_ENV === 'production';
+// حالتِ mock فقط با فلگِ صریحِ ALLOW_MOCK_PAYMENT=true فعال می‌شود — نه صرفاً با نبودِ Merchant ID.
+// این‌طور نبودِ merchant به‌جای «رزروِ رایگانِ خاموش» به خطا منجر می‌شود (fail-closed).
+const ALLOW_MOCK = process.env.ALLOW_MOCK_PAYMENT === 'true';
+const USE_MOCK = !MERCHANT_ID && ALLOW_MOCK;
 
-// در production نباید بی‌صدا وارد حالتِ mock شویم؛ نبودِ Merchant ID یعنی «همه رایگان پرداخت‌شده».
+// اگر نه merchant داریم و نه اجازه‌ی mock، هر تلاشِ پرداخت باید با خطا رد شود.
 function assertConfigured() {
-  if (!MERCHANT_ID && IS_PROD) {
-    throw new Error('ZARINPAL_MERCHANT_ID تنظیم نشده است — حالتِ mock در production مجاز نیست.');
+  if (!MERCHANT_ID && !ALLOW_MOCK) {
+    throw new Error('ZARINPAL_MERCHANT_ID تنظیم نشده و ALLOW_MOCK_PAYMENT هم فعال نیست — پرداخت غیرممکن است.');
   }
 }
 
@@ -36,9 +39,9 @@ const ACCESS_TOKEN = process.env.ZARINPAL_ACCESS_TOKEN || '';
  */
 export async function requestPayment({ amount, description, callbackUrl, mobile }) {
   assertConfigured();
-  // حالت تستی/فیک: اگر Merchant ID تنظیم نشده باشد، به‌جای اتصال واقعی، یک پرداختِ
+  // حالت تستی/فیک (فقط وقتی ALLOW_MOCK_PAYMENT=true): به‌جای اتصال واقعی، یک پرداختِ
   // شبیه‌سازی‌شده‌ی موفق می‌سازیم و مستقیم به callback خودمان با Status=OK برمی‌گردیم.
-  if (!MERCHANT_ID) {
+  if (USE_MOCK) {
     const authority = 'MOCK-' + Math.random().toString(36).slice(2, 12).toUpperCase();
     const sep = callbackUrl.includes('?') ? '&' : '?';
     return { ok: true, authority, url: `${callbackUrl}${sep}Authority=${authority}&Status=OK`, mock: true };
@@ -75,8 +78,8 @@ export async function requestPayment({ amount, description, callbackUrl, mobile 
  */
 export async function verifyPayment({ amount, authority }) {
   assertConfigured();
-  // حالت تستی/فیک: بدون Merchant ID، تأیید همیشه موفق است با یک کد پیگیریِ ساختگی.
-  if (!MERCHANT_ID) {
+  // حالت تستی/فیک (فقط وقتی ALLOW_MOCK_PAYMENT=true): تأیید همیشه موفق با کد پیگیریِ ساختگی.
+  if (USE_MOCK) {
     return { ok: true, refId: 'MOCK' + Math.floor(Math.random() * 900000 + 100000), paidAmount: amount };
   }
   try {

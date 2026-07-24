@@ -84,5 +84,10 @@ model Booking {
   createdAt     DateTime @default(now())
 
   @@index([barberId, date])
+  // ایندکس‌های فهرست/جست‌وجوی ادمین: فیلترِ تاریخ + مرتب‌سازیِ [date,timeSlot] و فیلترِ وضعیت.
+  @@index([date, timeSlot])
+  @@index([status])
+  // ⚠️ یکتایی واقعیِ اسلات (ضدِ double-booking) یک «partial unique index» است که Prisma در
+  // schema پشتیبانی نمی‌کند؛ آن را با SQL جدا اعمال کن: prisma/sql/uniq-active-slot.sql
 }
 

@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db';
 import { cancelRequestSchema } from '@/lib/validation';
 import { ok, parseBody, notFound, conflict, serverError, tooManyRequests } from '@/lib/api-helpers';
 import { generateOtp, hashOtp, OTP_TTL_MS } from '@/lib/otp';
-import { sendSms } from '@/lib/sms';
+import { sendOtpSms } from '@/lib/sms';
 import { rateLimit, clientIp } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 
@@ -17,12 +17,17 @@ function maskPhone(phone) {
 // POST — درخواستِ کدِ تأییدِ لغو. سرور یک OTP می‌سازد، hash آن را روی نوبت ذخیره می‌کند
 // و کد را به موبایلِ همان نوبت «می‌فرستد» (فعلاً فقط در کنسول/لاگ چاپ می‌شود؛ رجوع به src/lib/sms.js).
 export async function POST(request) {
-  // ضدِ سوءاستفاده: حداکثر ۵ درخواستِ کد در هر ۵ دقیقه به‌ازای هر IP.
-  const limit = rateLimit({ key: `cancel-otp:${clientIp(request)}`, limit: 5, windowMs: 5 * 60_000 });
-  if (!limit.ok) return tooManyRequests('درخواست‌های زیاد. چند دقیقه بعد دوباره تلاش کنید.');
+  // ضدِ سوءاستفاده (لایه‌ی اول): حداکثر ۵ درخواستِ کد در هر ۵ دقیقه به‌ازای هر IP.
+  const ipLimit = rateLimit({ key: `cancel-otp:${clientIp(request)}`, limit: 5, windowMs: 5 * 60_000 });
+  if (!ipLimit.ok) return tooManyRequests('درخواست‌های زیاد. چند دقیقه بعد دوباره تلاش کنید.');
 
   const { data, response } = await parseBody(request, cancelRequestSchema);
   if (response) return response;
+
+  // ضدِ سوءاستفاده (لایه‌ی دوم): سقفِ صدورِ کد برای «هر کدِ رهگیری» — جلوی reset مکررِ
+  // شمارنده‌ی تلاش برای دورزدنِ سقفِ per-booking و همچنین «بمبِ پیامکی» را می‌گیرد.
+  const codeLimit = rateLimit({ key: `cancel-otp-code:${data.code.trim()}`, limit: 3, windowMs: 10 * 60_000 });
+  if (!codeLimit.ok) return tooManyRequests('برای این نوبت به‌تازگی چند کد ارسال شده. کمی بعد تلاش کنید.');
 
   try {
     const booking = await prisma.booking.findUnique({ where: { code: data.code.trim() } });
@@ -39,19 +44,13 @@ export async function POST(request) {
       },
     });
 
-    // ارسالِ کد به موبایلِ مشتری (لایه‌ی sms فعلاً فقط لاگ می‌کند).
-    await sendSms({
-      phone: booking.customerPhone,
-      message: `کد تأیید لغو نوبت ${booking.code}: ${otp}`,
-    });
-    // ⚠️ چاپِ خیلی واضح در کنسولِ سرور برای تست — بدونِ فیلترِ سطحِ لاگ (همیشه دیده می‌شود).
-    // بعد از وصل‌شدنِ سامانه‌ی پیامکِ واقعی، این بلاک را می‌توان حذف کرد.
-    console.log('\n┌───────────── کد تأیید لغو نوبت (تست) ─────────────');
-    console.log(`│  کد:     ${otp}`);
-    console.log(`│  نوبت:   ${booking.code}`);
-    console.log(`│  موبایل: ${booking.customerPhone}`);
-    console.log('└──────────────────────────────────────────────────\n');
-    log.info(`کد تأیید لغو نوبت ${booking.code} (موبایل ${booking.customerPhone}) → ${otp}`);
+    // ارسالِ کد به موبایلِ مشتری از طریقِ لایه‌ی SMS (provider با env انتخاب می‌شود).
+    // در حالتِ SMS_PROVIDER=console فقط در لاگِ سرور دیده می‌شود؛ در پروداکشن پنلِ واقعی می‌فرستد.
+    const sent = await sendOtpSms({ phone: booking.customerPhone, code: otp });
+    if (!sent.ok) {
+      log.error(`ارسالِ کد تأیید لغو نوبت ${booking.code} ناموفق بود: ${sent.error || 'unknown'}`);
+      return serverError('ارسال کد تأیید ناموفق بود. کمی بعد دوباره تلاش کنید.');
+    }
 
     // خودِ کد هرگز به کلاینت برنمی‌گردد؛ فقط شماره‌ی ماسک‌شده برای نمایش.
     return ok({ success: true, phoneMasked: maskPhone(booking.customerPhone) });

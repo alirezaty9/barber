@@ -105,7 +105,7 @@ export default function TrackPage() {
           </span>
         </Link>
 
-        {/* حالتِ ۱ — تأیید لغو: صفحه فقط کدِ ۵ رقمی را نشان می‌دهد */}
+        {/* حالتِ ۱ — تأیید لغو: صفحه فقط کدِ ۶ رقمی را نشان می‌دهد */}
         {otpFor ? (
           <div className="glass p-8 rounded-3xl border border-amber-500/20">
             <div className="flex flex-col items-center text-center mb-6">
@@ -118,7 +118,7 @@ export default function TrackPage() {
                 {otpFor.phoneMasked
                   ? <span dir="ltr" className="font-mono text-zinc-200">{otpFor.phoneMasked}</span>
                   : 'موبایلِ شما'}{' '}
-                ارسال شد. کد ۵ رقمی را وارد کنید:
+                ارسال شد. کد ۶ رقمی را وارد کنید:
               </p>
               {cancelTarget && (
                 <p className="text-[11px] text-amber-400/80 mt-2">
@@ -131,13 +131,13 @@ export default function TrackPage() {
               <Input
                 autoFocus
                 inputMode="numeric"
-                maxLength={5}
-                placeholder="-----"
+                maxLength={6}
+                placeholder="------"
                 value={otpValue}
                 onChange={(e) => setOtpValue(e.target.value)}
                 style={{ direction: 'ltr', textAlign: 'center', letterSpacing: '0.6em', fontSize: '1.25rem' }}
               />
-              <Button variant="danger" className="w-full" size="lg" loading={cancelling} disabled={otpValue.length < 5} onClick={onConfirmCancel}>
+              <Button variant="danger" className="w-full" size="lg" loading={cancelling} disabled={otpValue.length < 6} onClick={onConfirmCancel}>
                 تأیید و لغو نوبت
               </Button>
               <div className="flex items-center justify-between">

@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { Clock, Scissors } from 'lucide-react';
-import { formatPrice, toPersianDigits } from '@/lib/persian';
+import { Scissors } from 'lucide-react';
+import { formatPrice } from '@/lib/persian';
 import { useBookingStore } from '@/features/booking/store';
 
 // نگاشت دسته‌بندی هر خدمت به عکس مرتبط (فایل‌های لوکال در public/images)
@@ -81,11 +81,7 @@ export default function ServicesSection({ services }) {
                   </div>
                   <p className="text-zinc-400 text-xs md:text-sm leading-relaxed mb-4 line-clamp-2">{service.description}</p>
 
-                  <div className="flex items-center justify-between border-t border-zinc-900/80 pt-3 mt-auto">
-                    <span className="flex items-center gap-2 text-zinc-400 text-xs font-semibold">
-                      <Clock className="w-4 h-4 text-amber-500" />
-                      مدت تقریبی: {toPersianDigits(service.duration)} دقیقه
-                    </span>
+                  <div className="flex items-center justify-end border-t border-zinc-900/80 pt-3 mt-auto">
                     <span className="px-4 py-2 bg-zinc-900 group-hover:bg-amber-500 text-zinc-300 group-hover:text-black font-bold text-xs rounded-xl border border-zinc-800 group-hover:border-transparent transition-all duration-300 flex items-center gap-1.5">
                       <Scissors className="w-3.5 h-3.5" />
                       <span>انتخاب و رزرو</span>

@@ -20,9 +20,16 @@ export function rateLimit({ key, limit, windowMs }) {
   return { ok: true, remaining: limit - b.count };
 }
 
-// استخراجِ IP کلاینت از هدرهای رایجِ پروکسی.
+// استخراجِ IP کلاینت. روی Vercel هدرِ `x-real-ip` را خودِ پلتفرم ست می‌کند و قابلِ اعتمادتر از
+// اولین مقدارِ `x-forwarded-for` است (که کلاینت می‌تواند جعلش کند). پس اول x-real-ip.
 export function clientIp(request) {
+  const real = request.headers.get('x-real-ip');
+  if (real) return real.trim();
+  // fallback: راست‌ترین هاپِ x-forwarded-for (نزدیک‌ترین پروکسیِ معتبر) کمتر قابلِ جعل است.
   const xff = request.headers.get('x-forwarded-for');
-  if (xff) return xff.split(',')[0].trim();
-  return request.headers.get('x-real-ip') || 'unknown';
+  if (xff) {
+    const parts = xff.split(',').map((s) => s.trim()).filter(Boolean);
+    return parts[parts.length - 1] || 'unknown';
+  }
+  return 'unknown';
 }

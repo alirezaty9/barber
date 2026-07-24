@@ -5,6 +5,7 @@ import LandingHero from '@/features/landing/LandingHero';
 import ServicesSection from '@/features/landing/ServicesSection';
 import Footer from '@/features/landing/Footer';
 import BookingLauncher from '@/features/booking/BookingLauncher';
+import PwaInstallPrompt from '@/features/pwa/PwaInstallPrompt';
 
 // کاتالوگ به‌ندرت تغییر می‌کند: صفحه را کش می‌کنیم (ISR) و هر ۵ دقیقه یک‌بار
 // (یا بلافاصله پس از تغییر ادمین، با revalidatePath('/')) از نو می‌سازیم.
@@ -27,6 +28,9 @@ export default async function Home() {
 
       {/* مودال رزرو — با Zustand کنترل می‌شود و داده‌ها را خودش از API می‌گیرد */}
       <BookingLauncher services={services} barbers={barbers} />
+
+      {/* پاپ‌آپِ نصبِ اپ (PWA) — چسبیده به پایینِ صفحه، مخصوصِ موبایل */}
+      <PwaInstallPrompt />
     </div>
   );
 }

@@ -1,5 +1,17 @@
 import { z } from 'zod';
 import { normalizeDigits } from './persian';
+import { tehranTodayISO, shiftISO } from './time';
+
+// حداکثر فاصله‌ی مجازِ رزرو از امروز (روز): فقط تا «یک هفته‌ی» آینده.
+// این با تعدادِ روزهای نمایش‌داده‌شده در DayPicker (۸ روز = امروز + ۷) هماهنگ است.
+export const MAX_BOOKING_ADVANCE_DAYS = 7;
+
+// آیا رشته‌ی YYYY-MM-DD یک تاریخِ واقعیِ تقویمی است؟ (regex تنها «2026-13-45» را رد نمی‌کند.)
+function isRealISODate(v) {
+  const [y, m, d] = v.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
 
 export const CATEGORIES = ['hair', 'beard', 'grooming', 'groom', 'combo', 'style'];
 export const STATUSES = ['pending', 'confirmed', 'cancelled'];
@@ -13,15 +25,24 @@ const mobile = z
     message: 'شماره موبایل باید ۱۱ رقمی و با ۰۹ شروع شود.',
   });
 
-// کدِ تأییدِ ۵ رقمی (OTP) — ارقام فارسی/عربی هم پذیرفته و نرمال می‌شوند.
+// کدِ تأییدِ ۶ رقمی (OTP) — ارقام فارسی/عربی هم پذیرفته و نرمال می‌شوند.
 const otp = z
   .string()
   .transform((v) => normalizeDigits(v).trim())
-  .refine((v) => /^[0-9]{5}$/.test(v), { message: 'کد تأیید باید ۵ رقمی باشد.' });
+  .refine((v) => /^[0-9]{6}$/.test(v), { message: 'کد تأیید باید ۶ رقمی باشد.' });
 
+// تاریخِ ISO: هم قالب (regex) و هم صحتِ تقویمی چک می‌شود.
 const isoDate = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'تاریخ نامعتبر است.' });
+  .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'تاریخ نامعتبر است.' })
+  .refine(isRealISODate, { message: 'تاریخ نامعتبر است.' });
+
+// تاریخِ رزرو: علاوه بر معتبربودن، نباید در گذشته یا دورتر از سقفِ مجاز باشد.
+const bookingDate = isoDate
+  .refine((v) => v >= shiftISO(tehranTodayISO(), -1), { message: 'تاریخِ گذشته قابلِ رزرو نیست.' })
+  .refine((v) => v <= shiftISO(tehranTodayISO(), MAX_BOOKING_ADVANCE_DAYS), {
+    message: 'این تاریخ خیلی دور است.',
+  });
 
 const timeSlot = z
   .string()
@@ -30,7 +51,9 @@ const timeSlot = z
 export const serviceSchema = z.object({
   name: z.string().trim().min(1, 'عنوان خدمت الزامی است.'),
   price: z.coerce.number().int().positive('قیمت باید بزرگ‌تر از صفر باشد.'),
-  duration: z.coerce.number().int().positive('مدت زمان باید بزرگ‌تر از صفر باشد.'),
+  // «مدت خدمت» از رابط کاربری حذف شده (هر نوبت ۱ ساعت و ربع ثابت است). ولی ستونِ
+  // duration در دیتابیس اجباری است؛ پس اگر فرستاده نشد، پیش‌فرضِ ۷۵ دقیقه می‌گیرد.
+  duration: z.coerce.number().int().positive().default(75),
   description: z.string().trim().default(''),
   category: z.enum(CATEGORIES),
 });
@@ -61,7 +84,7 @@ export const bookingSchema = z.object({
   serviceIds: z.array(z.string().min(1)).min(1, 'حداقل یک خدمت انتخاب کنید.'),
   // آرایشگر اختیاری؛ چون تک‌آرایشگری است، اگر ارسال نشود سمت سرور همان آرایشگر انتخاب می‌شود.
   barberId: z.string().min(1).nullish(),
-  date: isoDate,
+  date: bookingDate,
   timeSlot,
 });
 
