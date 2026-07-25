@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { bookingSchema } from '@/lib/validation';
-import { resolveAvailability } from '@/lib/availability-server';
+import { resolveAvailability, releaseStalePendingSlot } from '@/lib/availability-server';
+import { normalizeDigits } from '@/lib/persian';
 import { resolveServices } from '@/lib/services-server';
 import { isAuthenticated } from '@/lib/auth';
 import { tehranTodayISO, shiftISO } from '@/lib/time';
@@ -31,9 +32,12 @@ export async function GET(request) {
     where.date = dateFilter === 'tomorrow' ? shiftISO(tehranTodayISO(), 1) : tehranTodayISO();
   }
   if (q) {
+    // شماره‌ها با ارقامِ انگلیسی ذخیره می‌شوند؛ پس برای جست‌وجوی موبایل ابتدا ارقامِ فارسی/عربیِ
+    // ورودی را نرمال می‌کنیم، وگرنه تایپِ «۰۹۱۲…» هیچ نتیجه‌ای نمی‌داد. نام با متنِ خام می‌ماند.
+    const qDigits = normalizeDigits(q);
     where.OR = [
       { customerName: { contains: q } },
-      { customerPhone: { contains: q } },
+      { customerPhone: { contains: qDigits } },
     ];
   }
 
@@ -100,6 +104,9 @@ async function createBookingSafely({ data, svc, barberId, status, admin }) {
         if (!slot || !slot.available) {
           throw new ApiError(409, 'این ساعت برای آرایشگر موردنظر در دسترس نیست. لطفاً زمان دیگری انتخاب کنید.');
         }
+        // اسلات آزاد است ولی ممکن است یک رزروِ pending/unpaidِ کهنه هنوز روی ایندکسِ یکتا
+        // اشغالش کرده باشد؛ اتمیک آزادش می‌کنیم تا INSERTِ زیر با P2002 برخورد نکند.
+        await releaseStalePendingSlot(tx, { barberId, date: data.date, timeSlot: data.timeSlot });
         return tx.booking.create({
           data: {
             code: generateBookingCode(),

@@ -45,10 +45,10 @@ export default function ManualBooking() {
     resolver: zodResolver(schema),
     defaultValues: { customerName: '', customerPhone: '' },
   });
-  // کلیدِ خدمات را مرتب می‌کنیم تا ترتیبِ انتخاب باعثِ refetchِ اضافه نشود.
-  const serviceKey = [...serviceIds].sort().join(',');
+  // موجودی مستقل از خدمات است (هر نوبت ۱ اسلات)، پس فقط به barberId/date وابسته‌ایم.
+  // آرگومانِ سومِ hook «enabled» است؛ فقط وقتی خدمت هم انتخاب شده باشد کوئری را فعال می‌کنیم.
   const { data: avail, isLoading: loadingSlots } = useAvailability(
-    barberId, dateIso, serviceKey, Boolean(barberId && dateIso && serviceIds.length)
+    barberId, dateIso, Boolean(barberId && dateIso && serviceIds.length),
   );
 
   const onSubmit = async (form) => {

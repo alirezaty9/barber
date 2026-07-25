@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db';
 import { bookingSchema } from '@/lib/validation';
-import { resolveAvailability } from '@/lib/availability-server';
+import { resolveAvailability, releaseStalePendingSlot } from '@/lib/availability-server';
 import { resolveServices } from '@/lib/services-server';
 import { requestPayment } from '@/lib/zarinpal';
 import { createLogger } from '@/lib/logger';
@@ -85,6 +85,8 @@ async function createPendingBookingSafely({ data, svc, barberId, totalPrice }) {
         if (!slot || !slot.available) {
           throw new ApiError(409, 'این ساعت در دسترس نیست. لطفاً زمان دیگری انتخاب کنید.');
         }
+        // رزروِ pending/unpaidِ کهنه‌ی همین اسلات را اتمیک آزاد کن تا با ایندکسِ یکتا برخورد نشود.
+        await releaseStalePendingSlot(tx, { barberId, date: data.date, timeSlot: data.timeSlot });
         return tx.booking.create({
           data: {
             code: generateBookingCode(),

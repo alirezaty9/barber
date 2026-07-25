@@ -39,7 +39,12 @@ export function formatPrice(price) {
  */
 export function formatJalaliDate(isoDate, options = { day: 'numeric', month: 'long' }) {
   try {
-    return new Intl.DateTimeFormat('fa-IR', options).format(new Date(isoDate));
+    // تاریخ را «ظهرِ UTC» تفسیر و در همان UTC فرمت می‌کنیم تا نگاشتِ میلادی→جلالی مستقل از
+    // تایم‌زونِ اجرا باشد. بدونِ این، new Date('YYYY-MM-DD') نیمه‌شبِ UTC است و در تایم‌زون‌های
+    // عقب‌تر یک روز عقب نمایش داده می‌شد (خطای off-by-one در برچسبِ روز).
+    return new Intl.DateTimeFormat('fa-IR', { timeZone: 'UTC', ...options }).format(
+      new Date(`${isoDate}T12:00:00Z`),
+    );
   } catch {
     return isoDate;
   }

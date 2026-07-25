@@ -1,19 +1,18 @@
 'use client';
 
 import { formatJalaliDate } from '@/lib/persian';
+import { tehranTodayISO, shiftISO } from '@/lib/time';
 import { cn } from '@/lib/utils';
 
 // انتخابگرِ ساده‌ی روز: N روزِ آینده از امروز، به‌صورت دکمه‌های قابل‌کلیک.
 // جایگزینِ تقویمِ کتابخانه‌ای که با تقویم شمسی و حالت کنترل‌شده باگ داشت
 // (فقط یک روز انتخاب می‌شد و روزِ انتخاب‌شده تغییر نمی‌کرد).
 export default function DayPicker({ value, onChange, days = 8 }) {
-  const list = Array.from({ length: days }, (_, i) => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + i);
-    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    return { iso, offset: i };
-  });
+  // «امروز» را به وقتِ ایران می‌سازیم (نه تایم‌زونِ مرورگرِ کاربر) تا دقیقاً با بازه‌ی مجازِ
+  // سمتِ سرور (bookingDate در validation) یکی باشد؛ وگرنه کاربری در تایم‌زونِ جلوتر از ایران،
+  // نزدیکِ نیمه‌شب، روزی خارج از سقف انتخاب می‌کرد و POST با ۴۰۰ رد می‌شد.
+  const today = tehranTodayISO();
+  const list = Array.from({ length: days }, (_, i) => ({ iso: shiftISO(today, i), offset: i }));
 
   const title = (iso, offset) =>
     offset === 0 ? 'امروز' : offset === 1 ? 'فردا' : formatJalaliDate(iso, { weekday: 'long' });

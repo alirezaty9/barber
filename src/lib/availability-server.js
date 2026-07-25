@@ -62,3 +62,26 @@ export async function resolveAvailability({ barberId, date }, client = prisma) {
   const { dayOff, slots } = computeAvailability({ existing, blocks, nowMinutes, isWorkingDay });
   return { barber, dayOff, slots };
 }
+
+// آزادسازیِ رزروِ پرداخت‌نشده‌ی کهنه روی یک اسلاتِ مشخص، داخلِ همان تراکنشِ ساختِ رزرو.
+//
+// چرا لازم است؟ resolveAvailability رزروِ pending/unpaidِ قدیمی‌تر از PENDING_HOLD_MS را
+// «آزاد» می‌بیند و اسلات را در دسترس نشان می‌دهد. ولی ایندکسِ یکتای دیتابیس (uniq_active_slot)
+// آن رکورد را چون هنوز cancelled نشده «فعال» می‌شمارد؛ پس INSERTِ رزروِ جدید با P2002 شکست
+// می‌خورد و پس از چند تلاش، مشتری خطای «این ساعت هم‌اکنون رزرو شد» می‌بیند — درحالی‌که UI اسلات
+// را آزاد نشان داده بود. کرونِ expire-pending این‌ها را پاک می‌کند ولی روی پلنِ Hobby فقط روزی
+// یک‌بار اجرا می‌شود، پس اسلات ممکن است تا یک روز قفل بماند. اینجا همان لحظه و اتمیک آزادش می‌کنیم.
+export async function releaseStalePendingSlot(tx, { barberId, date, timeSlot }) {
+  const cutoff = new Date(Date.now() - PENDING_HOLD_MS);
+  await tx.booking.updateMany({
+    where: {
+      barberId,
+      date,
+      timeSlot,
+      status: 'pending',
+      paymentStatus: 'unpaid',
+      createdAt: { lt: cutoff },
+    },
+    data: { status: 'cancelled', paymentStatus: 'failed' },
+  });
+}

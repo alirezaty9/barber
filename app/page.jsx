@@ -13,11 +13,21 @@ import PwaInstallPrompt from '@/features/pwa/PwaInstallPrompt';
 export const revalidate = 300;
 
 export default async function Home() {
-  const [services, barbersRaw] = await Promise.all([
-    prisma.service.findMany({ orderBy: { createdAt: 'asc' } }),
-    prisma.barber.findMany({ orderBy: { createdAt: 'asc' } }),
-  ]);
-  const barbers = serializeBarbers(barbersRaw);
+  // اگر دیتابیس هنگامِ build یا revalidate در دسترس نباشد، به‌جای کرش‌کردنِ کلِ صفحه (که
+  // روی Vercel باعثِ شکستِ کلِ دیپلوی می‌شود) با کاتالوگِ خالی رندر می‌کنیم؛ در revalidateِ
+  // بعدی دوباره پر می‌شود. تجربه‌ی افت‌کرده بهتر از ۵۰۰/شکستِ بیلد است.
+  let services = [];
+  let barbers = [];
+  try {
+    const [svc, barbersRaw] = await Promise.all([
+      prisma.service.findMany({ orderBy: { createdAt: 'asc' } }),
+      prisma.barber.findMany({ orderBy: { createdAt: 'asc' } }),
+    ]);
+    services = svc;
+    barbers = serializeBarbers(barbersRaw);
+  } catch {
+    // خطا عمداً بلعیده می‌شود؛ صفحه با داده‌ی خالی سرو می‌شود.
+  }
 
   return (
     <div className="bg-[#030303] min-h-screen text-zinc-100 font-sans selection:bg-amber-500/30 selection:text-amber-300">

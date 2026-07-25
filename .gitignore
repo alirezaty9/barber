@@ -38,6 +38,9 @@ yarn-error.log*
 # ===== OS junk =====
 .DS_Store
 Thumbs.db
+# اسکرین‌شات‌های اتفاقیِ ریشه‌ی پروژه (با / ابتدایی فقط root، نه public/*.png).
+/Screenshot*.png
+/Screenshot*.jpg
 
 # ===== Deploy =====
 .vercel
