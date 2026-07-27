@@ -39,11 +39,14 @@ export async function GET(request) {
       return NextResponse.redirect(resultUrl(`status=failed&code=${booking.code}`));
     }
 
-    // تأیید نهایی با زرین‌پال — و تطبیقِ مبلغِ واقعیِ پرداخت‌شده با مبلغِ رزرو (ضدِ دستکاری).
-    // fail-closed: اگر درگاه مبلغ را برنگرداند (null) پرداخت را «نامعتبر» می‌گیریم، نه معتبر.
+    // تأیید نهایی با زرین‌پال. توجه: مبلغِ رزرو (booking.amount) را به verify می‌فرستیم و
+    // خودِ زرین‌پال آن را با مبلغِ واقعیِ پرداخت‌شده تطبیق می‌دهد؛ اگر نخواند کدِ ≠ ۱۰۰ برمی‌گرداند.
+    // پس رسیدنِ کدِ ۱۰۰/۱۰۱ یعنی مبلغ سمتِ زرین‌پال درست بوده. پاسخِ verifyِ زرین‌پال معمولاً
+    // خودِ amount را برنمی‌گرداند (paidAmount=null)؛ در آن حالت به تأییدِ خودِ زرین‌پال تکیه می‌کنیم
+    // و فقط وقتی رد می‌کنیم که درگاه «صریحاً» مبلغی متفاوت با رزرو برگردانده باشد (ضدِ دستکاری).
     const verify = await verifyPayment({ amount: booking.amount, authority });
-    const amountOk = verify.paidAmount != null && verify.paidAmount === booking.amount;
-    if (verify.ok && amountOk) {
+    const amountMismatch = verify.paidAmount != null && verify.paidAmount !== booking.amount;
+    if (verify.ok && !amountMismatch) {
       // پرداخت موفق ⇒ نوبت خودکار «تایید» می‌شود (دیگر نیازی به تاییدِ دستیِ آرایشگر نیست).
       await prisma.booking.update({
         where: { id: booking.id },
@@ -52,7 +55,7 @@ export async function GET(request) {
       return NextResponse.redirect(resultUrl(`status=success&code=${booking.code}`));
     }
 
-    if (verify.ok && !amountOk) {
+    if (verify.ok && amountMismatch) {
       log.error(`amount mismatch for ${booking.code}: paid=${verify.paidAmount} expected=${booking.amount}`);
     }
 
