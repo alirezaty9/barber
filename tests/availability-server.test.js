@@ -4,6 +4,7 @@ import {
   releaseStalePendingSlot,
   PENDING_HOLD_MS,
 } from '@/lib/availability-server';
+import { TIME_SLOTS } from '@/lib/constants';
 
 // ── تستِ لایه‌ی سرور بدونِ دیتابیس ──
 // resolveAvailability یک «client» می‌گیرد؛ به‌جای Prismaِ واقعی یک client ساختگی می‌دهیم که
@@ -27,41 +28,41 @@ const slotAt = (res, t) => res.slots.find((s) => s.time === t);
 describe('resolveAvailability — فیلترِ رزروِ کهنه (هسته‌ی باگِ ۱)', () => {
   it('رزروِ pending/unpaidِ کهنه (قدیمی‌تر از hold) اسلات را آزاد می‌کند', async () => {
     const client = fakeClient({
-      bookings: [{ timeSlot: '11:15', status: 'pending', paymentStatus: 'unpaid', createdAt: minutesAgo(20) }],
+      bookings: [{ timeSlot: TIME_SLOTS[1], status: 'pending', paymentStatus: 'unpaid', createdAt: minutesAgo(20) }],
     });
     const res = await resolveAvailability({ barberId: 'b1', date: SAT }, client);
     expect(res.dayOff).toBe(false);
-    expect(slotAt(res, '11:15').available).toBe(true); // کهنه → آزاد
+    expect(slotAt(res, TIME_SLOTS[1]).available).toBe(true); // کهنه → آزاد
   });
 
   it('رزروِ pending/unpaidِ تازه (داخلِ hold) هنوز اسلات را می‌گیرد', async () => {
     const client = fakeClient({
-      bookings: [{ timeSlot: '11:15', status: 'pending', paymentStatus: 'unpaid', createdAt: minutesAgo(5) }],
+      bookings: [{ timeSlot: TIME_SLOTS[1], status: 'pending', paymentStatus: 'unpaid', createdAt: minutesAgo(5) }],
     });
     const res = await resolveAvailability({ barberId: 'b1', date: SAT }, client);
-    expect(slotAt(res, '11:15').available).toBe(false);
-    expect(slotAt(res, '11:15').reason).toBe('booked');
+    expect(slotAt(res, TIME_SLOTS[1]).available).toBe(false);
+    expect(slotAt(res, TIME_SLOTS[1]).reason).toBe('booked');
   });
 
   it('رزروِ paid/confirmed صرف‌نظر از قدمت، همیشه اسلات را می‌گیرد', async () => {
     const client = fakeClient({
-      bookings: [{ timeSlot: '11:15', status: 'confirmed', paymentStatus: 'paid', createdAt: minutesAgo(999) }],
+      bookings: [{ timeSlot: TIME_SLOTS[1], status: 'confirmed', paymentStatus: 'paid', createdAt: minutesAgo(999) }],
     });
     const res = await resolveAvailability({ barberId: 'b1', date: SAT }, client);
-    expect(slotAt(res, '11:15').available).toBe(false);
+    expect(slotAt(res, TIME_SLOTS[1]).available).toBe(false);
   });
 
   it('cutoff دقیقاً برابرِ PENDING_HOLD_MS: کمی قدیمی‌تر آزاد، کمی تازه‌تر اشغال', async () => {
     const justStale = new Date(Date.now() - PENDING_HOLD_MS - 1000);
     const justFresh = new Date(Date.now() - PENDING_HOLD_MS + 5000);
     const stale = await resolveAvailability({ barberId: 'b1', date: SAT }, fakeClient({
-      bookings: [{ timeSlot: '10:00', status: 'pending', paymentStatus: 'unpaid', createdAt: justStale }],
+      bookings: [{ timeSlot: TIME_SLOTS[0], status: 'pending', paymentStatus: 'unpaid', createdAt: justStale }],
     }));
     const fresh = await resolveAvailability({ barberId: 'b1', date: SAT }, fakeClient({
-      bookings: [{ timeSlot: '10:00', status: 'pending', paymentStatus: 'unpaid', createdAt: justFresh }],
+      bookings: [{ timeSlot: TIME_SLOTS[0], status: 'pending', paymentStatus: 'unpaid', createdAt: justFresh }],
     }));
-    expect(slotAt(stale, '10:00').available).toBe(true);
-    expect(slotAt(fresh, '10:00').available).toBe(false);
+    expect(slotAt(stale, TIME_SLOTS[0]).available).toBe(true);
+    expect(slotAt(fresh, TIME_SLOTS[0]).available).toBe(false);
   });
 });
 
@@ -97,13 +98,13 @@ describe('releaseStalePendingSlot — کوئریِ آزادسازی (رفعِ ب
     const updateMany = vi.fn().mockResolvedValue({ count: 1 });
     const tx = { booking: { updateMany } };
     const before = Date.now();
-    await releaseStalePendingSlot(tx, { barberId: 'b1', date: SAT, timeSlot: '11:15' });
+    await releaseStalePendingSlot(tx, { barberId: 'b1', date: SAT, timeSlot: TIME_SLOTS[1] });
 
     expect(updateMany).toHaveBeenCalledTimes(1);
     const arg = updateMany.mock.calls[0][0];
     // شرطِ where: فقط رزروِ همان اسلات، pending، unpaid، و کهنه (createdAt < cutoff).
     expect(arg.where).toMatchObject({
-      barberId: 'b1', date: SAT, timeSlot: '11:15',
+      barberId: 'b1', date: SAT, timeSlot: TIME_SLOTS[1],
       status: 'pending', paymentStatus: 'unpaid',
     });
     const cutoff = arg.where.createdAt.lt;
@@ -119,7 +120,7 @@ describe('releaseStalePendingSlot — کوئریِ آزادسازی (رفعِ ب
     // این را با شرطِ کوئری تضمین می‌کنیم؛ خودِ Postgres رکوردِ تازه را به‌خاطرِ createdAt<cutoff رد می‌کند.
     // اینجا فقط اطمینان می‌گیریم شرطِ createdAt.lt وجود دارد (نه اینکه همه را لغو کند).
     const updateMany = vi.fn().mockResolvedValue({ count: 0 });
-    await releaseStalePendingSlot({ booking: { updateMany } }, { barberId: 'b1', date: SAT, timeSlot: '10:00' });
+    await releaseStalePendingSlot({ booking: { updateMany } }, { barberId: 'b1', date: SAT, timeSlot: TIME_SLOTS[0] });
     expect(updateMany.mock.calls[0][0].where.createdAt.lt).toBeInstanceOf(Date);
   });
 });

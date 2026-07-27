@@ -57,6 +57,19 @@ export default function BookingsManager() {
     });
   };
 
+  // لغو با پاپ‌آپِ تایید — تا اگر دکمه اشتباهی خورد، نوبت بی‌هوا لغو نشود.
+  const onCancel = async (id) => {
+    const ok = await confirm({
+      title: 'لغو نوبت',
+      description: 'این نوبت لغو می‌شود و در صورت پرداخت، مبلغ به مشتری مسترد می‌گردد. مطمئن هستید؟',
+      danger: true,
+      confirmText: 'بله، لغو کن',
+      cancelText: 'انصراف',
+    });
+    if (!ok) return;
+    onChangeStatus(id, 'cancelled');
+  };
+
   return (
     <div>
       <div className="mb-6">
@@ -142,13 +155,13 @@ export default function BookingsManager() {
               </div>
 
               <div className="lg:col-span-3 flex items-center justify-end gap-2 border-t lg:border-t-0 border-zinc-900/60 pt-4 lg:pt-0">
-                {b.status !== 'confirmed' && (
+                {b.status !== 'confirmed' && b.paymentStatus !== 'failed' && (
                   <button onClick={() => onChangeStatus(b.id, 'confirmed')} title="تایید" className="p-2 bg-emerald-950/20 text-emerald-400 hover:bg-emerald-500 hover:text-black rounded-lg border border-emerald-900/50 hover:border-transparent transition-all">
                     <CheckCircle className="w-4 h-4" />
                   </button>
                 )}
                 {b.status !== 'cancelled' && (
-                  <button onClick={() => onChangeStatus(b.id, 'cancelled')} title="لغو" className="p-2 bg-red-950/20 text-red-400 hover:bg-red-500 hover:text-black rounded-lg border border-red-900/50 hover:border-transparent transition-all">
+                  <button onClick={() => onCancel(b.id)} title="لغو" className="p-2 bg-red-950/20 text-red-400 hover:bg-red-500 hover:text-black rounded-lg border border-red-900/50 hover:border-transparent transition-all">
                     <XCircle className="w-4 h-4" />
                   </button>
                 )}

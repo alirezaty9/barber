@@ -30,6 +30,10 @@ export async function GET(request) {
   if (dateFilter === 'today' || dateFilter === 'tomorrow') {
     // به وقتِ ایران (نه UTCِ سرور) تا نزدیکِ نیمه‌شب خطای یک‌روزه ندهد.
     where.date = dateFilter === 'tomorrow' ? shiftISO(tehranTodayISO(), 1) : tehranTodayISO();
+  } else {
+    // پیش‌فرض: فقط نوبت‌های «امروز به بعد» نمایش داده می‌شوند؛ نوبت‌های گذشته حذف می‌شوند.
+    // تاریخ‌ها به‌صورتِ رشته‌ی YYYY-MM-DD ذخیره می‌شوند، پس مقایسه‌ی gte به‌ترتیبِ تقویمی درست است.
+    where.date = { gte: tehranTodayISO() };
   }
   if (q) {
     // شماره‌ها با ارقامِ انگلیسی ذخیره می‌شوند؛ پس برای جست‌وجوی موبایل ابتدا ارقامِ فارسی/عربیِ

@@ -51,15 +51,15 @@ async function main() {
   // صفحه‌ی «برنامه‌ی روزانه» و «مدیریت نوبت‌ها» پر و قابلِ بررسی باشند.
   const bookings = [
     // ── امروز ──
-    { code: 'BK1001', customerName: 'رضا علوی',    customerPhone: '09121112233', serviceId: 's1', servicesLabel: 'هیرکات با استایل', barberId: 'b1', date: today,    timeSlot: '10:00', status: 'confirmed', amount: 1000000, paymentStatus: 'paid',   paymentRefId: '100001' },
-    { code: 'BK1002', customerName: 'محمد احمدی',  customerPhone: '09194445566', serviceId: 's2', servicesLabel: 'ریش',              barberId: 'b1', date: today,    timeSlot: '11:15', status: 'confirmed', amount: 500000,  paymentStatus: 'paid',   paymentRefId: '100002' },
-    { code: 'BK1003', customerName: 'سامان کریمی', customerPhone: '09107778899', serviceId: 's1', servicesLabel: 'هیرکات با استایل', barberId: 'b1', date: today,    timeSlot: '13:45', status: 'confirmed', amount: 1000000, paymentStatus: 'paid',   paymentRefId: '100003' },
-    { code: 'BK1004', customerName: 'کاوه رستمی',  customerPhone: '09901234567', serviceId: 's2', servicesLabel: 'ریش',              barberId: 'b1', date: today,    timeSlot: '16:15', status: 'confirmed', amount: 500000,  paymentStatus: 'paid',   paymentRefId: '100004' },
+    { code: 'BK1001', customerName: 'رضا علوی',    customerPhone: '09121112233', serviceId: 's1', servicesLabel: 'هیرکات با استایل', barberId: 'b1', date: today,    timeSlot: '09:00', status: 'confirmed', amount: 1000000, paymentStatus: 'paid',   paymentRefId: '100001' },
+    { code: 'BK1002', customerName: 'محمد احمدی',  customerPhone: '09194445566', serviceId: 's2', servicesLabel: 'ریش',              barberId: 'b1', date: today,    timeSlot: '10:15', status: 'confirmed', amount: 500000,  paymentStatus: 'paid',   paymentRefId: '100002' },
+    { code: 'BK1003', customerName: 'سامان کریمی', customerPhone: '09107778899', serviceId: 's1', servicesLabel: 'هیرکات با استایل', barberId: 'b1', date: today,    timeSlot: '12:45', status: 'confirmed', amount: 1000000, paymentStatus: 'paid',   paymentRefId: '100003' },
+    { code: 'BK1004', customerName: 'کاوه رستمی',  customerPhone: '09901234567', serviceId: 's2', servicesLabel: 'ریش',              barberId: 'b1', date: today,    timeSlot: '15:15', status: 'confirmed', amount: 500000,  paymentStatus: 'paid',   paymentRefId: '100004' },
     // ── فردا ──
-    { code: 'BK1005', customerName: 'مهران شکیبا', customerPhone: '09351234567', serviceId: 's1', servicesLabel: 'هیرکات با استایل', barberId: 'b1', date: tomorrow, timeSlot: '11:15', status: 'confirmed', amount: 1000000, paymentStatus: 'paid',   paymentRefId: '100005' },
-    { code: 'BK1006', customerName: 'آرش نادری',   customerPhone: '09037654321', serviceId: 's2', servicesLabel: 'ریش',              barberId: 'b1', date: tomorrow, timeSlot: '15:00', status: 'confirmed', amount: 500000,  paymentStatus: 'paid',   paymentRefId: '100006' },
+    { code: 'BK1005', customerName: 'مهران شکیبا', customerPhone: '09351234567', serviceId: 's1', servicesLabel: 'هیرکات با استایل', barberId: 'b1', date: tomorrow, timeSlot: '10:15', status: 'confirmed', amount: 1000000, paymentStatus: 'paid',   paymentRefId: '100005' },
+    { code: 'BK1006', customerName: 'آرش نادری',   customerPhone: '09037654321', serviceId: 's2', servicesLabel: 'ریش',              barberId: 'b1', date: tomorrow, timeSlot: '15:15', status: 'confirmed', amount: 500000,  paymentStatus: 'paid',   paymentRefId: '100006' },
     // ── پس‌فردا (یکی لغوشده برای تنوع) ──
-    { code: 'BK1007', customerName: 'بهزاد مرادی', customerPhone: '09121239876', serviceId: 's1', servicesLabel: 'هیرکات با استایل', barberId: 'b1', date: dayAfter, timeSlot: '12:30', status: 'cancelled', amount: 1000000, paymentStatus: 'refunded', refundAmount: 500000, cancelledBy: 'customer' },
+    { code: 'BK1007', customerName: 'بهزاد مرادی', customerPhone: '09121239876', serviceId: 's1', servicesLabel: 'هیرکات با استایل', barberId: 'b1', date: dayAfter, timeSlot: '11:30', status: 'cancelled', amount: 1000000, paymentStatus: 'refunded', refundAmount: 500000, cancelledBy: 'customer' },
   ];
   for (const bk of bookings) await prisma.booking.create({ data: bk });
 

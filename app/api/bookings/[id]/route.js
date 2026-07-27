@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db';
 import { statusUpdateSchema } from '@/lib/validation';
 import { refundPayment } from '@/lib/zarinpal';
-import { ok, guardAdmin, parseBody, notFound, serverError, buildCancelPatch } from '@/lib/api-helpers';
+import { ok, guardAdmin, parseBody, notFound, badRequest, serverError, buildCancelPatch } from '@/lib/api-helpers';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('bookings:id');
@@ -19,6 +19,12 @@ export async function PATCH(request, { params }) {
   try {
     const existing = await prisma.booking.findUnique({ where: { id } });
     if (!existing) return notFound('نوبت موردنظر یافت نشد.');
+
+    // 🔒 قاعده‌ی امنیتی: نوبتی که پرداختش «ناموفق» بوده هرگز قابلِ تایید نیست — نه توسط ادمین
+    // نه هیچ‌کس. جلوی احیای رزروهای پرداخت‌نشده/ناموفق سمتِ سرور گرفته می‌شود (نه فقط مخفی‌کردنِ دکمه).
+    if (data.status === 'confirmed' && existing.paymentStatus === 'failed') {
+      return badRequest('این نوبت پرداختِ ناموفق داشته و قابلِ تایید نیست.');
+    }
 
     // اگر ادمین نوبت را لغو می‌کند و قبلاً لغو نشده، استرداد کامل اعمال شود.
     let updateData;
