@@ -6,7 +6,11 @@
  *   • ناوبری صفحه‌ها: network-first با فال‌بکِ کش و سپس صفحه‌ی آفلاین.
  *   • دارایی‌های استاتیک (_next/static، تصاویر، آیکون‌ها): cache-first.
  */
-const VERSION = 'v1';
+// 🔁 این شماره را هر وقت قواعدِ کش عوض شد یا خواستی جعبه‌ی کشِ همه‌ی بازدیدکننده‌ها یک‌بار
+// خالی شود، یک واحد جلو ببر. موقعِ فعال‌شدنِ نسخه‌ی جدید، کش‌های نسخه‌های قبلی پاک می‌شوند.
+// v2 → ۱۴۰۵/۰۶/۲۳: عکس‌ها به فایل‌های اثرانگشت‌دار منتقل شدند و قاعده‌ی فایل‌های نام‌ثابت
+//      از cache-first به stale-while-revalidate تغییر کرد.
+const VERSION = 'v2';
 const STATIC_CACHE = `banad-static-${VERSION}`;
 const PAGE_CACHE = `banad-pages-${VERSION}`;
 const OFFLINE_URL = '/offline';
@@ -67,12 +71,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // دارایی‌های استاتیک → cache-first
-  if (
-    url.pathname.startsWith('/_next/static/') ||
-    url.pathname.startsWith('/images/') ||
-    /\.(?:png|jpg|jpeg|svg|webp|ico|woff2?)$/.test(url.pathname)
-  ) {
+  // ── فایل‌هایی که نامشان اثرِ انگشتِ محتوا دارد → cache-first ──
+  // هر چیزی زیرِ /_next/static/ (کد، استایل، و عکس‌هایی که با import آمده‌اند) نامش شاملِ
+  // هشِ محتواست. پس «همین نام = همین محتوا» همیشه درست است و نگه‌داشتنِ ابدی‌اش بی‌خطر:
+  // اگر محتوا عوض شود، نامِ جدید می‌گیرد و خودبه‌خود از شبکه گرفته می‌شود.
+  if (url.pathname.startsWith('/_next/static/')) {
     event.respondWith(
       caches.match(request).then(
         (cached) =>
@@ -82,6 +85,28 @@ self.addEventListener('fetch', (event) => {
             caches.open(STATIC_CACHE).then((c) => c.put(request, copy));
             return res;
           })
+      )
+    );
+    return;
+  }
+
+  // ── فایل‌های استاتیکِ نام‌ثابت (آیکن‌ها، فونت‌ها، هر فایلِ public) → stale-while-revalidate ──
+  // این‌ها نامشان بینِ بیلدها عوض نمی‌شود، پس cache-first یعنی «تا ابد نسخه‌ی اول». به‌جایش
+  // نسخه‌ی کش‌شده فوراً تحویل داده می‌شود (سرعت حفظ می‌شود) و همزمان نسخه‌ی تازه در پس‌زمینه
+  // گرفته و جایگزین می‌شود؛ پس بازدیدِ بعدی نسخه‌ی درست را می‌بیند و فایلِ کهنه برای همیشه
+  // گیر نمی‌کند. اگر شبکه در دسترس نباشد، همان نسخه‌ی کش‌شده سرو می‌شود.
+  if (/\.(?:png|jpg|jpeg|svg|webp|ico|woff2?)$/.test(url.pathname)) {
+    event.respondWith(
+      caches.open(STATIC_CACHE).then((cache) =>
+        cache.match(request).then((cached) => {
+          const fresh = fetch(request)
+            .then((res) => {
+              if (res.ok) cache.put(request, res.clone());
+              return res;
+            })
+            .catch(() => cached);
+          return cached || fresh;
+        })
       )
     );
   }

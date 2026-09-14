@@ -4,6 +4,10 @@ import ServiceWorkerRegister from '@/features/pwa/ServiceWorkerRegister';
 import { SITE_URL } from '@/lib/site';
 import { SHOP_NAME } from '@/lib/shop';
 import { INDEXING_ENABLED } from '@/lib/features';
+// عکسِ کارتِ پیش‌نمایشِ شبکه‌های اجتماعی. با import، هم نامِ فایل اثرِ انگشت می‌گیرد (پس
+// تعویضِ عکس، پیش‌نمایشِ کهنه را هم تازه می‌کند) و هم ابعادِ واقعی از خودِ فایل خوانده
+// می‌شود به‌جای اینکه دستی نوشته و روزی با فایل ناهماهنگ شود.
+import heroBg from '@/images/hero-bg.jpg';
 
 // فونت‌ها به‌صورت self-host از داخلِ پروژه لود می‌شوند (فایل‌های public/fonts + @font-face
 // در globals.css) — مستقل از گوگل‌فونت، پس لوکال و سرور کاملاً یکسان‌اند.
@@ -48,10 +52,11 @@ export const metadata = {
     images: [
       {
         // ابعاد صریح نوشته شده تا پیام‌رسان‌ها مجبور نباشند خودِ فایل را دانلود و اندازه‌گیری
-        // کنند؛ این‌طور کارتِ پیش‌نمایش سریع‌تر و مطمئن‌تر ساخته می‌شود.
-        url: '/images/hero-bg.jpg',
-        width: 1500,
-        height: 1000,
+        // کنند؛ این‌طور کارتِ پیش‌نمایش سریع‌تر و مطمئن‌تر ساخته می‌شود. مقادیر مستقیم از
+        // خودِ فایل می‌آیند، پس هرگز با عکسِ واقعی ناهماهنگ نمی‌شوند.
+        url: heroBg.src,
+        width: heroBg.width,
+        height: heroBg.height,
         alt: `نمای داخلی ${SHOP_NAME}`,
       },
     ],
@@ -60,7 +65,7 @@ export const metadata = {
     card: 'summary_large_image',
     title: TITLE,
     description: DESCRIPTION,
-    images: ['/images/hero-bg.jpg'],
+    images: [heroBg.src],
   },
 
   appleWebApp: {

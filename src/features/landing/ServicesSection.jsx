@@ -6,14 +6,24 @@ import { Scissors } from 'lucide-react';
 import { formatPrice } from '@/lib/persian';
 import { useBookingStore } from '@/features/booking/store';
 
-// نگاشت دسته‌بندی هر خدمت به عکس مرتبط (فایل‌های لوکال در public/images)
+// نگاشت دسته‌بندی هر خدمت به عکس مرتبط.
+//
+// چرا import به‌جای نوشتنِ مسیر؟ با import، ابزارِ بیلد یک «اثرِ انگشت» از محتوای فایل
+// داخلِ نامش می‌گذارد (مثلِ service-hair.9f2c1a.jpg). پس اگر روزی عکس را عوض کنیم،
+// نامِ فایل هم خودکار عوض می‌شود و مرورگرِ مشتری مجبور است نسخه‌ی تازه را بگیرد —
+// به‌جای اینکه عکسِ قدیمی را از کشِ خودش نشان دهد. (همان کاری که برای فایل‌های کد
+// از اول انجام می‌شد.) مسیرِ دستی این خاصیت را ندارد.
+import serviceHair from '@/images/service-hair.jpg';
+import serviceBeard from '@/images/service-beard.jpg';
+import serviceCombo from '@/images/service-combo.jpg';
+
+// دسته‌هایی که عکسِ اختصاصی ندارند (grooming و groom) عمداً اینجا نیستند: نبودنشان یعنی
+// مستقیم طرحِ جایگزین (آیکنِ قیچی) نشان داده می‌شود، بدونِ یک درخواستِ شکست‌خورده به سرور.
 const CATEGORY_IMAGES = {
-  hair: '/images/service-hair.jpg',
-  beard: '/images/service-beard.jpg',
-  grooming: '/images/service-grooming.jpg',
-  groom: '/images/service-groom.jpg',
-  combo: '/images/service-combo.jpg',
-  style: '/images/service-hair.jpg',
+  hair: serviceHair,
+  beard: serviceBeard,
+  combo: serviceCombo,
+  style: serviceHair,
 };
 
 // عکس کارت خدمت: اگر خدمت عکسِ اختصاصی داشته باشد از آن استفاده می‌شود، وگرنه از تصویرِ

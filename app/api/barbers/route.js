@@ -1,4 +1,3 @@
-import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
 import { barberSchema } from '@/lib/validation';
 import { serializeBarber, serializeBarbers, workDaysToCsv } from '@/lib/serializers';
@@ -24,7 +23,6 @@ export async function POST(request) {
     const barber = await prisma.barber.create({
       data: { ...data, workDays: workDaysToCsv(data.workDays) },
     });
-    revalidatePath('/');
     return ok(serializeBarber(barber), { status: 201 });
   } catch {
     return serverError();

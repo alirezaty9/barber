@@ -1,4 +1,3 @@
-import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
 import { barberSchema } from '@/lib/validation';
 import { serializeBarber, workDaysToCsv } from '@/lib/serializers';
@@ -21,7 +20,6 @@ export async function PATCH(request, { params }) {
 
   try {
     const barber = await prisma.barber.update({ where: { id }, data: payload });
-    revalidatePath('/');
     return ok(serializeBarber(barber));
   } catch (e) {
     if (e?.code === 'P2025') return notFound('آرایشگر موردنظر یافت نشد.');
@@ -37,7 +35,6 @@ export async function DELETE(request, { params }) {
   const { id } = await params;
   try {
     await prisma.barber.delete({ where: { id } });
-    revalidatePath('/');
     return ok({ success: true });
   } catch (e) {
     if (e?.code === 'P2025') return notFound('آرایشگر موردنظر یافت نشد.');

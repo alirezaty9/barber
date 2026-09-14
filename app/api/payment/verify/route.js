@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyPayment } from '@/lib/zarinpal';
+import { resolveRequestBaseUrl } from '@/lib/site';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('payment:verify');
@@ -8,11 +9,15 @@ const log = createLogger('payment:verify');
 // GET — callback زرین‌پال. کاربر پس از پرداخت با ?Authority=&Status= به اینجا بازمی‌گردد.
 // نتیجه بررسی و رزرو به‌روزرسانی می‌شود، سپس کاربر به صفحه‌ی نتیجه ری‌دایرکت می‌شود.
 export async function GET(request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const authority = searchParams.get('Authority') || searchParams.get('authority');
   const status = searchParams.get('Status') || searchParams.get('status');
 
-  const resultUrl = (params) => new URL(`/payment/result?${params}`, origin);
+  // 🔴 قبلاً اینجا origin مستقیم از آدرسِ درخواست برداشته می‌شد و NEXT_PUBLIC_BASE_URL را
+  // نادیده می‌گرفت — برخلافِ مسیرِ شروعِ پرداخت که از آن متغیر استفاده می‌کرد. یعنی دو نیمه‌ی
+  // یک فرایند، دو آدرسِ متفاوت می‌ساختند. حالا هر دو از یک منبع می‌خوانند.
+  const base = resolveRequestBaseUrl(request);
+  const resultUrl = (params) => new URL(`/payment/result?${params}`, base);
 
   // تمامِ منطق داخلِ try است تا یک خطای DB/شبکه هم به صفحه‌ی نتیجه ری‌دایرکت شود، نه ۵۰۰ خام.
   try {

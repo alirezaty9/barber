@@ -1,4 +1,3 @@
-import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
 import { serviceSchema } from '@/lib/validation';
 import { ok, guardAdmin, parseBody, notFound, serverError } from '@/lib/api-helpers';
@@ -16,7 +15,6 @@ export async function PATCH(request, { params }) {
 
   try {
     const service = await prisma.service.update({ where: { id }, data });
-    revalidatePath('/');
     return ok(service);
   } catch (e) {
     if (e?.code === 'P2025') return notFound('خدمت موردنظر یافت نشد.');
@@ -32,7 +30,6 @@ export async function DELETE(request, { params }) {
   const { id } = await params;
   try {
     await prisma.service.delete({ where: { id } });
-    revalidatePath('/');
     return ok({ success: true });
   } catch (e) {
     if (e?.code === 'P2025') return notFound('خدمت موردنظر یافت نشد.');

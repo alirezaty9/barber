@@ -3,19 +3,11 @@ import { bookingSchema } from '@/lib/validation';
 import { resolveAvailability, releaseStalePendingSlot } from '@/lib/availability-server';
 import { resolveServices } from '@/lib/services-server';
 import { requestPayment } from '@/lib/zarinpal';
+import { resolveRequestBaseUrl } from '@/lib/site';
 import { createLogger } from '@/lib/logger';
 import { ok, parseBody, badRequest, serverError, generateBookingCode, ApiError } from '@/lib/api-helpers';
 
 const log = createLogger('payment:request');
-
-// آدرس پایه برای ساخت callback مطلق: ابتدا از env، سپس از هدرهای درخواست.
-function resolveBaseUrl(request) {
-  const env = process.env.NEXT_PUBLIC_BASE_URL;
-  if (env) return env.replace(/\/$/, '');
-  const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
-  const proto = request.headers.get('x-forwarded-proto') || 'https';
-  return `${proto}://${host}`;
-}
 
 // POST — مسیر عمومیِ رزرو با پرداخت آنلاین:
 // ۱) اعتبارسنجی و بررسی تداخل، ۲) ساخت رزرو pending/unpaid، ۳) شروع پرداخت زرین‌پال.
@@ -39,7 +31,7 @@ export async function POST(request) {
     const booking = await createPendingBookingSafely({ data, svc, barberId, totalPrice });
 
     // شروع پرداخت زرین‌پال.
-    const base = resolveBaseUrl(request);
+    const base = resolveRequestBaseUrl(request);
     const payment = await requestPayment({
       amount: totalPrice,
       description: `رزرو نوبت ${svc.label} — کد ${booking.code}`,

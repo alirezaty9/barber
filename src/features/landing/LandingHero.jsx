@@ -6,6 +6,9 @@ import { Calendar, MapPin, Phone, Instagram, Search, Smartphone } from 'lucide-r
 import { toast } from 'sonner';
 import { useBookingStore } from '@/features/booking/store';
 import { usePwaInstall } from '@/features/pwa/usePwaInstall';
+// با import (به‌جای مسیرِ دستی)، نامِ فایلِ خروجی اثرِ انگشتِ محتوا را می‌گیرد؛ پس تعویضِ
+// عکس خودکار باعثِ تازه‌شدنِ آن در مرورگرِ مشتری‌های قدیمی می‌شود.
+import heroBg from '@/images/hero-bg.jpg';
 
 export default function LandingHero() {
   const openBooking = useBookingStore((s) => s.openBooking);
@@ -37,7 +40,7 @@ export default function LandingHero() {
       {/* پس‌زمینه‌ی هیرو با next/image تا خودکار WebP/AVIF و ری‌سایز شود
           (به‌جای فایل خام ۵۳۲KB). priority چون بالای صفحه و LCP است. */}
       <Image
-        src="/images/hero-bg.jpg"
+        src={heroBg}
         alt=""
         fill
         priority

@@ -95,6 +95,8 @@ model Booking {
   @@index([date, timeSlot])
   @@index([status])
   // ⚠️ یکتایی واقعیِ اسلات (ضدِ double-booking) یک «partial unique index» است که Prisma در
-  // schema پشتیبانی نمی‌کند؛ آن را با SQL جدا اعمال کن: prisma/sql/uniq-active-slot.sql
+  // schema پشتیبانی نمی‌کند. با SQL جدا اعمال می‌شود — ایندکسِ `uniq_active_slot` در
+  // prisma/sql/indexes.sql، که با `npm run db:index` اجرا می‌شود.
+  // 🔴 `db:push` این را نمی‌سازد؛ روی هر دیتابیسِ تازه باید `db:index` جداگانه زده شود.
 }
 
