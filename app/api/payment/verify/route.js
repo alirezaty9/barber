@@ -13,26 +13,46 @@ export async function GET(request) {
   const authority = searchParams.get('Authority') || searchParams.get('authority');
   const status = searchParams.get('Status') || searchParams.get('status');
 
-  // 🔴 قبلاً اینجا origin مستقیم از آدرسِ درخواست برداشته می‌شد و NEXT_PUBLIC_BASE_URL را
-  // نادیده می‌گرفت — برخلافِ مسیرِ شروعِ پرداخت که از آن متغیر استفاده می‌کرد. یعنی دو نیمه‌ی
-  // یک فرایند، دو آدرسِ متفاوت می‌ساختند. حالا هر دو از یک منبع می‌خوانند.
-  const base = resolveRequestBaseUrl(request);
-  const resultUrl = (params) => new URL(`/payment/result?${params}`, base);
+  // 🔴 این ری‌دایرکت عمداً «نسبی» است و هیچ دامنه‌ای داخلش نیست.
+  //
+  // تاریخچه‌ی این تصمیم: دو بار تلاش شد آدرسِ مطلق از روی متغیرِ محیطی یا هدرهای درخواست
+  // ساخته شود و هر دو بار روی سرور به `https://0.0.0.0:3000` رسید — یعنی برنامه به‌جای
+  // دامنه‌ی عمومی، آدرسِ داخلیِ خودش را می‌دید. ریشه‌ی مشکل این بود که اصلاً «برنامه باید
+  // نامِ عمومیِ خودش را بداند» فرضِ شکننده‌ای است: پشتِ پراکسی ممکن است ندانَد.
+  //
+  // راهِ قطعی: ندانستنش را بی‌اهمیت کنیم. طبقِ استانداردِ HTTP، مقدارِ Location می‌تواند
+  // مسیرِ نسبی باشد و خودِ مرورگر آن را نسبت به آدرسی که در آن است حل می‌کند — و مرورگرِ
+  // مشتری دقیقاً روی دامنه‌ی عمومیِ درست است. پس دیگر هیچ حدسی در کار نیست.
+  const resultUrl = (params) =>
+    new NextResponse(null, {
+      status: 303, // «کارت انجام شد، حالا این صفحه را ببین» — معنای درستِ بعد از پردازش
+      headers: { Location: `/payment/result?${params}` },
+    });
+
+  // ⚠️ تشخیصِ موقت — بعد از تأییدِ درست‌کارکردنِ پرداخت روی سرور حذف شود.
+  // عمداً سطحِ warn است، چون سطحِ پیش‌فرضِ لاگ روی سرور warn است و پایین‌تر از آن دیده نمی‌شود.
+  // هدفش این است که اگر باز هم آدرسِ بازگشت ناجور بود، به‌جای حدس‌زدن ببینیم سرور واقعاً
+  // چه هدرهایی می‌گیرد و متغیرِ محیطی موقعِ بیلد چه مقداری گرفته است.
+  log.warn(
+    `[تشخیصِ موقت] host=${request.headers.get('host')} | x-forwarded-host=${request.headers.get('x-forwarded-host')} `
+    + `| x-forwarded-proto=${request.headers.get('x-forwarded-proto')} | NEXT_PUBLIC_BASE_URL=${process.env.NEXT_PUBLIC_BASE_URL} `
+    + `| base=${resolveRequestBaseUrl(request)}`,
+  );
 
   // تمامِ منطق داخلِ try است تا یک خطای DB/شبکه هم به صفحه‌ی نتیجه ری‌دایرکت شود، نه ۵۰۰ خام.
   try {
     if (!authority) {
-      return NextResponse.redirect(resultUrl('status=failed'));
+      return resultUrl('status=failed');
     }
 
     const booking = await prisma.booking.findFirst({ where: { paymentAuthority: authority } });
     if (!booking) {
-      return NextResponse.redirect(resultUrl('status=failed'));
+      return resultUrl('status=failed');
     }
 
     // اگر قبلاً پرداخت‌شده بود (رفرش صفحه)، مستقیم موفق برگرد.
     if (booking.paymentStatus === 'paid') {
-      return NextResponse.redirect(resultUrl(`status=success&code=${booking.code}`));
+      return resultUrl(`status=success&code=${booking.code}`);
     }
 
     // کاربر پرداخت را لغو کرد یا ناموفق بود.
@@ -41,7 +61,7 @@ export async function GET(request) {
         where: { id: booking.id },
         data: { paymentStatus: 'failed', status: 'cancelled' },
       });
-      return NextResponse.redirect(resultUrl(`status=failed&code=${booking.code}`));
+      return resultUrl(`status=failed&code=${booking.code}`);
     }
 
     // تأیید نهایی با زرین‌پال. توجه: مبلغِ رزرو (booking.amount) را به verify می‌فرستیم و
@@ -57,7 +77,7 @@ export async function GET(request) {
         where: { id: booking.id },
         data: { paymentStatus: 'paid', status: 'confirmed', paymentRefId: verify.refId || null },
       });
-      return NextResponse.redirect(resultUrl(`status=success&code=${booking.code}`));
+      return resultUrl(`status=success&code=${booking.code}`);
     }
 
     if (verify.ok && amountMismatch) {
@@ -68,9 +88,9 @@ export async function GET(request) {
       where: { id: booking.id },
       data: { paymentStatus: 'failed', status: 'cancelled' },
     });
-    return NextResponse.redirect(resultUrl(`status=failed&code=${booking.code}`));
+    return resultUrl(`status=failed&code=${booking.code}`);
   } catch (e) {
     log.error('verify failed', e);
-    return NextResponse.redirect(resultUrl('status=failed'));
+    return resultUrl('status=failed');
   }
 }
