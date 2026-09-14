@@ -1,4 +1,5 @@
 import { SITE_URL } from '@/lib/site';
+import { INDEXING_ENABLED } from '@/lib/features';
 
 // راهنمای خزنده‌های موتورِ جست‌وجو (گوگل و…). Next این را به‌صورتِ خودکار روی
 // آدرسِ /robots.txt سرو می‌کند. داک: nextjs.org/docs/app/api-reference/file-conventions/metadata/robots
@@ -15,6 +16,13 @@ import { SITE_URL } from '@/lib/site';
 //    ولی مهاجم نه. محافظتِ واقعیِ /admin همان احرازِ هویتِ middleware است که سرِ جایش هست.
 
 export default function robots() {
+  // ⏸️ تا وقتی کلیدِ فهرست‌شدن خاموش است (دوره‌ی درگاهِ تستی)، کلِ سایت بسته می‌شود و
+  // نقشه‌ی سایت هم اعلام نمی‌شود — تا اصلاً دعوتی برای خزیدن وجود نداشته باشد.
+  // (رجوع به INDEXING_ENABLED در src/lib/features.js برای روشن‌کردنِ دوباره)
+  if (!INDEXING_ENABLED) {
+    return { rules: [{ userAgent: '*', disallow: '/' }] };
+  }
+
   return {
     rules: [
       {
