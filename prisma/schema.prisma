@@ -1,6 +1,8 @@
-// پروداکشن: دیتابیس Postgres روی Supabase.
-// DATABASE_URL = اتصال Pooled (پورت 6543) برای زمان اجرا.
-// DIRECT_URL   = اتصال مستقیم (پورت 5432) فقط برای migrate/db push.
+// پروداکشن: دیتابیس PostgreSQL روی لیارا.
+// DATABASE_URL = اتصالِ زمانِ اجرا.
+// DIRECT_URL   = اتصالی که فقط برای `db push` و `db execute` استفاده می‌شود.
+// روی لیارا هر دو یک مقدارِ یکسان می‌گیرند؛ دو متغیرِ جدا فقط برای هاست‌هایی لازم است
+// که اتصالِ زمانِ اجرا را از یک واسطه (connection pooler) رد می‌کنند.
 generator client {
   provider = "prisma-client-js"
 }

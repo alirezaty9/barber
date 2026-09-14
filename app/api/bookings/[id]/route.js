@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db';
 import { statusUpdateSchema } from '@/lib/validation';
 import { refundPayment } from '@/lib/zarinpal';
-import { ok, guardAdmin, parseBody, notFound, badRequest, serverError, buildCancelPatch } from '@/lib/api-helpers';
+import { ok, guardAdmin, parseBody, notFound, badRequest, serverError, resolveCancelPatch } from '@/lib/api-helpers';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('bookings:id');
@@ -27,9 +27,11 @@ export async function PATCH(request, { params }) {
     }
 
     // اگر ادمین نوبت را لغو می‌کند و قبلاً لغو نشده، استرداد کامل اعمال شود.
+    // ⏸️ تا وقتی کلیدِ استرداد خاموش است، resolveCancelPatch هیچ مبلغِ استردادی برنمی‌گرداند
+    // و در نتیجه شرطِ زیر رد می‌شود؛ یعنی نه تماسی با زرین‌پال، نه برچسبِ «مسترد شده».
     let updateData;
     if (data.status === 'cancelled' && existing.status !== 'cancelled') {
-      updateData = buildCancelPatch(existing, 'admin');
+      updateData = resolveCancelPatch(existing, 'admin');
       if (updateData.refundAmount > 0) {
         const refund = await refundPayment({
           amount: updateData.refundAmount,

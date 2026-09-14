@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db';
 import { PENDING_HOLD_MS } from '@/lib/availability-server';
-import { ok, unauthorized, serverError } from '@/lib/api-helpers';
+import { ok, guardCron, serverError } from '@/lib/api-helpers';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('cron:expire-pending');
@@ -10,12 +10,12 @@ const log = createLogger('cron:expire-pending');
 // callback هم نیامده، تا ابد pending می‌ماند و اسلات را می‌گیرد. اینجا رکوردهای کهنه‌ی
 // (pending && unpaid && قدیمی‌تر از PENDING_HOLD_MS) را به cancelled/failed تبدیل می‌کنیم.
 //
-// امنیت: فقط با CRON_SECRET قابلِ اجراست. Vercel Cron هدرِ Authorization: Bearer <CRON_SECRET>
-// را خودکار می‌فرستد اگر CRON_SECRET در Environment Variables ست شده باشد.
+// امنیت: فقط با CRON_SECRET قابلِ اجراست (رجوع به guardCron در src/lib/api-helpers.js).
+// رمز هم از هدرِ Authorization پذیرفته می‌شود و هم از پارامترِ ?secret= — تا با هر سرویسِ
+// کرونی کار کند. اگر CRON_SECRET تنظیم نشده باشد، مسیر برای همه بسته است.
 export async function GET(request) {
-  const secret = process.env.CRON_SECRET;
-  const auth = request.headers.get('authorization');
-  if (!secret || auth !== `Bearer ${secret}`) return unauthorized();
+  const denied = guardCron(request);
+  if (denied) return denied;
 
   try {
     const cutoff = new Date(Date.now() - PENDING_HOLD_MS);

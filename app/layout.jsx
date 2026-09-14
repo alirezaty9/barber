@@ -1,11 +1,18 @@
 import './globals.css';
 import Providers from './providers';
 import ServiceWorkerRegister from '@/features/pwa/ServiceWorkerRegister';
+import { SITE_URL } from '@/lib/site';
 
 // فونت‌ها به‌صورت self-host از داخلِ پروژه لود می‌شوند (فایل‌های public/fonts + @font-face
-// در globals.css) — مستقل از گوگل‌فونت، پس لوکال و ورسل کاملاً یکسان‌اند.
+// در globals.css) — مستقل از گوگل‌فونت، پس لوکال و سرور کاملاً یکسان‌اند.
 
 export const metadata = {
+  // آدرسِ پایه برای تبدیلِ مسیرهای نسبی به آدرسِ کامل در تگ‌های متادیتا.
+  metadataBase: new URL(SITE_URL),
+  // «آدرسِ متعارف» (canonical): به گوگل می‌گوید نسخه‌ی رسمیِ این صفحه کدام آدرس است.
+  // بدونِ این، اگر سایت هم‌زمان از چند آدرس در دسترس باشد (دامنه‌ی اصلی + آدرسِ پیش‌فرضِ
+  // هاست)، گوگل آن‌ها را «محتوای تکراری» می‌بیند و اعتبارِ صفحه بینشان تقسیم می‌شود.
+  alternates: { canonical: '/' },
   title: 'banad barber | رزرو آنلاین نوبت آرایشگاه',
   description: 'سامانه رزرو آنلاین نوبت آرایشگاه با تم دارک مینیمال و پنل مدیریت مدرن',
   applicationName: 'banad barber',

@@ -49,7 +49,7 @@ Thumbs.db
 # الگوهای هدفمند تا فایل‌های لازمِ prisma/sql/*.sql commit شوند.
 *.dump
 *.pgdump
-supabase-dump*.sql
+db-dump*.sql
 db-backup*.sql
 backup-*.sql
 
@@ -57,7 +57,13 @@ backup-*.sql
 .claude/
 
 # ===== فایل‌های کاری/موقت (پاسخ‌های تولیدشده) =====
-response.md
+# الگوی * هم response.md را می‌گیرد و هم کپی‌های اتفاقی مثلِ «response copy.md».
+response*.md
+pending.md
 v2ray.md
 explain.md
 setup.sql
+
+# ===== ابزارهای جانبی =====
+# پوشه‌ی کاریِ AI Studio — فایلِ کدِ پروژه نیست.
+assets/.aistudio/

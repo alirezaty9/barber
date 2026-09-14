@@ -1,12 +1,16 @@
 import { Scissors, MapPin, Phone, Instagram, Clock } from 'lucide-react';
 import { toPersianDigits } from '@/lib/persian';
+import {
+  SHOP_ADDRESS as ADDRESS,
+  SHOP_PHONE_LINK,
+  SHOP_PHONE_DISPLAY,
+  SHOP_HOURS,
+  SHOP_LAT as LAT,
+  SHOP_LNG as LNG,
+} from '@/lib/shop';
 
 export default function Footer() {
   const currentYear = new Intl.DateTimeFormat('fa-IR', { year: 'numeric' }).format(new Date());
-  // آدرس دقیق مغازه + مختصات جغرافیایی دقیق برای نقشه.
-  const ADDRESS = 'مهرشهر، بلوار ارم، نبش خیابان ۱۰۰ غربی، ساختمان آناهیتا، طبقه ۳، واحد ۱۲';
-  const LAT = 35.811706;
-  const LNG = 50.903386;
 
   return (
     <footer id="about" className="bg-[#020202] border-t border-zinc-900 text-zinc-400 py-16 px-6 relative z-10">
@@ -37,6 +41,7 @@ export default function Footer() {
             <li><a href="#services" className="hover:text-amber-500 transition-colors">منو خدمات و قیمت‌ها</a></li>
             <li><a href="#contact" className="hover:text-amber-500 transition-colors">ارتباط با ما</a></li>
             <li><a href="/track" className="hover:text-amber-500 transition-colors">رهگیری نوبت</a></li>
+            <li><a href="/terms" className="hover:text-amber-500 transition-colors">قوانین و مقررات</a></li>
           </ul>
         </div>
 
@@ -46,13 +51,13 @@ export default function Footer() {
             <MapPin className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
             <span className="leading-relaxed text-zinc-500">{ADDRESS}</span>
           </div>
-          <a href="tel:+989195496929" className="flex items-center gap-2.5 hover:text-amber-500 transition-colors">
+          <a href={`tel:${SHOP_PHONE_LINK}`} className="flex items-center gap-2.5 hover:text-amber-500 transition-colors">
             <Phone className="w-4 h-4 text-amber-500 flex-shrink-0" />
-            <span className="font-mono text-zinc-500">{toPersianDigits('۰۹۱۹۵۴۹۶۹۲۹')}</span>
+            <span className="font-mono text-zinc-500">{toPersianDigits(SHOP_PHONE_DISPLAY)}</span>
           </a>
           <div className="flex items-center gap-2.5">
             <Clock className="w-4 h-4 text-amber-500 flex-shrink-0" />
-            <span>شنبه تا جمعه: ۹ صبح تا ۱۰ شب</span>
+            <span>{SHOP_HOURS}</span>
           </div>
         </div>
       </div>

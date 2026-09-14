@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/db';
 import { cancelSchema } from '@/lib/validation';
 import { refundPayment } from '@/lib/zarinpal';
-import { ok, parseBody, notFound, conflict, badRequest, serverError, tooManyRequests, buildCancelPatch } from '@/lib/api-helpers';
+import { ok, parseBody, notFound, conflict, badRequest, serverError, tooManyRequests, serviceUnavailable, resolveCancelPatch } from '@/lib/api-helpers';
 import { hashOtp, OTP_MAX_ATTEMPTS } from '@/lib/otp';
+import { SMS_ENABLED, SMS_DISABLED_MESSAGE } from '@/lib/features';
 import { rateLimit, clientIp } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 
@@ -11,6 +12,10 @@ const log = createLogger('cancel');
 // POST — لغو نوبت توسط مشتری با کدِ رهگیری + کدِ تأییدِ دومرحله‌ای (OTP).
 // قاعده: لغو توسط مشتری ⇒ ۵۰٪ مبلغِ پرداخت‌شده مسترد می‌شود.
 export async function POST(request) {
+  // ⏸️ تعلیقِ موقت: لغو توسط مشتری روی کدِ تأییدِ پیامکی بنا شده، پس تا فعال‌شدنِ پنلِ پیامک
+  // این مسیر هم بسته است. (لغو توسط ادمین از پنلِ مدیریت همچنان کار می‌کند.)
+  if (!SMS_ENABLED) return serviceUnavailable(SMS_DISABLED_MESSAGE);
+
   // ضدِ brute-force: حداکثر ۱۰ تلاشِ تأیید در هر دقیقه به‌ازای هر IP (علاوه بر سقفِ per-booking).
   const limit = rateLimit({ key: `cancel:${clientIp(request)}`, limit: 10, windowMs: 60_000 });
   if (!limit.ok) return tooManyRequests('تلاش‌های زیاد. کمی بعد دوباره تلاش کنید.');
@@ -43,7 +48,7 @@ export async function POST(request) {
     }
 
     // ── محاسبه‌ی استرداد ──
-    const patch = buildCancelPatch(booking, 'customer');
+    const patch = resolveCancelPatch(booking, 'customer');
     if (patch.refundAmount > 0) {
       const refund = await refundPayment({
         amount: patch.refundAmount,

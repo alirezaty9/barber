@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, Fragment } from 'react';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react';
 import { formatPrice, toPersianDigits, formatJalaliDate, isValidIranMobile } from '@/lib/persian';
 import { useAvailability, useRequestPayment } from '@/api/bookings';
+import { SMS_ENABLED } from '@/lib/features';
 import { useBookingStore } from './store';
 import DayPicker from '@/components/ui/DayPicker';
 import Button from '@/components/ui/Button';
@@ -240,7 +242,18 @@ export default function BookingWizard({ services, barbers, onClose }) {
             <div className="p-3.5 bg-zinc-950 border border-zinc-900 rounded-xl text-[11px] text-zinc-500 leading-relaxed">
               * با کلیک روی «پرداخت و رزرو نوبت» به درگاه امن پرداخت منتقل می‌شوید. پس از پرداخت، نوبت شما ثبت و پس از تایید آرایشگر قطعی می‌شود.
               <br />
-              <span className="text-amber-400/90">توجه: در صورت لغو نوبت، ۵۰٪ مبلغ پرداختی به شما بازگردانده می‌شود.</span>
+              {/* ⏸️ تا فعال‌شدنِ پنلِ پیامک، لغوِ آنلاین در دسترس نیست؛ پس متنِ راهنما هم همان را می‌گوید. */}
+              <span className="text-amber-400/90">
+                {SMS_ENABLED
+                  ? 'توجه: در صورت لغو نوبت، ۵۰٪ مبلغ پرداختی به شما بازگردانده می‌شود.'
+                  : 'توجه: لغو نوبت فعلاً به‌صورت آنلاین ممکن نیست؛ برای لغو، با آرایشگاه تماس بگیرید.'}
+              </span>
+              <br />
+              با ادامه‌ی فرایند،{' '}
+              <Link href="/terms" target="_blank" className="text-zinc-300 underline hover:text-amber-400">
+                قوانین و مقررات
+              </Link>{' '}
+              را می‌پذیرید.
             </div>
           </form>
         </div>

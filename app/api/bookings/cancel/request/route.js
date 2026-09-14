@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/db';
 import { cancelRequestSchema } from '@/lib/validation';
-import { ok, parseBody, notFound, conflict, serverError, tooManyRequests } from '@/lib/api-helpers';
+import { ok, parseBody, notFound, conflict, serverError, tooManyRequests, serviceUnavailable } from '@/lib/api-helpers';
 import { generateOtp, hashOtp, OTP_TTL_MS } from '@/lib/otp';
 import { sendOtpSms } from '@/lib/sms';
+import { SMS_ENABLED, SMS_DISABLED_MESSAGE } from '@/lib/features';
 import { rateLimit, clientIp } from '@/lib/rate-limit';
 import { createLogger } from '@/lib/logger';
 
@@ -17,6 +18,11 @@ function maskPhone(phone) {
 // POST — درخواستِ کدِ تأییدِ لغو. سرور یک OTP می‌سازد، hash آن را روی نوبت ذخیره می‌کند
 // و کد را به موبایلِ همان نوبت «می‌فرستد» (فعلاً فقط در کنسول/لاگ چاپ می‌شود؛ رجوع به src/lib/sms.js).
 export async function POST(request) {
+  // ⏸️ تعلیقِ موقت: تا وقتی پنلِ پیامک فعال نشده، کدِ تأیید قابلِ ارسال نیست.
+  // این چک عمداً قبل از هر کاری است تا نه رکوردی در دیتابیس دست‌کاری شود نه سهمیه‌ی
+  // rate limit مصرف شود. (رجوع به src/lib/features.js برای روشن‌کردنِ دوباره)
+  if (!SMS_ENABLED) return serviceUnavailable(SMS_DISABLED_MESSAGE);
+
   // ضدِ سوءاستفاده (لایه‌ی اول): حداکثر ۵ درخواستِ کد در هر ۵ دقیقه به‌ازای هر IP.
   const ipLimit = rateLimit({ key: `cancel-otp:${clientIp(request)}`, limit: 5, windowMs: 5 * 60_000 });
   if (!ipLimit.ok) return tooManyRequests('درخواست‌های زیاد. چند دقیقه بعد دوباره تلاش کنید.');

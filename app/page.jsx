@@ -13,8 +13,8 @@ import PwaInstallPrompt from '@/features/pwa/PwaInstallPrompt';
 export const revalidate = 300;
 
 export default async function Home() {
-  // اگر دیتابیس هنگامِ build یا revalidate در دسترس نباشد، به‌جای کرش‌کردنِ کلِ صفحه (که
-  // روی Vercel باعثِ شکستِ کلِ دیپلوی می‌شود) با کاتالوگِ خالی رندر می‌کنیم؛ در revalidateِ
+  // اگر دیتابیس هنگامِ build یا revalidate در دسترس نباشد، به‌جای کرش‌کردنِ کلِ صفحه
+  // (که می‌تواند کلِ دیپلوی را بشکند) با کاتالوگِ خالی رندر می‌کنیم؛ در revalidateِ
   // بعدی دوباره پر می‌شود. تجربه‌ی افت‌کرده بهتر از ۵۰۰/شکستِ بیلد است.
   let services = [];
   let barbers = [];

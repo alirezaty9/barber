@@ -11,6 +11,7 @@ import { lookupBooking, requestCancelOtp, cancelBooking } from '@/api/bookings';
 import { toPersianDigits, formatJalaliDate, formatPrice } from '@/lib/persian';
 import { servicesLabelOf } from '@/lib/serializers';
 import { STATUS_LABELS, STATUS_STYLES } from '@/lib/constants';
+import { SMS_ENABLED } from '@/lib/features';
 import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import Field from '@/components/ui/Field';
@@ -191,15 +192,23 @@ export default function TrackPage() {
                   </div>
 
                   {booking.status !== 'cancelled' && (
-                    <Button
-                      variant="danger"
-                      className="w-full"
-                      loading={sendingCode === booking.code}
-                      onClick={() => onRequestCancel(booking.code)}
-                    >
-                      <XCircle className="w-4 h-4" />
-                      لغو این نوبت
-                    </Button>
+                    SMS_ENABLED ? (
+                      <Button
+                        variant="danger"
+                        className="w-full"
+                        loading={sendingCode === booking.code}
+                        onClick={() => onRequestCancel(booking.code)}
+                      >
+                        <XCircle className="w-4 h-4" />
+                        لغو این نوبت
+                      </Button>
+                    ) : (
+                      /* ⏸️ تا فعال‌شدنِ پنلِ پیامک، لغوِ آنلاین ممکن نیست (کدِ تأیید پیامکی است). */
+                      <p className="text-[11px] text-zinc-500 leading-relaxed bg-zinc-950 border border-zinc-900 rounded-xl p-3">
+                        برای لغو یا جابه‌جایی این نوبت، لطفاً با آرایشگاه تماس بگیرید و کد رهگیری{' '}
+                        <span className="font-mono text-amber-500">{booking.code}</span> را اعلام کنید.
+                      </p>
+                    )
                   )}
                 </div>
               ))

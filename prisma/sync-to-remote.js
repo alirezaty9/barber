@@ -1,18 +1,20 @@
 // ─────────────────────────────────────────────────────────────
-//  همگام‌سازی داده: از دیتابیسِ مبدأ (لوکال) → مقصد (Supabase)
+//  همگام‌سازی داده: از دیتابیسِ مبدأ (معمولاً لوکال) → مقصد (دیتابیسِ هاست)
 //
-//  این اسکریپت با یک PrismaClient به دو دیتابیس وصل می‌شود و همه‌ی
-//  رکوردها را (به ترتیبِ امنِ کلیدهای خارجی) از مبدأ به مقصد کپی می‌کند.
-//  ⚠️ مقصد اول پاک می‌شود، بعد داده‌ی مبدأ ریخته می‌شود (کپیِ کامل).
+//  این اسکریپت با دو PrismaClient به دو دیتابیس وصل می‌شود و همه‌ی رکوردها را
+//  (به ترتیبِ امنِ کلیدهای خارجی) از مبدأ به مقصد کپی می‌کند.
 //
-//  پیش‌نیاز: اسکیمای مقصد باید ساخته شده باشد → اول یک بار:
-//     DATABASE_URL="<supabase-pooled>" DIRECT_URL="<supabase-direct>" npx prisma db push
+//  🔴 مقصد اول کاملاً پاک می‌شود، بعد داده‌ی مبدأ ریخته می‌شود. این یک «کپیِ کامل»
+//     است، نه ادغام. روی دیتابیسی که داده‌ی واقعی دارد اجرایش نکن.
+//
+//  پیش‌نیاز: جدول‌های مقصد باید از قبل ساخته شده باشند → اول یک‌بار:
+//     DATABASE_URL="<remote-url>" DIRECT_URL="<remote-url>" npx prisma db push
 //
 //  اجرا (مبدأ = DATABASE_URL فعلیِ .env، مقصد را می‌دهی):
-//     TARGET_DATABASE_URL="<supabase-direct-url>" node prisma/sync-to-supabase.js
+//     TARGET_DATABASE_URL="<remote-url>" node prisma/sync-to-remote.js
 //
 //  یا هر دو را صریح بده:
-//     SOURCE_DATABASE_URL="<local>" TARGET_DATABASE_URL="<supabase>" node prisma/sync-to-supabase.js
+//     SOURCE_DATABASE_URL="<local>" TARGET_DATABASE_URL="<remote>" node prisma/sync-to-remote.js
 // ─────────────────────────────────────────────────────────────
 const { PrismaClient } = require('@prisma/client');
 
@@ -20,8 +22,8 @@ const SOURCE_URL = process.env.SOURCE_DATABASE_URL || process.env.DATABASE_URL;
 const TARGET_URL = process.env.TARGET_DATABASE_URL;
 
 if (!TARGET_URL) {
-  console.error('❌ TARGET_DATABASE_URL تعریف نشده. مقصد (Supabase) را بده. مثال:');
-  console.error('   TARGET_DATABASE_URL="postgresql://postgres.xxx:PASS@...:5432/postgres" node prisma/sync-to-supabase.js');
+  console.error('❌ TARGET_DATABASE_URL تعریف نشده. آدرسِ دیتابیسِ مقصد را بده. مثال:');
+  console.error('   TARGET_DATABASE_URL="postgresql://USER:PASS@HOST:PORT/DBNAME" node prisma/sync-to-remote.js');
   process.exit(1);
 }
 if (!SOURCE_URL) {
@@ -48,13 +50,13 @@ async function main() {
   await target.service.deleteMany();
   await target.barber.deleteMany();
 
-  console.log('📥 نوشتن در مقصد (Supabase) ...');
+  console.log('📥 نوشتن در مقصد ...');
   if (barbers.length) await target.barber.createMany({ data: barbers });
   if (services.length) await target.service.createMany({ data: services });
   if (blocks.length) await target.barberBlock.createMany({ data: blocks });
   if (bookings.length) await target.booking.createMany({ data: bookings });
 
-  console.log('✅ همگام‌سازی کامل شد. حالا Supabase = دیتابیسِ لوکالِ تو.');
+  console.log('✅ همگام‌سازی کامل شد. حالا دیتابیسِ مقصد = کپیِ دیتابیسِ مبدأ.');
 }
 
 main()

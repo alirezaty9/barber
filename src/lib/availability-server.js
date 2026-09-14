@@ -9,7 +9,7 @@ import { workDaysToArray } from './serializers';
 // این رکوردهای کهنه را در دیتابیس هم به cancelled تبدیل می‌کند.
 export const PENDING_HOLD_MS = 15 * 60 * 1000; // ۱۵ دقیقه
 
-// زمانِ فعلی به وقتِ ایران (مستقل از تایم‌زونِ سرور — روی Vercel سرور UTC است).
+// زمانِ فعلی به وقتِ ایران — صریحاً و مستقل از تایم‌زونِ سرور، هر چه که باشد.
 // خروجی: { iso: 'YYYY-MM-DD', minutes: دقیقه‌ی گذشته از نیمه‌شب }
 function tehranNow() {
   const parts = new Intl.DateTimeFormat('en-CA', {

@@ -34,7 +34,7 @@ export default function LandingHero() {
   return (
     <header id="hero" className="relative min-h-screen flex flex-col justify-center overflow-hidden bg-[#030303] text-zinc-100">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900/60 via-zinc-950 to-black z-0" />
-      {/* پس‌زمینه‌ی هیرو با next/image تا روی Vercel خودکار WebP/AVIF و ری‌سایز شود
+      {/* پس‌زمینه‌ی هیرو با next/image تا خودکار WebP/AVIF و ری‌سایز شود
           (به‌جای فایل خام ۵۳۲KB). priority چون بالای صفحه و LCP است. */}
       <Image
         src="/images/hero-bg.jpg"

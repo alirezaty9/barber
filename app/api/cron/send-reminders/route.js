@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/db';
 import { sendSms } from '@/lib/sms';
+import { SMS_ENABLED } from '@/lib/features';
 import { tehranTodayISO, shiftISO } from '@/lib/time';
 import { servicesLabelOf } from '@/lib/serializers';
-import { ok, unauthorized, serverError } from '@/lib/api-helpers';
+import { ok, guardCron, serverError } from '@/lib/api-helpers';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('cron:send-reminders');
@@ -23,12 +24,15 @@ function appointmentMs(dateIso, timeSlot) {
 // هر نوبتِ «تاییدشده» که تا ۲ ساعتِ آینده شروع می‌شود و هنوز یادآوری برایش نرفته را
 // یک پیامکِ یادآوری (با همان سیستمِ SMS) می‌فرستد و علامت می‌زند تا تکرار نشود.
 //
-// امنیت: فقط با CRON_SECRET. Vercel Cron هدرِ Authorization: Bearer <CRON_SECRET> را
-// خودکار می‌فرستد اگر CRON_SECRET در Environment Variables ست شده باشد.
+// امنیت: فقط با CRON_SECRET قابلِ اجراست (رجوع به guardCron در src/lib/api-helpers.js).
+// رمز هم از هدرِ Authorization پذیرفته می‌شود و هم از پارامترِ ?secret=.
 export async function GET(request) {
-  const secret = process.env.CRON_SECRET;
-  const auth = request.headers.get('authorization');
-  if (!secret || auth !== `Bearer ${secret}`) return unauthorized();
+  const denied = guardCron(request);
+  if (denied) return denied;
+
+  // ⏸️ تعلیقِ موقت: تا فعال‌شدنِ پنلِ پیامک، این کرون بی‌سر‌و‌صدا رد می‌شود. هیچ نوبتی
+  // «یادآوری‌شده» علامت نمی‌خورد تا بعد از روشن‌کردنِ پیامک، یادآوری‌ها از دست نروند.
+  if (!SMS_ENABLED) return ok({ skipped: true, reason: 'sms-disabled' });
 
   try {
     const now = Date.now();
