@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyPayment } from '@/lib/zarinpal';
-import { resolveRequestBaseUrl } from '@/lib/site';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('payment:verify');
@@ -28,16 +27,6 @@ export async function GET(request) {
       status: 303, // «کارت انجام شد، حالا این صفحه را ببین» — معنای درستِ بعد از پردازش
       headers: { Location: `/payment/result?${params}` },
     });
-
-  // ⚠️ تشخیصِ موقت — بعد از تأییدِ درست‌کارکردنِ پرداخت روی سرور حذف شود.
-  // عمداً سطحِ warn است، چون سطحِ پیش‌فرضِ لاگ روی سرور warn است و پایین‌تر از آن دیده نمی‌شود.
-  // هدفش این است که اگر باز هم آدرسِ بازگشت ناجور بود، به‌جای حدس‌زدن ببینیم سرور واقعاً
-  // چه هدرهایی می‌گیرد و متغیرِ محیطی موقعِ بیلد چه مقداری گرفته است.
-  log.warn(
-    `[تشخیصِ موقت] host=${request.headers.get('host')} | x-forwarded-host=${request.headers.get('x-forwarded-host')} `
-    + `| x-forwarded-proto=${request.headers.get('x-forwarded-proto')} | NEXT_PUBLIC_BASE_URL=${process.env.NEXT_PUBLIC_BASE_URL} `
-    + `| base=${resolveRequestBaseUrl(request)}`,
-  );
 
   // تمامِ منطق داخلِ try است تا یک خطای DB/شبکه هم به صفحه‌ی نتیجه ری‌دایرکت شود، نه ۵۰۰ خام.
   try {
