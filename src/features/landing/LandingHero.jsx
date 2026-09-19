@@ -6,6 +6,7 @@ import { Calendar, MapPin, Phone, Instagram, Search, Smartphone } from 'lucide-r
 import { toast } from 'sonner';
 import { useBookingStore } from '@/features/booking/store';
 import { usePwaInstall } from '@/features/pwa/usePwaInstall';
+import { showManualInstallHelp } from '@/features/pwa/install-guidance';
 // با import (به‌جای مسیرِ دستی)، نامِ فایلِ خروجی اثرِ انگشتِ محتوا را می‌گیرد؛ پس تعویضِ
 // عکس خودکار باعثِ تازه‌شدنِ آن در مرورگرِ مشتری‌های قدیمی می‌شود.
 import heroBg from '@/images/hero-bg.jpg';
@@ -17,20 +18,14 @@ export default function LandingHero() {
   // آیکون‌های میان‌بر همگی طلایی (هم‌رنگ متن برند).
   const iconLink = 'p-3.5 bg-zinc-900/60 border border-zinc-800 hover:border-amber-500/50 text-amber-500 hover:text-amber-400 rounded-2xl transition-all duration-300 hover:-translate-y-1';
 
-  // کلیک روی آیکونِ نصب: دیالوگِ نصبِ نیتیو را باز می‌کند؛ اگر مرورگر پشتیبانی نکند
-  // (مثل iOS)، راهنمای دستی نشان می‌دهد.
+  // کلیک روی آیکونِ نصب: پنجره‌ی نصبِ خودِ مرورگر را باز می‌کند؛ اگر مرورگر پشتیبانی نکند
+  // (مثل سافاریِ آیفون)، راهنمای دستیِ مشترک نشان داده می‌شود.
   const handleInstall = async () => {
     const outcome = await promptInstall();
     if (outcome === 'accepted') {
       toast.success('اپ روی صفحه‌ی اصلیِ دستگاه شما اضافه شد ✅');
     } else if (outcome === 'unavailable') {
-      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-      toast(
-        isIOS
-          ? 'برای نصب: دکمه‌ی اشتراک‌گذاریِ سافاری را بزن و «Add to Home Screen» را انتخاب کن.'
-          : 'برای نصب، از منوی مرورگر گزینه‌ی «نصب برنامه / Install app» را انتخاب کن.',
-        { duration: 6000 }
-      );
+      showManualInstallHelp();
     }
   };
 

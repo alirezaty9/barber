@@ -1,10 +1,16 @@
 // مانیفستِ PWA — Next.js این فایل را به‌صورت خودکار در مسیر /manifest.webmanifest
 // سرو می‌کند و لینکِ <link rel="manifest"> را در <head> تزریق می‌کند.
 // داک: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/manifest
+//
+// نامِ اپ از src/lib/shop.js می‌آید (همان منبعی که عنوانِ سایت و فوتر از آن می‌خوانند).
+// قبلاً اینجا دستی نوشته شده بود؛ نتیجه‌اش این بود که با عوض‌کردنِ نامِ مجموعه، نامِ
+// آیکنِ نصب‌شده روی گوشی کهنه می‌ماند — بدونِ اینکه جایی خطا بدهد.
+import { SHOP_NAME } from '@/lib/shop';
+
 export default function manifest() {
   return {
-    name: 'banad barber',
-    short_name: 'banad barber',
+    name: SHOP_NAME,
+    short_name: SHOP_NAME,
     description: 'رزرو آنلاین نوبت آرایشگاه بناد و پنل مدیریت',
     id: '/',
     start_url: '/',

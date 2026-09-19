@@ -1,6 +1,7 @@
 import './globals.css';
 import Providers from './providers';
 import ServiceWorkerRegister from '@/features/pwa/ServiceWorkerRegister';
+import InstallCapture from '@/features/pwa/InstallCapture';
 import { SITE_URL } from '@/lib/site';
 import { SHOP_NAME } from '@/lib/shop';
 import { INDEXING_ENABLED } from '@/lib/features';
@@ -94,6 +95,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="fa" dir="rtl">
       <body>
+        {/* 🔴 باید اولین چیزِ داخلِ صفحه باشد: اجازه‌ی نصبِ اپ را مرورگر فقط یک‌بار و بدونِ
+            هشدار اعلام می‌کند، و اگر آن لحظه کسی نگیردش برای همیشه از دست می‌رود. */}
+        <InstallCapture />
         <Providers>{children}</Providers>
         <ServiceWorkerRegister />
       </body>

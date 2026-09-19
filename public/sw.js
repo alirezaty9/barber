@@ -10,16 +10,24 @@
 // خالی شود، یک واحد جلو ببر. موقعِ فعال‌شدنِ نسخه‌ی جدید، کش‌های نسخه‌های قبلی پاک می‌شوند.
 // v2 → ۱۴۰۵/۰۶/۲۳: عکس‌ها به فایل‌های اثرانگشت‌دار منتقل شدند و قاعده‌ی فایل‌های نام‌ثابت
 //      از cache-first به stale-while-revalidate تغییر کرد.
-const VERSION = 'v2';
+// v3 → ۱۴۰۵/۰۶/۲۸: دیگر پاسخِ ناموفق (خطای ۴۰۴/۵۰۰ و ریدایرکت) در کشِ صفحه‌ها ذخیره نمی‌شود،
+//      و شکستِ یکی از فایل‌های پیش‌کش دیگر کلِ نصبِ سرویس‌ورکر را باطل نمی‌کند.
+const VERSION = 'v3';
 const STATIC_CACHE = `banad-static-${VERSION}`;
 const PAGE_CACHE = `banad-pages-${VERSION}`;
 const OFFLINE_URL = '/offline';
 
 // در نصب، صفحه‌ی آفلاین و آیکون‌ها را از پیش کش کن.
+//
+// ⚠️ عمداً به‌جای addAll یکی‌یکی کش می‌شوند: addAll «همه یا هیچ» است، یعنی اگر فقط یکی از
+// این سه فایل در دسترس نباشد (یک دیپلویِ نیمه‌کاره، یک قطعیِ لحظه‌ای)، کلِ نصبِ سرویس‌ورکر
+// شکست می‌خورد و کاربر نه تجربه‌ی آفلاین دارد و نه چیزی می‌بیند که بفهمد چرا.
+const PRECACHE_URLS = [OFFLINE_URL, '/icon-192.png', '/icon-512.png'];
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE).then((cache) =>
-      cache.addAll([OFFLINE_URL, '/icon-192.png', '/icon-512.png'])
+      Promise.all(PRECACHE_URLS.map((url) => cache.add(url).catch(() => null)))
     )
   );
   self.skipWaiting();
@@ -56,12 +64,18 @@ self.addEventListener('fetch', (event) => {
   if (isSensitive(url)) return; // مسیرهای حساس همیشه از شبکه
 
   // ناوبریِ صفحه‌ها → network-first
+  //
+  // ⚠️ فقط پاسخِ سالم کش می‌شود. قبلاً هر پاسخی — از جمله صفحه‌ی خطای ۵۰۰ یا ۴۰۴ سرور —
+  // ذخیره می‌شد؛ نتیجه‌اش این بود که یک قطعیِ چنددقیقه‌ایِ سرور می‌توانست تا مدت‌ها به‌شکلِ
+  // «صفحه‌ی خطای چسبیده» در گوشیِ کاربر باقی بماند، چون بارِ بعد همان را از کش می‌گرفت.
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(PAGE_CACHE).then((c) => c.put(request, copy));
+          if (res.ok && res.type === 'basic') {
+            const copy = res.clone();
+            caches.open(PAGE_CACHE).then((c) => c.put(request, copy));
+          }
           return res;
         })
         .catch(() =>

@@ -46,7 +46,8 @@ export default async function Home() {
       {/* مودال رزرو — با Zustand کنترل می‌شود و داده‌ها را خودش از API می‌گیرد */}
       <BookingLauncher services={services} barbers={barbers} />
 
-      {/* پاپ‌آپِ نصبِ اپ (PWA) — چسبیده به پایینِ صفحه، مخصوصِ موبایل */}
+      {/* کادرِ نصبِ اپ — چسبیده به پایینِ صفحه. با آیکنِ نصبِ بالای صفحه یک وضعیتِ
+          مشترک دارد، پس هیچ‌وقت با هم تداخل نمی‌کنند. */}
       <PwaInstallPrompt />
     </div>
   );
