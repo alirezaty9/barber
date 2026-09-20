@@ -4,20 +4,40 @@ import { useEffect } from 'react';
 
 // ثبتِ سرویس‌ورکر پس از بارگذاری کامل صفحه (تا با رندر اولیه رقابت نکند).
 // در محیط توسعه ثبت نمی‌شود تا با HMR تداخل نکند؛ فقط در production فعال است.
+//
+// 🔴 باگی که اینجا رفع شد — و علتِ «دکمه‌ی نصب ظاهر نمی‌شود» بود:
+//
+// این کد فقط به رویدادِ «بارگذاریِ کاملِ صفحه» گوش می‌داد. ولی این تابع بعد از آماده‌شدنِ
+// React اجرا می‌شود، و اگر صفحه **پیش از آن** کامل بارگذاری شده باشد (بازدیدِ دوم، وقتی
+// عکس‌ها از حافظه‌ی مرورگر می‌آیند)، آن رویداد **قبلاً رد شده** و دیگر تکرار نمی‌شود —
+// پس گوش‌دادن به آن یعنی گوش‌دادن به چیزی که هرگز نمی‌آید و سرویس‌ورکر **هرگز ثبت نمی‌شود**.
+//
+// چرا این دقیقاً نصب را خراب می‌کند؟ کروم تا وقتی یک سرویس‌ورکرِ فعال نبیند، سایت را
+// «قابلِ نصب» نمی‌شناسد و اجازه‌ی نصب را اعلام نمی‌کند. نتیجه‌اش این بود که دکمه‌ی نصبِ ما
+// چیزی برای بازکردن نداشت و به‌جایش مسیرِ دستی را نشان می‌داد. و چون گزینه‌ی «Install»
+// در منوی خودِ کروم همیشه هست، به‌نظر می‌رسید «مرورگر که می‌تواند، پس ایرادِ سایت است».
+//
+// 🌍 آنالوژی: منتظرِ زنگِ در ایستاده‌ای، در حالی که پستچی ده دقیقه پیش آمده و رفته.
+// راهِ درست این است که اول در را باز کنی و ببینی بسته پشتِ در هست یا نه.
 export default function ServiceWorkerRegister() {
   useEffect(() => {
     if (process.env.NODE_ENV !== 'production') return;
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
-    const onLoad = () => {
+    const register = () => {
       navigator.serviceWorker.register('/sw.js').catch((err) => {
         // خطای ثبت نباید اپ را بشکند؛ فقط لاگ می‌کنیم.
         console.error('SW registration failed:', err);
       });
     };
 
-    window.addEventListener('load', onLoad);
-    return () => window.removeEventListener('load', onLoad);
+    // اگر بارگذاری قبلاً تمام شده، همین حالا ثبت کن؛ وگرنه منتظرِ پایانش بمان.
+    if (document.readyState === 'complete') {
+      register();
+      return;
+    }
+    window.addEventListener('load', register, { once: true });
+    return () => window.removeEventListener('load', register);
   }, []);
 
   return null;
