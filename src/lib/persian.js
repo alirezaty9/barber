@@ -50,6 +50,39 @@ export function formatJalaliDate(isoDate, options = { day: 'numeric', month: 'lo
   }
 }
 
+/** نامِ ماه‌های شمسی به ترتیب (اندیسِ ۰ = فروردین). */
+export const PERSIAN_MONTHS = [
+  'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+  'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند',
+];
+
+// فرمترِ سال/ماهِ شمسی یک‌بار ساخته می‌شود (ساختِ Intl.DateTimeFormat گران است) و بینِ
+// همه‌ی رکوردها بازاستفاده می‌شود؛ به‌علاوه نتیجه‌ی هر تاریخ کش می‌شود تا برای رکوردهای
+// هم‌تاریخ دوباره محاسبه نشود.
+//
+// ⚠️ timeZone صریحاً UTC است و تاریخ «ظهرِ UTC» تفسیر می‌شود — همان قراردادِ
+// formatJalaliDate. بدونِ آن، نگاشتِ میلادی→شمسی به تایم‌زونِ سرور وابسته می‌شد.
+const PERSIAN_YM_FMT = new Intl.DateTimeFormat('en-US-u-ca-persian', {
+  timeZone: 'UTC', year: 'numeric', month: 'numeric',
+});
+const ymCache = new Map();
+
+/**
+ * سال و ماهِ شمسیِ یک تاریخِ ISO میلادی، با ارقامِ لاتین (برای محاسبه، نه نمایش).
+ * مثال: jalaliYM('2026-09-23') → { y: '1405', m: 7 }
+ */
+export function jalaliYM(isoDate) {
+  const hit = ymCache.get(isoDate);
+  if (hit) return hit;
+  const parts = PERSIAN_YM_FMT.formatToParts(new Date(`${isoDate}T12:00:00Z`));
+  const val = {
+    y: parts.find((x) => x.type === 'year')?.value,
+    m: parseInt(parts.find((x) => x.type === 'month')?.value, 10),
+  };
+  ymCache.set(isoDate, val);
+  return val;
+}
+
 /**
  * اعتبارسنجی شماره‌ی موبایل: ۱۱ رقمی که با ۰۹ شروع شود (بعد از نرمال‌سازیِ ارقام).
  */
