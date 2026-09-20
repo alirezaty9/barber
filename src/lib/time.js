@@ -35,8 +35,8 @@ export function weekdayIndexSaturday(iso) {
 const TEHRAN_OFFSET_MS = (3 * 60 + 30) * 60 * 1000;
 
 // لحظه‌ی مطلقِ شروعِ نوبت (میلی‌ثانیه‌ی UTC) از روی تاریخِ ISO و ساعتِ HH:MM به وقتِ ایران.
-// در دو جا لازم است (کرونِ یادآوری و مهلتِ لغو)، پس اینجا متمرکز شده تا دو نسخه‌ی
-// جداگانه از همین حساب وجود نداشته باشد.
+// فعلاً فقط کرونِ یادآوری از آن استفاده می‌کند. (مهلتِ لغو روزمحور است و به لحظه‌ی دقیق
+// نیاز ندارد — رجوع به src/lib/cancel-policy.js)
 export function appointmentStartMs(dateIso, timeSlot) {
   const [y, mo, d] = dateIso.split('-').map(Number);
   const [hh, mm] = timeSlot.split(':').map(Number);

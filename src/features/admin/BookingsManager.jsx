@@ -56,19 +56,24 @@ export default function BookingsManager() {
     });
   };
 
-  // تسویه‌ی دستیِ نوبتی که «در انتظار استرداد» است — یعنی پولش گرفته شده ولی نوبت قطعی نشده.
+  // تسویه‌ی دستیِ پولِ یک نوبتِ لغوشده — دو حالت دارد:
+  //   • «در انتظار استرداد» — سیستم خودش ساخته (پول گرفته شد ولی نوبت قطعی نشد)
+  //   • «پرداخت‌شده»        — لغوِ عادی؛ پول هنوز دستِ آرایشگاه است و باید تعیین‌تکلیف شود.
   // بدونِ این، آن رکورد تا ابد معلق می‌ماند و هیچ راهی برای علامت‌زدنش وجود ندارد.
-  const onSettleRefund = async (id, mode) => {
+  const onSettleRefund = async (booking, mode) => {
     const refunded = mode === 'refunded';
+    // مبلغِ واقعی نشان داده می‌شود، نه عبارتِ مبهمِ «کلِ مبلغ»: برای لغوِ مشتری قاعده ۵۰٪
+    // است، پس «کلِ مبلغ» به ادمین آدرسِ غلط می‌داد و رقمِ اشتباه ثبت می‌شد.
+    const share = Math.floor((booking.amount || 0) * (booking.cancelledBy === 'customer' ? 0.5 : 1));
     const ok = await confirm({
       title: refunded ? 'ثبت استرداد دستی' : 'ثبت توافق با مشتری',
       description: refunded
-        ? 'تأیید می‌کنی که کلِ مبلغ را به مشتری برگردانده‌ای؟ وضعیت به «مسترد شده» تغییر می‌کند.'
+        ? `تأیید می‌کنی که ${formatPrice(share)} را به مشتری برگردانده‌ای؟ وضعیت به «مسترد شده» تغییر می‌کند.`
         : 'تأیید می‌کنی که مبلغ نزدِ آرایشگاه می‌ماند و با مشتری به توافق رسیده‌اید؟ وضعیت به «پرداخت‌شده» تغییر می‌کند.',
       confirmText: 'تأیید',
     });
     if (!ok) return;
-    updateStatus.mutate({ id, paymentStatus: mode }, {
+    updateStatus.mutate({ id: booking.id, paymentStatus: mode }, {
       onSuccess: () => toast.success('وضعیت پرداخت ثبت شد.'),
       onError: (e) => toast.error(e.message),
     });
@@ -215,15 +220,19 @@ export default function BookingsManager() {
                 <button onClick={() => onDelete(b.id)} title="حذف دائمی" className="p-2 text-zinc-500 hover:text-red-500 transition-colors">
                   <Trash2 className="w-4 h-4" />
                 </button>
-                {/* راهِ خروج از حالتِ «در انتظار استرداد» — پولش گرفته شده ولی نوبت قطعی نشده. */}
-                {b.paymentStatus === 'refundPending' && (
+                {/* تعیین‌تکلیفِ پولِ نوبتِ لغوشده. هم برای «در انتظار استرداد» (پول گرفته شد
+                    ولی نوبت قطعی نشد) و هم برای «پرداخت‌شده» — که با استردادِ خودکارِ خاموش،
+                    حالتِ عادیِ هر لغوِ یک نوبتِ پرداخت‌شده است. */}
+                {b.status === 'cancelled' && ['refundPending', 'paid'].includes(b.paymentStatus) && (
                   <div className="flex items-center gap-1.5 w-full lg:w-auto">
-                    <Button variant="outline" size="sm" onClick={() => onSettleRefund(b.id, 'refunded')}>
+                    <Button variant="outline" size="sm" onClick={() => onSettleRefund(b, 'refunded')}>
                       پول را برگرداندم
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => onSettleRefund(b.id, 'paid')}>
-                      توافق شد
-                    </Button>
+                    {b.paymentStatus === 'refundPending' && (
+                      <Button variant="ghost" size="sm" onClick={() => onSettleRefund(b, 'paid')}>
+                        توافق شد
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>

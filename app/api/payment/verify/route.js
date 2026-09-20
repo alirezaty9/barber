@@ -62,7 +62,13 @@ export async function GET(request) {
     // این اتفاق می‌افتاد: نوبتی که لغو و پولش مسترد شده بود، با یک بار بازکردنِ لینکِ بازگشت
     // دوباره «تایید شده و پرداخت‌شده» می‌شد — چون درگاه برای تراکنشِ تأییدشده کدِ «قبلاً
     // تأیید شده» می‌دهد که ما آن را هم موفق می‌شماریم. یعنی هم پول برگشته بود، هم نوبت داده می‌شد.
-    if (booking.paymentStatus !== 'unpaid') {
+    // ⚠️ فهرست عمداً صریح است و «هر چیزی جز unpaid» نیست.
+    // حالتِ `failed` یک تصمیمِ مالی نیست — یعنی «هنوز پولی رد و بدل نشده». اگر آن هم اینجا
+    // بسته می‌شد، دو خرابی داشت: (۱) مشتری‌ای که در درگاه انصراف داده و دوباره لینک را باز
+    // می‌کند، پیامِ نادرستِ «مبلغ از حساب شما کسر شده» می‌گرفت؛ (۲) اگر پرداختِ طولانیِ
+    // مشتری بعد از پایانِ نگه‌داشت جارو شده باشد، پرداختِ **موفقش** اصلاً تأیید نمی‌شد و
+    // پول بی‌هیچ ردی می‌ماند. این دو حالت باید به منطقِ پایین برسند، نه به این قفل.
+    if (['paid', 'refunded', 'refundPending'].includes(booking.paymentStatus)) {
       log.warn(`verify replay ignored for ${booking.code} (paymentStatus=${booking.paymentStatus})`);
       return resultUrl(`status=needs_review&code=${booking.code}`);
     }
@@ -109,6 +115,13 @@ export async function GET(request) {
       // تمام شده، اسلات را اشغال نمی‌کند و نباید مشتریِ پول‌داده را بیرون بیندازد. بدونِ این
       // قید این حالت رخ می‌داد: مشتری B اسلات را می‌گرفت و پرداخت نمی‌کرد، مشتری A که پول
       // داده بود رد می‌شد، و در نهایت اسلات **خالی** می‌ماند و A هم نوبت نداشت.
+      // 🔴 نوبتی که **عمداً** لغو شده نباید با بازگشتِ پرداخت زنده شود.
+      // تفکیک از روی cancelledBy انجام می‌شود: وقتی آرایشگاه یا مشتری لغو می‌کند این ستون
+      // پر است؛ ولی وقتی رزرو صرفاً به‌خاطرِ پایانِ مهلتِ نگه‌داشت جارو شده، خالی است.
+      // حالتِ دوم باید قابلِ احیا باشد (مشتری پولش را داده و اسلات هم آزاد است)، حالتِ اول نه —
+      // وگرنه نوبتی که آرایشگر عمداً لغو کرده بی‌خبر برمی‌گشت و مشتری سرِ ساعت می‌آمد.
+      const deliberatelyCancelled = booking.status === 'cancelled' && Boolean(booking.cancelledBy);
+
       const staleCutoff = new Date(Date.now() - PENDING_HOLD_MS);
       const conflict = booking.barberId
         ? await prisma.booking.findFirst({
@@ -119,17 +132,22 @@ export async function GET(request) {
               status: { not: 'cancelled' },
               id: { not: booking.id },
               // رزروِ پرداخت‌نشده‌ی کهنه «فعال» شمرده نمی‌شود.
+              // ⚠️ شکلِ `NOT: { AND: [...] }` عمدی است: معنای «نفیِ ترکیبِ هر سه شرط» را
+              // بدونِ ابهام می‌دهد. شکلِ کوتاهِ `NOT: { a, b, c }` در Prisma می‌تواند به
+              // «نفیِ تک‌تک» تفسیر شود که معنایش کاملاً چیزِ دیگری است.
               NOT: {
-                status: 'pending',
-                paymentStatus: 'unpaid',
-                createdAt: { lt: staleCutoff },
+                AND: [
+                  { status: 'pending' },
+                  { paymentStatus: 'unpaid' },
+                  { createdAt: { lt: staleCutoff } },
+                ],
               },
             },
             select: { id: true },
           })
         : null;
 
-      if (!conflict) {
+      if (!conflict && !deliberatelyCancelled) {
         try {
           // پرداخت موفق ⇒ نوبت خودکار «تایید» می‌شود (نیازی به تاییدِ دستیِ آرایشگر نیست).
           await prisma.booking.update({

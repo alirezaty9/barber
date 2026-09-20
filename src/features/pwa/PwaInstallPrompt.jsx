@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { Download, X, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePwaInstall } from './usePwaInstall';
-import { isAppleMobile, showManualInstallHelp } from './install-guidance';
+import { isAppleMobile } from './install-guidance';
+import { usePwaInstallStore } from './install-store';
 import { INSTALL_DISMISS_KEY, INSTALL_DISMISS_DAYS } from './install-keys';
 import { cn } from '@/lib/utils';
 
@@ -38,6 +39,7 @@ export default function PwaInstallPrompt() {
   const { installed, canInstall, promptInstall } = usePwaInstall();
   const [dismissed, setDismissed] = useState(true); // پیش‌فرض مخفی تا وضعیت از حافظه خوانده شود
   const [isIOS, setIsIOS] = useState(false);
+  const openGuide = usePwaInstallStore((s) => s.openGuide);
 
   useEffect(() => {
     setDismissed(isDismissActive());
@@ -62,8 +64,10 @@ export default function PwaInstallPrompt() {
       // نشود. (این بستن هم مثلِ بقیه تاریخ‌دار است و برای همیشه نیست.)
       close();
     } else {
-      // 'unavailable' → معمولاً آیفون؛ همان راهنمایی که آیکنِ بالای صفحه هم می‌دهد.
-      showManualInstallHelp();
+      // 'unavailable' → معمولاً آیفون (که اصلاً نصبِ یک‌کلیکی ندارد) یا اجازه‌ای که در این
+      // فاصله باطل شده. همان پنجره‌ی راهنمایی باز می‌شود که آیکنِ بالای صفحه هم بازش می‌کند،
+      // تا هر دو راهِ نصب دقیقاً یک تجربه بدهند.
+      openGuide();
     }
   };
 

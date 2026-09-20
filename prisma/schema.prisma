@@ -18,11 +18,12 @@ model Service {
   price       Int
   duration    Int // به دقیقه
   description String    @default("")
-  category    String    @default("hair") // hair | beard | grooming | combo
+  category    String    @default("hair") // hair | beard | grooming | groom | combo | style
   // تصویرِ اختصاصیِ خدمت: data URL (آپلودِ ادمین) یا آدرس. خالی = از روی دسته‌بندی.
   image       String    @default("")
   createdAt   DateTime  @default(now())
-  // یک خدمت می‌تواند خدمتِ اصلی یا خدمتِ دومِ چند نوبت باشد (هر نوبت تا دو خدمت).
+  // ⚠️ این دو رابطه میراثی‌اند و فقط دو خدمتِ اولِ هر نوبت را نگه می‌دارند.
+  // منبعِ حقیقتِ فهرستِ کاملِ خدماتِ یک نوبت، ستونِ servicesLabel و مبلغِ amount است.
   bookings    Booking[] @relation("PrimaryService")
   bookings2   Booking[] @relation("SecondService")
 }
@@ -35,7 +36,8 @@ model Barber {
   rating    Float     @default(5)
   bio       String    @default("")
   image     String    @default("")
-  // روزهای کاری به‌صورت CSV از 0..6 (0=شنبه ... 6=جمعه) — SQLite آرایه ندارد.
+  // روزهای کاری به‌صورت CSV از 0..6 (0=شنبه ... 6=جمعه).
+  // CSV میراثی از دورانِ SQLite است؛ روی Postgres هم نگه داشته شد تا مهاجرتِ داده لازم نشود.
   workDays  String    @default("0,1,2,3,4,5,6")
   createdAt DateTime  @default(now())
   bookings  Booking[]
@@ -75,10 +77,11 @@ model Booking {
   status        String   @default("pending") // pending | confirmed | cancelled
   // فیلدهای پرداخت آنلاین (زرین‌پال)
   amount           Int     @default(0)        // مبلغ کل (تومان) اسنپ‌شات هنگام رزرو
-  paymentStatus    String  @default("unpaid") // unpaid | paid | failed | refunded
+  paymentStatus    String  @default("unpaid") // unpaid | paid | failed | refunded | refundPending
   paymentAuthority String?                    // Authority زرین‌پال برای یافتن رزرو در callback
   paymentRefId     String?                    // کد پیگیری زرین‌پال بعد از verify موفق
-  // استرداد در صورت لغو: مشتری ۵۰٪ برمی‌گردد، آرایشگر(ادمین) ۱۰۰٪.
+  // استرداد در صورت لغو: مشتری ۵۰٪، مدیریت ۱۰۰٪ — ولی فقط وقتی کلیدِ REFUNDS_ENABLED
+  // روشن باشد. با کلیدِ خاموش این ستون‌ها اصلاً پر نمی‌شوند.
   cancelledBy      String?                    // customer | admin — لغوکننده
   refundAmount     Int     @default(0)        // مبلغ مستردشده (تومان)
   // کدِ تأییدِ دومرحله‌ایِ لغو (توسط مشتری). خودِ کد هرگز ذخیره نمی‌شود؛ فقط hashِ آن.

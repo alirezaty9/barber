@@ -8,7 +8,6 @@ const log = createLogger('availability');
 // GET /api/bookings/availability?barberId=&date=
 // عمومی — اسلات‌های آزاد یک آرایشگر در یک روز. موجودی مستقل از خدمات است:
 // هر نوبت دقیقاً یک اسلات (۷۵ دقیقه) می‌گیرد، پس تعداد/مدتِ خدمات در آن نقشی ندارد.
-// (پارامترِ serviceId ممکن است هنوز از سمتِ کلاینت ارسال شود ولی نادیده گرفته می‌شود.)
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const parsed = availabilityQuerySchema.safeParse({

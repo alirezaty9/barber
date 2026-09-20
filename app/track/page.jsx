@@ -190,7 +190,7 @@ export default function TrackPage() {
                 <div key={booking.code} className="glass p-5 rounded-3xl border border-zinc-800 space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-sm text-amber-500">{booking.code}</span>
-                    <span className={cn('px-2.5 py-1 rounded-full text-[10px] font-bold border', STATUS_STYLES[booking.status])}>
+                    <span className={cn('px-2.5 py-1 rounded-full text-[10px] font-bold border', STATUS_STYLES[booking.status] || STATUS_STYLES.pending)}>
                       {STATUS_LABELS[booking.status] || 'نامشخص'}
                     </span>
                   </div>
@@ -209,15 +209,24 @@ export default function TrackPage() {
                   </div>
 
                   {booking.status !== 'cancelled' && (
-                    // مهلتِ لغو تمام شده (نوبتِ امروز یا گذشته): دکمه نشان داده نمی‌شود، چون
-                    // سرور هم ردش می‌کند و دکمه‌ای که همیشه خطا می‌دهد فقط کاربر را گمراه می‌کند.
-                    !isWithinCancelWindow(booking) ? (
+                    // 🔴 ترتیبِ این دو شرط مهم است: اول «آیا لغوِ آنلاین اصلاً فعال است؟»
+                    // بعد «آیا مهلتش تمام شده؟».
+                    // با ترتیبِ برعکس، وقتی لغوِ آنلاین خاموش بود به مشتریِ نوبتِ امروز گفته
+                    // می‌شد «مهلتت تمام شد» — که القا می‌کرد اگر زودتر آمده بود می‌توانست
+                    // آنلاین لغو کند، در حالی که صفحه‌ی قوانین می‌گوید چنین قابلیتی فعال نیست.
+                    !SMS_ENABLED ? (
+                      /* ⏸️ تا فعال‌شدنِ پنلِ پیامک، لغوِ آنلاین ممکن نیست (کدِ تأیید پیامکی است). */
+                      <p className="text-[11px] text-zinc-500 leading-relaxed bg-zinc-950 border border-zinc-900 rounded-xl p-3">
+                        برای لغو یا جابه‌جایی این نوبت، لطفاً با آرایشگاه تماس بگیرید و کد رهگیری{' '}
+                        <span className="font-mono text-amber-500">{booking.code}</span> را اعلام کنید.
+                      </p>
+                    ) : !isWithinCancelWindow(booking) ? (
                       <p className="text-[11px] text-amber-400/90 leading-relaxed bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
                         مهلتِ لغوِ آنلاین این نوبت تمام شده (لغو فقط تا روزِ قبل ممکن است).
                         برای هماهنگی لطفاً با آرایشگاه تماس بگیرید و کد رهگیری{' '}
                         <span className="font-mono text-amber-500">{booking.code}</span> را اعلام کنید.
                       </p>
-                    ) : SMS_ENABLED ? (
+                    ) : (
                       <Button
                         variant="danger"
                         className="w-full"
@@ -227,12 +236,6 @@ export default function TrackPage() {
                         <XCircle className="w-4 h-4" />
                         لغو این نوبت
                       </Button>
-                    ) : (
-                      /* ⏸️ تا فعال‌شدنِ پنلِ پیامک، لغوِ آنلاین ممکن نیست (کدِ تأیید پیامکی است). */
-                      <p className="text-[11px] text-zinc-500 leading-relaxed bg-zinc-950 border border-zinc-900 rounded-xl p-3">
-                        برای لغو یا جابه‌جایی این نوبت، لطفاً با آرایشگاه تماس بگیرید و کد رهگیری{' '}
-                        <span className="font-mono text-amber-500">{booking.code}</span> را اعلام کنید.
-                      </p>
                     )
                   )}
                 </div>

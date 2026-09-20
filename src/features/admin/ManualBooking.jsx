@@ -9,6 +9,7 @@ import { PlusCircle, Loader2, Check } from 'lucide-react';
 import { useServices } from '@/api/services';
 import { useBarbers } from '@/api/barbers';
 import { useAvailability, useCreateBooking } from '@/api/bookings';
+import { MAX_SERVICES_PER_BOOKING } from '@/lib/validation';
 import { isValidIranMobile, toPersianDigits, formatPrice } from '@/lib/persian';
 import { Input } from '@/components/ui/Input';
 import Field from '@/components/ui/Field';
@@ -38,9 +39,16 @@ export default function ManualBooking() {
   const activeBarber = barbers[0];
   const barberId = activeBarber?.id || '';
 
-  // انتخاب/لغو خدمت — بدون محدودیت تعداد.
+  // انتخاب/لغو خدمت — با همان سقفی که سرور اعمال می‌کند.
   const toggleService = (id) => {
-    setServiceIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setServiceIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= MAX_SERVICES_PER_BOOKING) {
+        toast.error(`حداکثر ${toPersianDigits(String(MAX_SERVICES_PER_BOOKING))} خدمت قابلِ انتخاب است.`);
+        return prev;
+      }
+      return [...prev, id];
+    });
     setTimeSlot('');
   };
   const totalPrice = services.filter((s) => serviceIds.includes(s.id)).reduce((sum, s) => sum + s.price, 0);

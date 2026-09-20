@@ -160,7 +160,7 @@ export default function ManageServices() {
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-zinc-200">{svc.name}</h4>
-                  <span className="text-[10px] text-zinc-500">{CATEGORY_LABELS[svc.category]}</span>
+                  <span className="text-[10px] text-zinc-500">{CATEGORY_LABELS[svc.category] || svc.category}</span>
                 </div>
               </div>
               <div className="flex items-center gap-3">

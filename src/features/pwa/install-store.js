@@ -15,7 +15,13 @@ export const usePwaInstallStore = create((set) => ({
   canInstall: false,
   // آیا اپ به‌شکلِ نصب‌شده باز شده (یا همین الان نصب شد)؟
   installed: false,
+  // آیا پنجره‌ی راهنمای نصب باز است؟
+  // اینجا نگه داشته می‌شود (نه داخلِ یک کامپوننت) چون چند دکمه‌ی متفاوت در صفحه بازش می‌کنند
+  // و خودِ پنجره جای دیگری از درختِ صفحه رندر می‌شود.
+  guideOpen: false,
 
   setCanInstall: (canInstall) => set({ canInstall }),
   markInstalled: () => set({ installed: true, canInstall: false }),
+  openGuide: () => set({ guideOpen: true }),
+  closeGuide: () => set({ guideOpen: false }),
 }));

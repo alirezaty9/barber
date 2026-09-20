@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { formatPrice, toPersianDigits, formatJalaliDate, isValidIranMobile } from '@/lib/persian';
 import { useAvailability, useRequestPayment } from '@/api/bookings';
+import { MAX_SERVICES_PER_BOOKING } from '@/lib/validation';
 import { REFUND_POLICY_NOTE } from '@/lib/features';
 import { SHOP_NAME, SHOP_PHONE_DISPLAY } from '@/lib/shop';
 import { useBookingStore } from './store';
@@ -44,11 +45,17 @@ export default function BookingWizard({ services, barbers, onClose }) {
   const activeServices = services.filter((s) => serviceIds.includes(s.id));
   const totalPrice = activeServices.reduce((sum, s) => sum + s.price, 0);
 
-  // انتخاب/لغو خدمت — بدون محدودیت تعداد.
+  // انتخاب/لغو خدمت. سقفِ تعداد همان سقفِ سمتِ سرور است؛ بدونِ آن، مشتری می‌توانست خدمتِ
+  // یازدهم را تیک بزند، تا آخرِ فرم برود و خطا را تازه در لحظه‌ی پرداخت ببیند.
   const toggleService = (id) =>
-    setServiceIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    setServiceIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= MAX_SERVICES_PER_BOOKING) {
+        toast.error(`حداکثر ${toPersianDigits(String(MAX_SERVICES_PER_BOOKING))} خدمت می‌توانید انتخاب کنید.`);
+        return prev;
+      }
+      return [...prev, id];
+    });
 
   const requestPayment = useRequestPayment();
   const { register, handleSubmit, formState: { errors } } = useForm({

@@ -2,8 +2,12 @@ import { prisma } from '@/lib/db';
 import { TrendingUp, Hourglass, Receipt, Clock, Scissors, XCircle, PieChart } from 'lucide-react';
 import { formatPrice, toPersianDigits, formatJalaliDate } from '@/lib/persian';
 import { servicesLabelOf } from '@/lib/serializers';
-import { TIME_SLOTS, STATUS_LABELS } from '@/lib/constants';
+import { TIME_SLOTS, STATUS_LABELS, PENDING_HOLD_MS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+// ⚠️ «امروزِ ایران» و جابه‌جاییِ روز عمداً از یک منبعِ مشترک می‌آیند. قبلاً همین دو تابع
+// اینجا دوباره نوشته شده بودند؛ اگر روزی یکی اصلاح می‌شد و دیگری نه، داشبورد و لیستِ
+// نوبت‌ها روی دو «امروز» متفاوت حساب می‌کردند و کشفش تقریباً ناممکن بود.
+import { tehranTodayISO, shiftISO } from '@/lib/time';
 import DashboardPeriod from '@/features/admin/DashboardPeriod';
 import RevenueChart from '@/features/admin/RevenueChart';
 import PeakHoursChart from '@/features/admin/PeakHoursChart';
@@ -14,29 +18,18 @@ export const dynamic = 'force-dynamic';
 const PERSIAN_MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
 const PERIOD_LABELS = { today: 'امروز', 7: '۷ روز اخیر', 30: '۳۰ روز اخیر', 90: '۹۰ روز اخیر', year: 'امسال', all: 'کل دوره' };
 
-// تاریخِ «امروز» به وقت ایران (مستقل از تایم‌زون سرور).
-function tehranTodayIso() {
-  const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
-  const g = (t) => p.find((x) => x.type === t)?.value;
-  return `${g('year')}-${g('month')}-${g('day')}`;
-}
-// جابه‌جاییِ امنِ روز روی رشته‌ی ISO (بدون دردسر تایم‌زون).
-function shiftIso(iso, delta) {
-  const [y, m, d] = iso.split('-').map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  dt.setUTCDate(dt.getUTCDate() + delta);
-  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
-}
 // فرمترِ شمسی یک‌بار ساخته می‌شود (ساختِ Intl.DateTimeFormat گران است) و بین همه‌ی
 // رکوردها بازاستفاده می‌شود؛ به‌علاوه نتیجه‌ی هر تاریخ در یک Map کش می‌شود تا برای
 // رکوردهای هم‌تاریخ دوباره محاسبه نشود. (قبلاً برای هر رکورد یک فرمترِ جدید ساخته می‌شد.)
-const PERSIAN_YM_FMT = new Intl.DateTimeFormat('en-US-u-ca-persian', { year: 'numeric', month: 'numeric' });
+const PERSIAN_YM_FMT = new Intl.DateTimeFormat('en-US-u-ca-persian', { timeZone: 'UTC', year: 'numeric', month: 'numeric' });
 const _ymCache = new Map();
 // سال و ماهِ شمسیِ یک تاریخِ ISO میلادی (اعداد لاتین).
 function jalaliYM(iso) {
   const hit = _ymCache.get(iso);
   if (hit) return hit;
-  const p = PERSIAN_YM_FMT.formatToParts(new Date(iso + 'T00:00:00'));
+  // «ظهرِ UTC» — همان قراردادی که formatJalaliDate دارد، تا هر دو تابعِ تاریخِ اپ یک‌جور
+  // کار کنند و نگاشتِ میلادی→شمسی هیچ‌جا به تایم‌زونِ سرور وابسته نباشد.
+  const p = PERSIAN_YM_FMT.formatToParts(new Date(iso + 'T12:00:00Z'));
   const val = { y: p.find((x) => x.type === 'year')?.value, m: parseInt(p.find((x) => x.type === 'month')?.value, 10) };
   _ymCache.set(iso, val);
   return val;
@@ -50,11 +43,13 @@ const netOf = (b) => (isReceived(b) ? b.amount - (b.refundAmount || 0) : 0);
 
 export default async function AdminDashboard({ searchParams }) {
   const sp = (await searchParams) || {};
-  const period = sp.period || '30';
+  // مقدارِ ناشناس در آدرس (مثلاً ‎?period=xyz‎) به پیش‌فرض برمی‌گردد. بدونِ این، محاسبات
+  // بی‌خطر روی ۳۰ روز می‌افتادند ولی سرتیترِ بازه خالی می‌مانْد و هیچ دکمه‌ای هم فعال نبود.
+  const period = PERIOD_LABELS[sp.period] ? sp.period : '30';
 
   // «امروز» به وقتِ ایران — مبنای همه‌ی محاسبات و بازه‌ها. باید پیش از کوئری ساخته شود،
   // چون خودِ کوئری هم برای محدودکردنِ بازه از آن استفاده می‌کند.
-  const todayIso = tehranTodayIso();
+  const todayIso = tehranTodayISO();
 
   // فقط ستون‌های موردنیازِ محاسبات (نه کلِ رکورد + دو join). servicesLabel اسنپ‌شاتِ نامِ
   // خدمات است، پس برای درآمدِ هر خدمت به include نیازی نیست.
@@ -64,9 +59,9 @@ export default async function AdminDashboard({ searchParams }) {
   // روزشمار هم حداکثر ۹۰ روزند؛ ۴۰۰ روز با حاشیه هر دو را می‌پوشاند. بدونِ این قید، هر
   // بازکردنِ داشبورد کلِ جدولِ نوبت‌ها را اسکن می‌کرد و با گذشتِ سال‌ها کندتر می‌شد.
   const all = await prisma.booking.findMany({
-    where: period === 'all' ? undefined : { date: { gte: shiftIso(todayIso, -400) } },
+    where: period === 'all' ? undefined : { date: { gte: shiftISO(todayIso, -400) } },
     select: {
-      date: true, timeSlot: true, status: true, cancelledBy: true,
+      date: true, timeSlot: true, status: true, cancelledBy: true, createdAt: true,
       paymentStatus: true, amount: true, refundAmount: true, servicesLabel: true,
     },
     orderBy: [{ date: 'asc' }, { timeSlot: 'asc' }],
@@ -77,8 +72,14 @@ export default async function AdminDashboard({ searchParams }) {
   // ── نوارِ نگاه کلی ──
   // از کلِ دادهٔ خوانده‌شده (۴۰۰ روزِ اخیر) که سالِ شمسیِ جاری را کامل می‌پوشاند.
   // ⚠️ اگر روزی بازه‌ی بزرگ‌تری (مثلاً «دو سالِ اخیر») اضافه شد، قیدِ ۴۰۰ روزِ کوئری هم باید بزرگ شود.
+  //
+  // 🔴 سقفِ «تا امروز» عمدی است. بدونِ آن، این سه کارت نوبت‌های **آینده** را هم می‌شمردند
+  // در حالی که عددِ بزرگِ پایین‌تر («درآمد خالصِ این بازه») سقف دارد — نتیجه‌اش این بود که
+  // روی یک صفحه، «این ماه» از «۳۰ روز اخیر» بزرگ‌تر درمی‌آمد با اینکه بازه‌اش کوتاه‌تر است،
+  // و هیچ راهی نبود بفهمی کدام درست است. حالا هر سه «درآمدِ محقق‌شده تا امروز» هستند.
   let incToday = 0, incMonth = 0, incYear = 0;
   for (const b of all) {
+    if (b.date > todayIso) continue;
     const n = netOf(b);
     if (!n) continue;
     if (b.date === todayIso) incToday += n;
@@ -92,7 +93,7 @@ export default async function AdminDashboard({ searchParams }) {
   else if (period === 'year') { filtered = all.filter((b) => jalaliYM(b.date).y === tj.y); chartMode = 'monthly'; }
   else {
     const n = { today: 1, 7: 7, 30: 30, 90: 90 }[period] || 30;
-    const start = shiftIso(todayIso, -(n - 1));
+    const start = shiftISO(todayIso, -(n - 1));
     filtered = all.filter((b) => b.date >= start && b.date <= todayIso);
     chartMode = n <= 31 ? 'daily' : 'monthly';
   }
@@ -105,14 +106,24 @@ export default async function AdminDashboard({ searchParams }) {
   //   • مشتری وارد درگاه شده و بدونِ پرداخت برگشته   ⇒ cancelledBy خالی است
   // قبلاً هر دو با هم «لغو» شمرده می‌شدند، پس «نرخ لغو» در واقع «نرخ انصراف در درگاه» را
   // نشان می‌داد و صاحبِ کسب‌وکار نتیجه می‌گرفت مشتری‌هایش بدقول‌اند.
-  let net = 0, refunded = 0, pending = 0, paidCount = 0;
+  let net = 0, refunded = 0, paidCount = 0;
   let servedNet = 0, servedCount = 0, cancelledHeld = 0;
   let confirmed = 0, pend = 0, cancelledReal = 0, abandoned = 0;
+  // مرزِ کهنگیِ رزروِ پرداخت‌نشده — همان مهلتی که صفحه‌ی رزرو برای نگه‌داشتنِ ساعت دارد.
+  const staleBefore = new Date(Date.now() - PENDING_HOLD_MS);
   const perHour = {}, perService = {};
   for (const b of filtered) {
     const isCancelled = b.status === 'cancelled';
     if (b.status === 'confirmed') confirmed++;
-    else if (b.status === 'pending') pend++;
+    // 🔴 رزروی که مهلتِ نگه‌داشتش تمام شده، همین حالا «رهاشده» است — نه «در انتظار».
+    // قبلاً منتظرِ کرونِ دوساعته می‌ماند تا رسماً لغو شود، و چون مخرجِ نرخِ لغو فقط
+    // رکوردهای رسماً‌لغو‌شده را کنار می‌گذاشت، عددِ «نرخ لغو» با اجرای کرون چند واحد
+    // می‌پرید بدونِ اینکه هیچ مشتری‌ای کاری کرده باشد. این همان تعریفی است که صفحه‌ی
+    // رزرو هم برای «آزاد بودنِ ساعت» به کار می‌برد، پس دو جای اپ یک چیز را می‌گویند.
+    else if (b.status === 'pending') {
+      if (b.paymentStatus === 'unpaid' && b.createdAt < staleBefore) abandoned++;
+      else pend++;
+    }
     // «رهاشده در درگاه» فقط وقتی است که پولی هم دریافت نشده باشد. نوبتی که پولش گرفته شده
     // ولی اسلاتش از دست رفته هم cancelledBy ندارد — ولی مشتری‌اش پول داده و نباید در
     // دسته‌ی «منصرف‌شده‌ها» بنشیند.
@@ -124,24 +135,52 @@ export default async function AdminDashboard({ searchParams }) {
     if (isReceived(b)) {
       net += n; paidCount++;
       refunded += b.refundAmount || 0;
-      perService[servicesLabelOf(b)] = (perService[servicesLabelOf(b)] || 0) + n;
       // پولی که برای نوبتی گرفته شده که در نهایت لغو شد و مسترد هم نشده: بخشی از درآمد است
       // ولی «درآمدِ خدمتِ ارائه‌شده» نیست؛ جدا نشان داده می‌شود تا با بقیه قاطی نشود.
       // «در انتظار استرداد» نه درآمدِ خدمتِ ارائه‌شده است و نه قطعی — پولش گرفته شده ولی
       // تکلیفش روشن نیست (یا اسلات رفته، یا مبلغ نخوانده). پس در میانگینِ «هر نوبت» نمی‌آید،
       // وگرنه میانگین را با پولی بالا می‌برد که هنوز معلوم نیست مالِ آرایشگاه باشد.
       if (isCancelled || b.paymentStatus === 'refundPending') cancelledHeld += n;
-      else { servedNet += n; servedCount++; }
-    } else if (b.paymentStatus === 'unpaid' && !isCancelled) {
-      pending += b.amount;
+      else {
+        servedNet += n; servedCount++;
+        // 🔴 فقط خدمتی که **واقعاً ارائه شده** به نامِ آن خدمت نوشته می‌شود. قبلاً پولِ
+        // نوبت‌های لغوشده هم اینجا می‌نشست، و چون این کارت — برخلافِ عددِ درآمدِ بالا —
+        // هیچ خطِ شفاف‌سازی ندارد، آرایشگر «کدام خدمت را تبلیغ کنم» را روی عددی تصمیم
+        // می‌گرفت که می‌توانست ده‌ها درصد بیش‌برآورد باشد.
+        perService[servicesLabelOf(b)] = (perService[servicesLabelOf(b)] || 0) + n;
+      }
     }
   }
+
+  // ── «در انتظار پرداخت» — طلبِ وصول‌نشده ──
+  //
+  // 🔴 دو اصلاح نسبت به قبل، و هر دو لازم بود:
+  //
+  //  ۱) از کلِ داده شمرده می‌شود نه از بازه. این هم مثلِ «نیازِ پیگیری» یک **کارِ باز** است،
+  //     نه آمارِ دوره‌ای. تنها منبعِ واقعی‌اش نوبتِ دستیِ «پول بعداً دریافت می‌شود» است که
+  //     تاریخش تقریباً همیشه آینده است — و بازه‌های روزشمار سقفِ «تا امروز» دارند، پس آن
+  //     نوبت اصلاً وارد محاسبه نمی‌شد. یعنی عددی که فرمِ ثبتِ دستی صریح وعده‌اش را می‌دهد،
+  //     در هیچ‌کدام از بازه‌های پیش‌فرض دیده نمی‌شد.
+  //
+  //  ۲) فقط نوبتِ «تایید شده» شمرده می‌شود، نه «در انتظار». رزروی که مشتری ساخته و همین
+  //     الان داخلِ درگاه است هم unpaid است، ولی کسی بدهکارش نیست: حداکثر تا ۲۵ دقیقه‌ی
+  //     دیگر یا پرداخت می‌شود یا خودبه‌خود لغو. شمردنش یعنی عددِ «طلب» خودبه‌خود بالا و
+  //     پایین برود بدونِ اینکه هیچ اتفاقی افتاده باشد.
+  const pendingItems = all.filter((b) => b.status === 'confirmed' && b.paymentStatus === 'unpaid');
+  const pending = pendingItems.reduce((s, b) => s + b.amount, 0);
   // 🔴 «نیازِ پیگیری» عمداً از کلِ داده شمرده می‌شود، نه از بازه‌ی انتخاب‌شده.
   // این یک «کارِ باز» است نه یک آمارِ دوره‌ای: نوبتِ گیرافتاده‌ی ماهِ پیش یا نوبتِ فردا هم
   // باید دیده شود. با شمارشِ درون‌بازه‌ای، عوض‌کردنِ بازه عددِ هشدار را بی‌دلیل صفر می‌کرد.
-  const refundPendingItems = all.filter((b) => b.paymentStatus === 'refundPending');
-  const refundPendingCount = refundPendingItems.length;
-  const refundPendingAmount = refundPendingItems.reduce((s, b) => s + b.amount, 0);
+  // ⚠️ با کوئریِ جداگانه، نه از روی `all` — چون `all` به ۴۰۰ روزِ اخیر محدود است و متنِ
+  // خودِ بنر وعده می‌دهد «کلِ نوبت‌ها را می‌بیند». بدونِ این، یک نوبتِ گیرافتاده‌ی قدیمی‌تر
+  // فقط با انتخابِ بازه‌ی «کل دوره» ظاهر می‌شد — یعنی همان جمله خودش را نقض می‌کرد.
+  const refundPendingStats = await prisma.booking.aggregate({
+    where: { paymentStatus: 'refundPending' },
+    _count: true,
+    _sum: { amount: true },
+  });
+  const refundPendingCount = refundPendingStats._count;
+  const refundPendingAmount = refundPendingStats._sum.amount || 0;
 
   const totalCount = filtered.length;
   // میانگین فقط روی نوبت‌هایی که واقعاً برگزار می‌شوند — مخرج و صورت هم‌جنس.
@@ -159,15 +198,25 @@ export default async function AdminDashboard({ searchParams }) {
     const byDay = {};
     for (const b of filtered) { const v = netOf(b); if (v) byDay[b.date] = (byDay[b.date] || 0) + v; }
     for (let i = n - 1; i >= 0; i--) {
-      const iso = shiftIso(todayIso, -i);
+      const iso = shiftISO(todayIso, -i);
       chart.push({ label: toPersianDigits(formatJalaliDate(iso, { day: 'numeric' })), net: byDay[iso] || 0, full: formatJalaliDate(iso, { weekday: 'long', day: 'numeric', month: 'long' }) });
     }
   } else {
     const byMonth = {};
     for (const b of filtered) { const v = netOf(b); if (!v) continue; const { y, m } = jalaliYM(b.date); const k = `${y}-${String(m).padStart(2, '0')}`; byMonth[k] = (byMonth[k] || 0) + v; }
-    chart = Object.entries(byMonth).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, v]) => {
+    const entries = Object.entries(byMonth).sort(([a], [b]) => (a < b ? -1 : 1));
+    // اگر بازه بیش از یک سالِ شمسی را بپوشانَد (بازه‌ی «کل دوره»)، سال هم روی برچسب می‌آید.
+    // بدونِ آن، دو ستونِ «فروردین» از دو سالِ مختلف کاملاً شبیهِ هم می‌شدند و نمودار
+    // خوانده نمی‌شد. در بازه‌ی تک‌سال، سال تکراری است و فقط محور را شلوغ می‌کند.
+    const multiYear = new Set(entries.map(([k]) => k.split('-')[0])).size > 1;
+    chart = entries.map(([k, v]) => {
       const [y, m] = k.split('-');
-      return { label: PERSIAN_MONTHS[parseInt(m, 10) - 1], net: v, full: `${PERSIAN_MONTHS[parseInt(m, 10) - 1]} ${toPersianDigits(y)}` };
+      const name = PERSIAN_MONTHS[parseInt(m, 10) - 1];
+      return {
+        label: multiYear ? `${name} ${toPersianDigits(y.slice(-2))}` : name,
+        net: v,
+        full: `${name} ${toPersianDigits(y)}`,
+      };
     });
   }
   const emptyChart = chart.every((c) => c.net === 0);
@@ -233,7 +282,9 @@ export default async function AdminDashboard({ searchParams }) {
           <div>
             <p className="text-[11px] font-bold tracking-[0.15em] text-zinc-500">روند درآمد · {PERIOD_LABELS[period]}</p>
             <p className="text-3xl md:text-4xl font-extrabold text-emerald-400 mt-2 tabular-nums">{formatPrice(net)}</p>
-            <p className="text-[11px] text-zinc-500 mt-1.5">درآمد خالصِ این بازه · {toPersianDigits(paidCount)} پرداختِ موفق</p>
+            {/* «دریافت‌شده» نه «موفق»: این شمارنده نوبت‌های مستردشده و در انتظار استرداد را
+                هم شامل می‌شود، پس با فیلترِ «پرداخت‌شده»ی لیستِ نوبت‌ها یکی نیست. */}
+            <p className="text-[11px] text-zinc-500 mt-1.5">درآمد خالصِ این بازه · {toPersianDigits(paidCount)} پرداختِ دریافت‌شده</p>
             {/* شفاف‌سازی: چه مقدار از همین عدد مالِ نوبت‌هایی است که لغو شدند و پولشان
                 برنگشته. بدونِ این خط، آن مبلغ بی‌صدا داخلِ «درآمد» می‌نشست. */}
             {cancelledHeld > 0 && (
@@ -252,17 +303,26 @@ export default async function AdminDashboard({ searchParams }) {
         {emptyChart ? (
           <p className="text-xs text-zinc-500 text-center py-14">در این بازه درآمدی ثبت نشده است.</p>
         ) : (
-          <RevenueChart data={chart} />
+          <>
+            <RevenueChart data={chart} />
+            {/* در نمای ماهانه، بازه معمولاً وسطِ یک ماهِ شمسی شروع و تمام می‌شود. بدونِ این
+                توضیح، ستونِ کوتاهِ اول و آخر شبیهِ «ماهِ ضعیف» دیده می‌شوند نه «ماهِ ناقص». */}
+            {chartMode === 'monthly' && (
+              <p className="text-[11px] text-zinc-500 text-center mt-3">
+                ماهِ اول و آخرِ بازه ممکن است ناقص باشند و کوتاه‌تر دیده شوند.
+              </p>
+            )}
+          </>
         )}
       </div>
 
       {/* KPIهای بازه */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Kpi icon={Receipt} label="تعداد نوبت" value={toPersianDigits(totalCount)} sub={`${toPersianDigits(paidCount)} پرداخت‌شده`} />
+        <Kpi icon={Receipt} label="تعداد نوبت" value={toPersianDigits(totalCount)} sub={`${toPersianDigits(paidCount)} پرداختِ دریافت‌شده`} />
         <Kpi icon={TrendingUp} tone="amber" label="میانگین هر نوبت" value={formatPrice(avg)} sub={`${toPersianDigits(servedCount)} نوبتِ برگزارشده`} />
         {/* زیرنویس همیشه همان چیزی را توضیح می‌دهد که عددِ بالایش است. قبلاً به‌محضِ وجودِ یک
             استرداد، جایش را به مبلغِ مسترد می‌داد و دو عددِ بی‌ربط کنارِ هم می‌نشستند. */}
-        <Kpi icon={Hourglass} tone="sky" label="در انتظار پرداخت" value={formatPrice(pending)} sub="طلبِ وصول‌نشده" />
+        <Kpi icon={Hourglass} tone="sky" label="در انتظار پرداخت" value={formatPrice(pending)} sub="طلبِ وصول‌نشده · مستقل از بازه" />
         <Kpi
           icon={XCircle}
           tone="rose"
@@ -293,6 +353,7 @@ export default async function AdminDashboard({ searchParams }) {
               سطرِ سومِ جدا («الف + ب») می‌سازد. با عنوانِ قبلی، شمارنده از تعدادِ خدماتِ
               واقعیِ آرایشگاه بیشتر می‌شد و عددش دروغ بود. */}
           <SectionTitle icon={Scissors} title="درآمد به تفکیکِ ترکیبِ خدمات" note={services.length ? `${toPersianDigits(services.length)} ترکیب` : null} />
+          <p className="text-[11px] text-zinc-500 -mt-2 mb-3">فقط نوبت‌هایی که واقعاً برگزار شده‌اند — پولِ نوبت‌های لغوشده اینجا شمرده نمی‌شود.</p>
           {services.length === 0 ? (
             <p className="text-xs text-zinc-500 py-10 text-center">داده‌ای برای نمایش نیست.</p>
           ) : (
@@ -313,7 +374,13 @@ export default async function AdminDashboard({ searchParams }) {
         <div className="glass rounded-2xl p-5">
           <SectionTitle icon={PieChart} title="ترکیب وضعیت نوبت‌ها" note={`${toPersianDigits(totalCount)} کل`} />
           <div className="mt-6">
-            <StatusDonut segments={statusSegments} total={totalCount} />
+            {/* حالتِ خالی، مثلِ سه کارتِ دیگرِ همین صفحه. بدونِ آن، یک حلقه‌ی خاکستری با
+                چهار ردیفِ «۰ · ۰٪» رندر می‌شد که شبیهِ خرابی است نه «داده‌ای نیست». */}
+            {totalCount === 0 ? (
+              <p className="text-sm text-zinc-500 text-center py-8">در این بازه نوبتی ثبت نشده است.</p>
+            ) : (
+              <StatusDonut segments={statusSegments} total={totalCount} />
+            )}
           </div>
         </div>
       </div>

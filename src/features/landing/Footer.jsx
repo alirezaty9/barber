@@ -13,7 +13,10 @@ import {
 import BrandWordmark from './BrandWordmark';
 
 export default function Footer() {
-  const currentYear = new Intl.DateTimeFormat('fa-IR', { year: 'numeric' }).format(new Date());
+  // ⚠️ تایم‌زون صریح است، چون این متن روی سرور ساخته می‌شود و سرور معمولاً UTC است.
+  // بینِ نیمه‌شب تا ۳:۳۰ بامدادِ تهران، تاریخِ UTC هنوز روزِ قبل است — یعنی در شبِ نوروز
+  // فوتر برای چند ساعت سالِ گذشته را نشان می‌داد.
+  const currentYear = new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', year: 'numeric' }).format(new Date());
 
   return (
     <footer id="about" className="bg-[#020202] border-t border-zinc-900 text-zinc-400 py-16 px-6 relative z-10">
@@ -58,7 +61,7 @@ export default function Footer() {
           </div>
           <a href={`tel:${SHOP_PHONE_LINK}`} className="flex items-center gap-2.5 hover:text-amber-500 transition-colors">
             <Phone className="w-4 h-4 text-amber-500 flex-shrink-0" />
-            <span className="font-mono text-zinc-500">{toPersianDigits(SHOP_PHONE_DISPLAY)}</span>
+            <span className="font-mono text-zinc-500">{SHOP_PHONE_DISPLAY}</span>
           </a>
           <div className="flex items-center gap-2.5">
             <Clock className="w-4 h-4 text-amber-500 flex-shrink-0" />

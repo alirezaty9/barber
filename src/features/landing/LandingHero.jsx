@@ -3,10 +3,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Calendar, MapPin, Phone, Instagram, Search, Smartphone } from 'lucide-react';
-import { toast } from 'sonner';
 import { useBookingStore } from '@/features/booking/store';
 import { usePwaInstall } from '@/features/pwa/usePwaInstall';
-import { showManualInstallHelp } from '@/features/pwa/install-guidance';
+import { usePwaInstallStore } from '@/features/pwa/install-store';
 import { SHOP_PHONE_LINK, SHOP_INSTAGRAM } from '@/lib/shop';
 // با import (به‌جای مسیرِ دستی)، نامِ فایلِ خروجی اثرِ انگشتِ محتوا را می‌گیرد؛ پس تعویضِ
 // عکس خودکار باعثِ تازه‌شدنِ آن در مرورگرِ مشتری‌های قدیمی می‌شود.
@@ -16,21 +15,20 @@ export default function LandingHero() {
   const openBooking = useBookingStore((s) => s.openBooking);
   // installed هم لازم است: بدونِ آن، کسی که اپ را نصب کرده و **داخلِ خودِ اپ** است باز هم
   // دکمه‌ی «نصب» می‌دید و با کلیک، راهنمای «برو اپ را نصب کن» می‌گرفت.
-  const { promptInstall, installed } = usePwaInstall();
+  const { installed } = usePwaInstall();
+  // خودِ پنجره‌ی نصب مسئولِ بازکردنِ پنجره‌ی مرورگر است؛ این آیکون فقط بازش می‌کند.
+  const openGuide = usePwaInstallStore((s) => s.openGuide);
 
   // آیکون‌های میان‌بر همگی طلایی (هم‌رنگ متن برند).
   const iconLink = 'p-3.5 bg-zinc-900/60 border border-zinc-800 hover:border-amber-500/50 text-amber-500 hover:text-amber-400 rounded-2xl transition-all duration-300 hover:-translate-y-1';
 
-  // کلیک روی آیکونِ نصب: پنجره‌ی نصبِ خودِ مرورگر را باز می‌کند؛ اگر مرورگر پشتیبانی نکند
-  // (مثل سافاریِ آیفون)، راهنمای دستیِ مشترک نشان داده می‌شود.
-  const handleInstall = async () => {
-    const outcome = await promptInstall();
-    if (outcome === 'accepted') {
-      toast.success('اپ روی صفحه‌ی اصلیِ دستگاه شما اضافه شد ✅');
-    } else if (outcome === 'unavailable') {
-      showManualInstallHelp();
-    }
-  };
+  // کلیک روی آیکونِ نصب.
+  //
+  // 🎯 رفتارِ تازه (۱۴۰۵/۰۶/۲۸): همیشه **پنجره‌ی نصب** باز می‌شود، نه یک پیامِ گذرا.
+  // اگر مرورگر اجازه‌ی نصبِ یک‌کلیکی داده باشد، داخلِ همان پنجره یک دکمه‌ی «نصب» هست که
+  // مستقیم پنجره‌ی خودِ مرورگر را باز می‌کند؛ وگرنه مسیرِ دستیِ همان دستگاه قدم‌به‌قدم
+  // نشان داده می‌شود. (قبلاً در حالتِ دوم فقط یک توستِ کوچک می‌آمد و محو می‌شد.)
+  const handleInstall = () => openGuide();
 
   return (
     <header id="hero" className="relative min-h-screen flex flex-col justify-center overflow-hidden bg-[#030303] text-zinc-100">

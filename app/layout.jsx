@@ -2,6 +2,7 @@ import './globals.css';
 import Providers from './providers';
 import ServiceWorkerRegister from '@/features/pwa/ServiceWorkerRegister';
 import InstallCapture from '@/features/pwa/InstallCapture';
+import InstallGuideModal from '@/features/pwa/InstallGuideModal';
 import { SITE_URL } from '@/lib/site';
 import { SHOP_NAME } from '@/lib/shop';
 import { INDEXING_ENABLED } from '@/lib/features';
@@ -101,6 +102,9 @@ export default function RootLayout({ children }) {
             هشدار اعلام می‌کند، و اگر آن لحظه کسی نگیردش برای همیشه از دست می‌رود. */}
         <InstallCapture />
         <Providers>{children}</Providers>
+        {/* پنجره‌ی راهنمای نصب — در ریشه‌ی صفحه رندر می‌شود چون چند دکمه‌ی متفاوت
+            (آیکنِ بالای صفحه و کادرِ پایین) بازش می‌کنند و هر دو باید یک تجربه بدهند. */}
+        <InstallGuideModal />
         <ServiceWorkerRegister />
       </body>
     </html>
