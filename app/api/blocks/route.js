@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db';
 import { blockSchema } from '@/lib/validation';
-import { rangeISO } from '@/lib/time';
+import { rangeISO, tehranTodayISO } from '@/lib/time';
 import { ok, guardAdmin, parseBody, badRequest, serverError } from '@/lib/api-helpers';
 import { createLogger } from '@/lib/logger';
 
@@ -15,6 +15,9 @@ export async function GET(request) {
   const barberId = searchParams.get('barberId');
   const where = {};
   if (barberId && barberId !== 'all') where.barberId = barberId;
+  // پیش‌فرض فقط زمان‌های «امروز به بعد». بدونِ این فیلتر، فهرستِ مرخصی‌ها انباشته می‌شد و
+  // بعد از چند ماه پیداکردنِ مرخصیِ هفته‌ی آینده بینِ ده‌ها موردِ گذشته سخت می‌شد.
+  if (searchParams.get('includePast') !== '1') where.date = { gte: tehranTodayISO() };
 
   try {
     const blocks = await prisma.barberBlock.findMany({
@@ -63,8 +66,28 @@ export async function POST(request) {
     const seen = new Set(existing.map((e) => `${e.date}|${e.timeSlot ?? ''}`));
     const fresh = rows.filter((r) => !seen.has(`${r.date}|${r.timeSlot ?? ''}`));
 
+    // 🔴 نوبت‌های فعالی که در این بازه گرفتارند را بشمار و برگردان.
+    //
+    // بستنِ زمان، رزروهای موجود را لغو نمی‌کند — و نباید هم بکند (تصمیمِ آن با آرایشگر است،
+    // چون شاملِ پولِ پرداخت‌شده و تماس با مشتری می‌شود). ولی قبلاً هیچ‌کس خبردار نمی‌شد:
+    // پیامِ سبزِ «زمان موردنظر بسته شد» می‌آمد، آن ساعت‌ها از دیدِ آرایشگر محو می‌شدند و
+    // مشتری سرِ ساعت می‌آمد. حالا رابطِ کاربری می‌تواند هشدار بدهد.
+    const dates = [...new Set(rows.map((r) => r.date))];
+    const hourly = rows.filter((r) => r.timeSlot).map((r) => r.timeSlot);
+    const conflicts = await prisma.booking.findMany({
+      where: {
+        barberId: data.barberId,
+        date: { in: dates },
+        status: { not: 'cancelled' },
+        // برای بستنِ کل‌روز همه‌ی ساعت‌های آن روز مهم‌اند؛ برای بستنِ ساعتی فقط همان ساعت‌ها.
+        ...(data.fullDay ? {} : { timeSlot: { in: hourly } }),
+      },
+      select: { code: true, date: true, timeSlot: true, customerName: true },
+      orderBy: [{ date: 'asc' }, { timeSlot: 'asc' }],
+    });
+
     if (fresh.length) await prisma.barberBlock.createMany({ data: fresh });
-    return ok({ created: fresh.length }, { status: 201 });
+    return ok({ created: fresh.length, conflicts }, { status: 201 });
   } catch (e) {
     log.error('POST blocks failed', e);
     return serverError();

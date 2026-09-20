@@ -7,6 +7,9 @@
 //
 // 📌 برای تغییرِ آدرس/تلفن/ساعتِ کاری فقط همین فایل را عوض کن؛ همه‌جای سایت هماهنگ می‌شود.
 
+import { TIME_SLOTS } from './constants';
+import { toPersianDigits } from './persian';
+
 export const SHOP_NAME = 'banad barber';
 
 export const SHOP_ADDRESS =
@@ -16,7 +19,16 @@ export const SHOP_ADDRESS =
 export const SHOP_PHONE_LINK = '+989195496929';
 export const SHOP_PHONE_DISPLAY = '۰۹۱۹۵۴۹۶۹۲۹';
 
-export const SHOP_HOURS = 'شنبه تا جمعه: ۹ صبح تا ۱۰ شب';
+// ⚠️ ساعتِ کاری با «آخرین نوبت» یکی نیست: مجموعه تا ۱۰ شب باز است ولی آخرین نوبتی که
+// سیستم می‌دهد ۲۰:۱۵ است (تا ۲۱:۳۰ طول می‌کشد). قبلاً فقط جمله‌ی اول گفته می‌شد و مشتریِ
+// ساعتِ ۲۱ وارد رزرو می‌شد و هیچ ساعتی نمی‌دید. عددِ آخرین نوبت از TIME_SLOTS ساخته می‌شود
+// تا اگر روزی ساعاتِ کاری عوض شد، این متن خودکار همراهش بیاید.
+export const SHOP_HOURS = `شنبه تا جمعه: ۹ صبح تا ۱۰ شب (آخرین نوبت: ${toPersianDigits(TIME_SLOTS[TIME_SLOTS.length - 1])})`;
+
+// پیجِ اینستاگرامِ مجموعه. خالی = آیکونِ اینستاگرام اصلاً نمایش داده نمی‌شود.
+// (قبلاً آدرسِ جای‌نگهدارِ `https://instagram.com/` بود که مشتری را به صفحه‌ی اصلیِ
+// اینستاگرام می‌برد، نه به پیجِ آرایشگاه.)
+export const SHOP_INSTAGRAM = 'https://instagram.com/alireza.ty99';
 
 // مختصاتِ جغرافیایی برای نقشه.
 export const SHOP_LAT = 35.811706;

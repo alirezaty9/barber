@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { Scissors } from 'lucide-react';
 import { formatPrice } from '@/lib/persian';
+import { REFUND_POLICY_NOTE } from '@/lib/features';
 import { useBookingStore } from '@/features/booking/store';
 
 // نگاشت دسته‌بندی هر خدمت به عکس مرتبط.
@@ -118,8 +119,10 @@ export default function ServicesSection({ services }) {
           </div>
         )}
 
+        {/* سیاستِ لغو از تنها منبعِ حقیقت می‌آید. این جمله یک تعهدِ مالی است و قبلاً ثابت
+            نوشته شده بود — یعنی با استردادِ خاموش هم وعده‌ی «۵۰٪ برمی‌گردد» می‌داد. */}
         <div className="mt-12 text-center text-xs text-zinc-500">
-          * پرداخت به‌صورت آنلاین و هنگام رزرو انجام می‌شود. در صورت لغو نوبت، ۵۰٪ مبلغ بازگردانده می‌شود.
+          * پرداخت به‌صورت آنلاین و هنگام رزرو انجام می‌شود. {REFUND_POLICY_NOTE}
         </div>
       </div>
     </section>

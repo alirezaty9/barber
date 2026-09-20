@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { cancelRequestSchema } from '@/lib/validation';
 import { ok, parseBody, notFound, conflict, serverError, tooManyRequests, serviceUnavailable } from '@/lib/api-helpers';
+import { isWithinCancelWindow, CANCEL_TOO_LATE_MESSAGE } from '@/lib/cancel-policy';
 import { generateOtp, hashOtp, OTP_TTL_MS } from '@/lib/otp';
 import { sendOtpSms } from '@/lib/sms';
 import { SMS_ENABLED, SMS_DISABLED_MESSAGE } from '@/lib/features';
@@ -39,6 +40,10 @@ export async function POST(request) {
     const booking = await prisma.booking.findUnique({ where: { code: data.code.trim() } });
     if (!booking) return notFound('نوبتی با این کد یافت نشد.');
     if (booking.status === 'cancelled') return conflict('این نوبت قبلاً لغو شده است.');
+    // 🔴 مهلتِ لغو: فقط تا روزِ قبل. هم جلوی لغوِ نوبتی که زمانش گذشته را می‌گیرد (که
+    // با استردادِ فعال یعنی پس‌گرفتنِ پولِ خدمتِ انجام‌شده)، و هم جلوی لغوِ دقیقه‌ی نودِ
+    // همان روز را — که آن ساعت دیگر قابلِ فروش به کسِ دیگری نیست.
+    if (!isWithinCancelWindow(booking)) return conflict(CANCEL_TOO_LATE_MESSAGE);
 
     const otp = generateOtp();
     await prisma.booking.update({

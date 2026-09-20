@@ -13,6 +13,8 @@ export default defineConfig({
     env: {
       DATABASE_URL: 'postgresql://u:p@127.0.0.1:5432/none',
       DIRECT_URL: 'postgresql://u:p@127.0.0.1:5432/none',
+      // hashِ کدِ تأیید با HMAC ساخته می‌شود و به کلیدِ سرور نیاز دارد؛ این مقدار ساختگی است.
+      SESSION_SECRET: 'test-only-secret-not-used-anywhere-real',
     },
   },
   resolve: {

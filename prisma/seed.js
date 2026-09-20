@@ -5,15 +5,13 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 // تنها آرایشگرِ مجموعه (پروژه تک‌آرایشگره است؛ مشتری آرایشگر انتخاب نمی‌کند).
+// 🧹 پاک‌سازیِ ۱۴۰۵/۰۶/۲۸: فیلدهای تخصص/آواتار/عکس/امتیاز/بیوگرافی برداشته شدند —
+// هیچ صفحه‌ای نمایششان نمی‌داد و بازمانده‌ی نسخه‌ی چندآرایشگره بودند.
+// (ستون‌هایشان در دیتابیس مقدارِ پیش‌فرض می‌گیرند، پس این رکورد کاملاً معتبر است.)
 const BARBERS = [
   {
     id: 'b1',
     name: 'استاد بند',
-    specialty: 'هیرکات، ریش و استایل تخصصی',
-    avatar: '/images/barber-b1-avatar.jpg',
-    rating: 4.9,
-    bio: 'با بیش از ۸ سال تجربه در انواع هیرکات‌های مدرن، طراحی ریش و استایل‌های ژورنالی؛ تمرکز بر ظرافت، دقت و رضایت کامل مشتری.',
-    image: '/images/barber-b1.jpg',
     workDays: '0,1,2,3,4,5,6',
   },
 ];
@@ -34,7 +32,26 @@ function dateStr(offsetDays) {
   return `${y}-${m}-${day}`;
 }
 
+// 🔴 محافظ: این اسکریپت اول همه‌ی نوبت‌ها، خدمات و آرایشگرها را **پاک می‌کند** و بعد
+// داده‌ی نمونه می‌ریزد. روی دیتابیسِ واقعی یعنی ازدست‌رفتنِ کاملِ رزروهای مشتری‌ها، به‌علاوه‌ی
+// چند میلیون تومان درآمدِ جعلی در داشبورد. فقط روی دیتابیسِ لوکال اجرا می‌شود، مگر با
+// پرچمِ صریحِ ALLOW_SEED_REMOTE=yes.
+function assertSafeTarget() {
+  if (process.env.ALLOW_SEED_REMOTE === 'yes') return;
+  const url = process.env.DATABASE_URL || '';
+  let host = '';
+  try { host = new URL(url).hostname; } catch { /* آدرسِ نامعتبر */ }
+  const isLocal = ['localhost', '127.0.0.1', '::1'].includes(host);
+  if (process.env.NODE_ENV === 'production' || !isLocal) {
+    console.error('❌ داده‌ی نمونه فقط روی دیتابیسِ لوکال ریخته می‌شود.');
+    console.error(`   مقصدِ فعلی: ${host || '(نامشخص)'} — این دستور همه‌ی نوبت‌های موجود را پاک می‌کند.`);
+    console.error('   اگر واقعاً همین را می‌خواهی: ALLOW_SEED_REMOTE=yes npm run db:seed');
+    process.exit(1);
+  }
+}
+
 async function main() {
+  assertSafeTarget();
   // پاک‌سازی برای اجرای تکراریِ بی‌خطر
   await prisma.booking.deleteMany();
   await prisma.service.deleteMany();
@@ -59,7 +76,9 @@ async function main() {
     { code: 'BK1005', customerName: 'مهران شکیبا', customerPhone: '09351234567', serviceId: 's1', servicesLabel: 'هیرکات با استایل', barberId: 'b1', date: tomorrow, timeSlot: '10:15', status: 'confirmed', amount: 1000000, paymentStatus: 'paid',   paymentRefId: '100005' },
     { code: 'BK1006', customerName: 'آرش نادری',   customerPhone: '09037654321', serviceId: 's2', servicesLabel: 'ریش',              barberId: 'b1', date: tomorrow, timeSlot: '15:15', status: 'confirmed', amount: 500000,  paymentStatus: 'paid',   paymentRefId: '100006' },
     // ── پس‌فردا (یکی لغوشده برای تنوع) ──
-    { code: 'BK1007', customerName: 'بهزاد مرادی', customerPhone: '09121239876', serviceId: 's1', servicesLabel: 'هیرکات با استایل', barberId: 'b1', date: dayAfter, timeSlot: '11:30', status: 'cancelled', amount: 1000000, paymentStatus: 'refunded', refundAmount: 500000, cancelledBy: 'customer' },
+    // ⚠️ وضعیتِ «مسترد شده» عمداً حذف شد: با کلیدِ فعلیِ استرداد (خاموش) اپ چنین رکوردی
+    // تولید نمی‌کند، پس دمو قابلیتی را نشان می‌داد که در سیستمِ واقعی وجود ندارد.
+    { code: 'BK1007', customerName: 'بهزاد مرادی', customerPhone: '09121239876', serviceId: 's1', servicesLabel: 'هیرکات با استایل', barberId: 'b1', date: dayAfter, timeSlot: '11:30', status: 'cancelled', amount: 1000000, paymentStatus: 'paid', cancelledBy: 'customer' },
   ];
   for (const bk of bookings) await prisma.booking.create({ data: bk });
 

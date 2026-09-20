@@ -7,13 +7,16 @@ import { toast } from 'sonner';
 import { useBookingStore } from '@/features/booking/store';
 import { usePwaInstall } from '@/features/pwa/usePwaInstall';
 import { showManualInstallHelp } from '@/features/pwa/install-guidance';
+import { SHOP_PHONE_LINK, SHOP_INSTAGRAM } from '@/lib/shop';
 // با import (به‌جای مسیرِ دستی)، نامِ فایلِ خروجی اثرِ انگشتِ محتوا را می‌گیرد؛ پس تعویضِ
 // عکس خودکار باعثِ تازه‌شدنِ آن در مرورگرِ مشتری‌های قدیمی می‌شود.
 import heroBg from '@/images/hero-bg.jpg';
 
 export default function LandingHero() {
   const openBooking = useBookingStore((s) => s.openBooking);
-  const { promptInstall } = usePwaInstall();
+  // installed هم لازم است: بدونِ آن، کسی که اپ را نصب کرده و **داخلِ خودِ اپ** است باز هم
+  // دکمه‌ی «نصب» می‌دید و با کلیک، راهنمای «برو اپ را نصب کن» می‌گرفت.
+  const { promptInstall, installed } = usePwaInstall();
 
   // آیکون‌های میان‌بر همگی طلایی (هم‌رنگ متن برند).
   const iconLink = 'p-3.5 bg-zinc-900/60 border border-zinc-800 hover:border-amber-500/50 text-amber-500 hover:text-amber-400 rounded-2xl transition-all duration-300 hover:-translate-y-1';
@@ -72,27 +75,36 @@ export default function LandingHero() {
 
         {/* ردیف آیکون‌های میان‌بر — هرکدام به سکشن مربوطه در فوتر اسکرول می‌کند */}
         <div className="flex items-center justify-center gap-4 mt-10">
-          <a href="tel:+989195496929" aria-label="تماس تلفنی" className={iconLink}>
+          {/* شماره از تنها منبعِ حقیقت می‌آید؛ قبلاً اینجا دستی نوشته شده بود و با عوض‌شدنِ
+              شماره در shop.js، این یکی بی‌صدا مشتری را به شماره‌ی قدیمی زنگ می‌زد. */}
+          <a href={`tel:${SHOP_PHONE_LINK}`} aria-label="تماس تلفنی" className={iconLink}>
             <Phone className="w-5 h-5" />
           </a>
           <a href="#location" aria-label="موقعیت مکانی" className={iconLink}>
             <MapPin className="w-5 h-5" />
           </a>
-          <a href="#social" aria-label="اینستاگرام" className={iconLink}>
-            <Instagram className="w-5 h-5" />
-          </a>
-          {/* دکمه‌ی نصب اپ (PWA) — با تولتیپِ «pwa» روی هاور */}
-          <div className="relative group">
-            <button type="button" onClick={handleInstall} aria-label="نصب PWA" className={iconLink}>
-              <Smartphone className="w-5 h-5" />
-            </button>
-            <span
-              role="tooltip"
-              className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 whitespace-nowrap rounded-lg bg-zinc-900 px-2.5 py-1 text-[11px] font-bold text-amber-400 border border-amber-500/20 shadow-lg opacity-0 translate-y-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0"
-            >
-              pwa
-            </span>
-          </div>
+          {/* هم‌قدم با فوتر: تا وقتی پیجِ واقعی ثبت نشده، این آیکون هم نیست — وگرنه به
+              لنگری اسکرول می‌کرد که دیگر روی صفحه وجود ندارد. */}
+          {SHOP_INSTAGRAM && (
+            <a href="#social" aria-label="اینستاگرام" className={iconLink}>
+              <Instagram className="w-5 h-5" />
+            </a>
+          )}
+          {/* دکمه‌ی نصبِ اپ — فقط وقتی اپ هنوز نصب نشده. متنِ راهنما و برچسبِ دسترس‌پذیری
+              به فارسی است؛ «pwa» یک اصطلاحِ برنامه‌نویسی بود که برای مشتری معنا ندارد. */}
+          {!installed && (
+            <div className="relative group">
+              <button type="button" onClick={handleInstall} aria-label="نصب اپلیکیشن روی گوشی" className={iconLink}>
+                <Smartphone className="w-5 h-5" />
+              </button>
+              <span
+                role="tooltip"
+                className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 whitespace-nowrap rounded-lg bg-zinc-900 px-2.5 py-1 text-[11px] font-bold text-amber-400 border border-amber-500/20 shadow-lg opacity-0 translate-y-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0"
+              >
+                نصب اپلیکیشن
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </header>

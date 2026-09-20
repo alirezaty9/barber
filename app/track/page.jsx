@@ -5,13 +5,14 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { Search, Scissors, User, Scissors as ScissorsIcon, XCircle, ShieldCheck, Loader2 } from 'lucide-react';
+import { Search, Scissors, User, Scissors as ScissorsIcon, Wallet, XCircle, ShieldCheck, Loader2 } from 'lucide-react';
 import { lookupSchema } from '@/lib/validation';
 import { lookupBooking, requestCancelOtp, cancelBooking } from '@/api/bookings';
 import { toPersianDigits, formatJalaliDate, formatPrice } from '@/lib/persian';
 import { servicesLabelOf } from '@/lib/serializers';
 import { STATUS_LABELS, STATUS_STYLES } from '@/lib/constants';
 import { SMS_ENABLED } from '@/lib/features';
+import { isWithinCancelWindow } from '@/lib/cancel-policy';
 import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import Field from '@/components/ui/Field';
@@ -20,6 +21,8 @@ import { cn } from '@/lib/utils';
 
 export default function TrackPage() {
   const [bookings, setBookings] = useState(null);
+  // پیامِ خطای رهگیری، جدا از «نتیجه‌ی خالی» — این دو معنای کاملاً متفاوتی برای مشتری دارند.
+  const [lookupError, setLookupError] = useState(null);
   // نوبتی که در حالِ لغو است و منتظرِ کدِ تأیید می‌ماند: { code, phoneMasked } یا null.
   const [otpFor, setOtpFor] = useState(null);
   const [otpValue, setOtpValue] = useState('');
@@ -38,11 +41,16 @@ export default function TrackPage() {
 
   const onSubmit = async (data) => {
     setOtpFor(null);
+    setLookupError(null);
     try {
       const result = await lookupBooking(data);
       setBookings(Array.isArray(result) ? result : [result]);
     } catch (e) {
+      // 🔴 خطا از «نتیجه‌ی خالی» تفکیک شد. قبلاً هر شکستی (قطعیِ اینترنت، خطای سرور) هم
+      // bookings را خالی می‌کرد و همان کادرِ «نوبتی با این شماره یافت نشد» را نشان می‌داد —
+      // یعنی مشتری‌ای که واقعاً نوبت داشت فکر می‌کرد نوبتش پاک شده است.
       setBookings([]);
+      setLookupError(e.message);
       toast.error(e.message);
     }
   };
@@ -164,7 +172,15 @@ export default function TrackPage() {
         ) : bookings ? (
           /* حالتِ ۲ — نتیجه‌ی رهگیری: فقط نوبت‌ها (بدونِ فرمِ جست‌وجو) */
           <div className="space-y-4">
-            {bookings.length === 0 ? (
+            {lookupError ? (
+              <div className="glass p-8 rounded-3xl border border-zinc-800 text-center">
+                <p className="text-sm text-amber-400 font-bold">{lookupError}</p>
+                <p className="text-xs text-zinc-500 mt-1">این یعنی نتوانستیم اطلاعات را بگیریم — نه اینکه نوبتی ندارید.</p>
+                <Button variant="outline" size="sm" className="mt-4" onClick={() => setBookings(null)}>
+                  جست‌وجوی دوباره
+                </Button>
+              </div>
+            ) : bookings.length === 0 ? (
               <div className="glass p-8 rounded-3xl border border-zinc-800 text-center">
                 <p className="text-sm text-zinc-300 font-bold">نوبتی با این شماره یافت نشد.</p>
                 <p className="text-xs text-zinc-500 mt-1">شماره را بررسی کنید و دوباره جست‌وجو کنید.</p>
@@ -175,7 +191,7 @@ export default function TrackPage() {
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-sm text-amber-500">{booking.code}</span>
                     <span className={cn('px-2.5 py-1 rounded-full text-[10px] font-bold border', STATUS_STYLES[booking.status])}>
-                      {STATUS_LABELS[booking.status]}
+                      {STATUS_LABELS[booking.status] || 'نامشخص'}
                     </span>
                   </div>
 
@@ -187,12 +203,21 @@ export default function TrackPage() {
                     <Row icon={ScissorsIcon} label="خدمت" value={servicesLabelOf(booking)} />
                     <Row icon={User} label="مشتری" value={booking.customerName} />
                     {booking.refundAmount > 0 && (
-                      <Row icon={ScissorsIcon} label="مبلغ بازگشتی" value={formatPrice(booking.refundAmount)} />
+                      // آیکونِ مالی به‌جای قیچی — قیچی برای یک مفهومِ پولی بی‌ربط بود.
+                      <Row icon={Wallet} label="مبلغ بازگشتی" value={formatPrice(booking.refundAmount)} />
                     )}
                   </div>
 
                   {booking.status !== 'cancelled' && (
-                    SMS_ENABLED ? (
+                    // مهلتِ لغو تمام شده (نوبتِ امروز یا گذشته): دکمه نشان داده نمی‌شود، چون
+                    // سرور هم ردش می‌کند و دکمه‌ای که همیشه خطا می‌دهد فقط کاربر را گمراه می‌کند.
+                    !isWithinCancelWindow(booking) ? (
+                      <p className="text-[11px] text-amber-400/90 leading-relaxed bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
+                        مهلتِ لغوِ آنلاین این نوبت تمام شده (لغو فقط تا روزِ قبل ممکن است).
+                        برای هماهنگی لطفاً با آرایشگاه تماس بگیرید و کد رهگیری{' '}
+                        <span className="font-mono text-amber-500">{booking.code}</span> را اعلام کنید.
+                      </p>
+                    ) : SMS_ENABLED ? (
                       <Button
                         variant="danger"
                         className="w-full"

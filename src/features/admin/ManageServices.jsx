@@ -15,11 +15,12 @@ import { Input, Textarea } from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Field from '@/components/ui/Field';
 import Button from '@/components/ui/Button';
+import ErrorState from '@/components/ui/ErrorState';
 
 const EMPTY = { name: '', price: '', description: '', category: 'hair', image: '' };
 
 export default function ManageServices() {
-  const { data: services = [] } = useServices();
+  const { data: services = [], isError, error, refetch } = useServices();
   const createService = useCreateService();
   const updateService = useUpdateService();
   const deleteService = useDeleteService();
@@ -169,7 +170,11 @@ export default function ManageServices() {
               </div>
             </div>
           ))}
-          {services.length === 0 && <p className="text-zinc-500 text-xs text-center py-4">خدمتی ثبت نشده است.</p>}
+          {/* خطا از «خالی» جدا شد: قطعیِ سرور قبلاً پیامِ «خدمتی ثبت نشده است» می‌داد
+              و ادمین باور می‌کرد خدماتش پاک شده‌اند. */}
+          {isError
+            ? <ErrorState error={error} onRetry={refetch} />
+            : services.length === 0 && <p className="text-zinc-500 text-xs text-center py-4">خدمتی ثبت نشده است.</p>}
         </div>
       </div>
     </div>

@@ -1,24 +1,15 @@
 import { prisma } from '@/lib/db';
 import { sendSms } from '@/lib/sms';
 import { SMS_ENABLED } from '@/lib/features';
-import { tehranTodayISO, shiftISO } from '@/lib/time';
+import { tehranTodayISO, shiftISO, appointmentStartMs } from '@/lib/time';
 import { servicesLabelOf } from '@/lib/serializers';
+import { SHOP_NAME } from '@/lib/shop';
 import { ok, guardCron, serverError } from '@/lib/api-helpers';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('cron:send-reminders');
 
-// ایران UTC+3:30 است (بدونِ ساعتِ تابستانی از ۲۰۲۲). برای تبدیلِ ساعتِ دیواریِ نوبت
-// (که به وقتِ ایران است) به «لحظه‌ی مطلق» (UTC) این مقدار را کم می‌کنیم.
-const TEHRAN_OFFSET_MS = (3 * 60 + 30) * 60 * 1000;
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
-
-// لحظه‌ی مطلقِ (UTC ms) شروعِ نوبت از روی date (YYYY-MM-DD) و timeSlot (HH:MM) به وقتِ ایران.
-function appointmentMs(dateIso, timeSlot) {
-  const [y, mo, d] = dateIso.split('-').map(Number);
-  const [hh, mm] = timeSlot.split(':').map(Number);
-  return Date.UTC(y, mo - 1, d, hh, mm) - TEHRAN_OFFSET_MS;
-}
 
 // GET /api/cron/send-reminders
 // هر نوبتِ «تاییدشده» که تا ۲ ساعتِ آینده شروع می‌شود و هنوز یادآوری برایش نرفته را
@@ -52,7 +43,7 @@ export async function GET(request) {
 
     // فقط آن‌هایی که «هنوز نشده‌اند» و «تا ۲ ساعتِ دیگر یا کمتر» شروع می‌شوند.
     const due = candidates.filter((b) => {
-      const diff = appointmentMs(b.date, b.timeSlot) - now;
+      const diff = appointmentStartMs(b.date, b.timeSlot) - now;
       return diff > 0 && diff <= TWO_HOURS_MS;
     });
 
@@ -60,7 +51,7 @@ export async function GET(request) {
     for (const b of due) {
       const label = servicesLabelOf(b);
       const message =
-        `${b.customerName} عزیز، یادآوری نوبت «${label}» امروز ساعت ${b.timeSlot} در banad barber. کد رهگیری: ${b.code}`;
+        `${b.customerName} عزیز، یادآوری نوبت «${label}» امروز ساعت ${b.timeSlot} در ${SHOP_NAME}. کد رهگیری: ${b.code}`;
 
       const res = await sendSms({ phone: b.customerPhone, message });
       if (res.ok) {

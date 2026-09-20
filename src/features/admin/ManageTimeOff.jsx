@@ -8,6 +8,7 @@ import { useBlocks, useCreateBlock, useDeleteBlock } from '@/api/blocks';
 import { TIME_SLOTS } from '@/lib/constants';
 import { formatJalaliDate, toPersianDigits } from '@/lib/persian';
 import { confirm } from '@/components/ui/confirm';
+import ErrorState from '@/components/ui/ErrorState';
 import { Input } from '@/components/ui/Input';
 import Field from '@/components/ui/Field';
 import Button from '@/components/ui/Button';
@@ -24,7 +25,7 @@ export default function ManageTimeOff() {
   const [slots, setSlots] = useState([]);
   const [reason, setReason] = useState('');
 
-  const { data: blocks = [] } = useBlocks(barberId);
+  const { data: blocks = [], isError, error, refetch } = useBlocks(barberId);
   const createBlock = useCreateBlock();
   const deleteBlock = useDeleteBlock();
 
@@ -37,6 +38,11 @@ export default function ManageTimeOff() {
     if (!barberId) { toast.error('آرایشگری در سیستم ثبت نشده است.'); return; }
     if (!date) { toast.error('تاریخ را انتخاب کن.'); return; }
     if (mode === 'hours' && slots.length === 0) { toast.error('حداقل یک ساعت را انتخاب کن.'); return; }
+    // بازه‌ی معکوس قبلاً بی‌صدا به «یک روز» تبدیل می‌شد و پیامِ موفقیت می‌گرفت.
+    if (mode === 'fullDay' && dateTo && dateTo < date) {
+      toast.error('«تا تاریخ» نمی‌تواند قبل از «از تاریخ» باشد.');
+      return;
+    }
 
     const payload = {
       barberId,
@@ -50,6 +56,20 @@ export default function ManageTimeOff() {
     try {
       const res = await createBlock.mutateAsync(payload);
       toast.success(res?.created > 0 ? 'زمان موردنظر بسته شد.' : 'این زمان‌ها از قبل بسته بودند.');
+      // هشدارِ نوبت‌های گرفتار: بستنِ زمان آن‌ها را لغو نمی‌کند، پس آرایشگر باید بداند.
+      // با مدتِ طولانی نمایش داده می‌شود چون شاملِ اقدامِ لازم (تماس با مشتری) است.
+      const conflicts = res?.conflicts || [];
+      if (conflicts.length > 0) {
+        const list = conflicts
+          .slice(0, 4)
+          .map((c) => `${formatJalaliDate(c.date)} ساعت ${toPersianDigits(c.timeSlot)} — ${c.customerName}`)
+          .join(' · ');
+        const more = conflicts.length > 4 ? ` و ${toPersianDigits(conflicts.length - 4)} مورد دیگر` : '';
+        toast.warning(
+          `توجه: ${toPersianDigits(conflicts.length)} نوبتِ فعال در این بازه وجود دارد و خودکار لغو نشد. ${list}${more}`,
+          { duration: 15000 },
+        );
+      }
       resetForm();
     } catch (e) {
       toast.error(e.message);
@@ -142,8 +162,10 @@ export default function ManageTimeOff() {
         <div className="glass p-6 rounded-3xl">
           <h3 className="text-base font-bold text-zinc-100 mb-4">زمان‌های بسته</h3>
 
-          {Object.keys(grouped).length === 0 ? (
-            <p className="text-zinc-500 text-xs text-center py-8">هیچ زمانی برای این آرایشگر بسته نشده است.</p>
+          {isError ? (
+            <ErrorState error={error} onRetry={refetch} />
+          ) : Object.keys(grouped).length === 0 ? (
+            <p className="text-zinc-500 text-xs text-center py-8">هیچ زمانِ بسته‌ای برای امروز و روزهای آینده ثبت نشده است.</p>
           ) : (
             <div className="space-y-3">
               {Object.entries(grouped).map(([d, items]) => {
@@ -165,7 +187,8 @@ export default function ManageTimeOff() {
                     {hourItems.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
                         {hourItems.map((h) => (
-                          <span key={h.id} className="inline-flex items-center gap-1 bg-red-950/30 border border-red-900/50 rounded-lg pl-1 pr-2 py-1 text-[11px] font-bold text-red-400">
+                          // علت روی هاور دیده می‌شود؛ قبلاً برای ساعت‌ها ذخیره می‌شد ولی هیچ‌جا نمایش داده نمی‌شد.
+                          <span key={h.id} title={h.reason || undefined} className="inline-flex items-center gap-1 bg-red-950/30 border border-red-900/50 rounded-lg pl-1 pr-2 py-1 text-[11px] font-bold text-red-400">
                             {toPersianDigits(h.timeSlot)}
                             <button onClick={() => onDelete(h.id)} className="text-zinc-500 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
                           </span>

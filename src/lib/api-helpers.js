@@ -111,10 +111,15 @@ export async function parseBody(request, schema) {
   return { data: result.data };
 }
 
-/** تولید کد رهگیریِ خوانا با تصادفِ رمزنگارانه (نه Math.random) — چون این کد اعتبارنامه‌ی لغو است. */
+/**
+ * تولید کد رهگیریِ خوانا با تصادفِ رمزنگارانه (نه Math.random) — چون این کد اعتبارنامه‌ی لغو است.
+ *
+ * ۱۰ کاراکترِ hex = ۴۰ بیت ≈ هزار میلیارد حالت. نسخه‌ی قبلی ۶ کاراکتر بود (≈۱۶ میلیون حالت)
+ * که برای چیزی که نقشِ «اعتبارنامه» دارد کم است: با شمارشِ سیستماتیک قابلِ پیداکردن بود.
+ * (حلقه‌ی بازآزماییِ P2002 در مسیرهای ساختِ رزرو، برخوردِ اتفاقی را همان‌طور که بود می‌گیرد.)
+ */
 export function generateBookingCode() {
-  const rand = randomBytes(4).toString('hex').toUpperCase().slice(0, 6);
-  return `BK${rand}`;
+  return `BK${randomBytes(5).toString('hex').toUpperCase()}`;
 }
 
 /**

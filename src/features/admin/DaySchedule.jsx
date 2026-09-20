@@ -10,6 +10,7 @@ import { tehranTodayISO } from '@/lib/time';
 import { toPersianDigits, formatJalaliDate, formatPrice } from '@/lib/persian';
 import { STATUS_LABELS, PAYMENT_LABELS, STATUS_STYLES, PAYMENT_STYLES } from '@/lib/constants';
 import DayPicker from '@/components/ui/DayPicker';
+import ErrorState from '@/components/ui/ErrorState';
 import Modal from '@/components/ui/Modal';
 import { cn } from '@/lib/utils';
 
@@ -32,19 +33,27 @@ function loadSeen() {
 // با این تفاوت که آرایشگر روی هر ساعتِ رزروشده کلیک می‌کند تا ببیند کدام مشتری آن را گرفته.
 // ساعتِ رزروشده‌ی «دیده‌نشده» زرد است؛ بعد از اولین کلیک سبز می‌شود.
 export default function DaySchedule() {
-  const { data: barbers = [] } = useBarbers();
-  const barberId = barbers[0]?.id || '';
+  const { data: barbers, isLoading: loadingBarbers } = useBarbers();
+  const barberId = barbers?.[0]?.id || '';
+  // «هنوز نرسیده» را از «اصلاً وجود ندارد» تفکیک می‌کنیم. بدونِ این، روی دیتابیسی که
+  // آرایشگر ندارد، صفحه برای همیشه روی اسپینر می‌ماند — نه خطایی، نه توضیحی.
+  const noBarber = !loadingBarbers && !barberId;
 
   // پیش‌فرض: امروز (به وقتِ ایران) — طبقِ خواسته، همان لحظه‌ی ورود انتخاب شده باشد.
   const [dateIso, setDateIso] = useState(tehranTodayISO);
   const [seen, setSeen] = useState(loadSeen);
   const [active, setActive] = useState(null); // رزروِ بازشده در مودال
 
-  const { data, isLoading, isFetching } = useDaySchedule(barberId, dateIso, Boolean(barberId));
+  const { data, isFetching, isError, error, refetch } = useDaySchedule(barberId, dateIso, Boolean(barberId));
   const slots = data?.slots || [];
   const dayOff = data?.dayOff;
 
   const booked = slots.filter((s) => s.booking);
+
+  // تا وقتی آرایشگر از سرور نرسیده، کوئریِ برنامه‌ی روز غیرفعال است و react-query در آن حالت
+  // isLoading را false می‌دهد. بدونِ این قید، در ثانیه‌های اولِ ورود به تب، پیامِ «در این روز
+  // نوبتی رزرو نشده» با گریدِ خالی نشان داده می‌شد — حتی وقتی آن روز پنج نوبت داشت.
+  const isLoading = !noBarber && (!barberId || data === undefined);
 
   // idِ رزرو را در فهرستِ دیده‌شده‌ها ذخیره کن (هم در state هم در localStorage).
   const markSeen = useCallback((id) => {
@@ -94,8 +103,9 @@ export default function DaySchedule() {
         <Legend className="bg-red-950/20 border-red-950" label="بسته/گذشته" />
       </div>
 
-      {/* خلاصه‌ی روز */}
-      {!isLoading && !dayOff && (
+      {/* خلاصه‌ی روز — حتی در روزِ بسته هم نمایش داده می‌شود، چون مهم‌ترین حالت همان است:
+          روزی که بسته شده ولی نوبتِ فعال دارد. */}
+      {!isLoading && !isError && !noBarber && (
         <p className="text-xs text-zinc-400 mb-4">
           {booked.length > 0
             ? <>در این روز <span className="text-amber-400 font-extrabold">{toPersianDigits(booked.length)}</span> نوبت رزرو شده است.</>
@@ -103,25 +113,46 @@ export default function DaySchedule() {
         </p>
       )}
 
-      {isLoading ? (
+      {noBarber ? (
+        <div className="glass p-8 rounded-3xl text-center text-sm text-zinc-300">
+          آرایشگری در سیستم ثبت نشده است. اول از تبِ «خدمات و آرایشگر» یک آرایشگر بساز.
+        </div>
+      ) : isError ? (
+        <ErrorState error={error} onRetry={refetch} />
+      ) : isLoading ? (
         <div className="flex items-center justify-center gap-2 text-zinc-500 text-sm py-16">
           <Loader2 className="w-5 h-5 animate-spin" /> در حال بارگذاری برنامه‌ی روز...
         </div>
-      ) : dayOff ? (
-        <div className="glass p-8 rounded-3xl flex items-center justify-center gap-2 text-red-400 text-sm">
-          <Ban className="w-5 h-5" /> این روز کاملاً بسته است (مرخصی / تعطیلی).
-        </div>
       ) : (
-        <div className={cn('grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 transition-opacity', isFetching && 'opacity-60')}>
-          {slots.map((slot) => (
-            <SlotButton
-              key={slot.time}
-              slot={slot}
-              seen={slot.booking ? seen.has(slot.booking.id) : false}
-              onClick={() => slot.booking && openBooking(slot)}
-            />
-          ))}
-        </div>
+        <>
+          {/* 🔴 روزِ بسته دیگر نوبت‌ها را پنهان نمی‌کند. قبلاً در این حالت کلِ گریدِ ساعت‌ها
+              جایش را به یک کادرِ قرمز می‌داد، پس اگر آرایشگر روزی را می‌بست که نوبتِ
+              پرداخت‌شده داشت، آن مشتری‌ها کاملاً از دیدش محو می‌شدند و سرِ ساعت می‌آمدند. */}
+          {dayOff && (
+            <div className="glass p-5 rounded-3xl flex items-start gap-2 text-red-400 text-sm mb-4">
+              <Ban className="w-5 h-5 shrink-0 mt-0.5" />
+              <span>
+                این روز بسته است (مرخصی / تعطیلی) و مشتری نمی‌تواند نوبتِ تازه بگیرد.
+                {booked.length > 0 && (
+                  <span className="block text-amber-400 font-bold mt-1">
+                    ⚠️ ولی {toPersianDigits(booked.length)} نوبتِ فعال از قبل روی این روز ثبت شده — این‌ها
+                    خودکار لغو نمی‌شوند و باید خودت با مشتری تماس بگیری.
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
+          <div className={cn('grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 transition-opacity', isFetching && 'opacity-60')}>
+            {slots.map((slot) => (
+              <SlotButton
+                key={slot.time}
+                slot={slot}
+                seen={slot.booking ? seen.has(slot.booking.id) : false}
+                onClick={() => slot.booking && openBooking(slot)}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       {/* جزئیاتِ نوبتِ انتخاب‌شده */}
@@ -208,7 +239,8 @@ function BookingDetailsModal({ slot, dateIso, open, onOpenChange }) {
             <DetailRow
               icon={Phone}
               label="موبایل"
-              value={<span className="font-mono" style={{ direction: 'ltr', unicodeBidi: 'plaintext' }}>{toPersianDigits(b.customerPhone)}</span>}
+              // شماره با ارقامِ لاتین: شناسه است و باید قابلِ کپی و جست‌وجو باشد.
+              value={<span className="font-mono" style={{ direction: 'ltr', unicodeBidi: 'plaintext' }}>{b.customerPhone}</span>}
             />
             <DetailRow icon={Scissors} label="خدمت" value={b.servicesLabel} />
             <DetailRow icon={Clock} label="ساعت" value={toPersianDigits(slot.time)} />
@@ -217,7 +249,7 @@ function BookingDetailsModal({ slot, dateIso, open, onOpenChange }) {
 
           <div className="flex flex-wrap items-center gap-2 mt-5">
             <span className={cn('px-3 py-1.5 rounded-full text-[11px] font-bold border', STATUS_STYLES[b.status])}>
-              {STATUS_LABELS[b.status]}
+              {STATUS_LABELS[b.status] || 'نامشخص'}
             </span>
             <span className={cn('px-3 py-1.5 rounded-full text-[11px] font-bold border', PAYMENT_STYLES[b.paymentStatus] || PAYMENT_STYLES.unpaid)}>
               {PAYMENT_LABELS[b.paymentStatus] || PAYMENT_LABELS.unpaid}
@@ -228,7 +260,7 @@ function BookingDetailsModal({ slot, dateIso, open, onOpenChange }) {
           </div>
 
           <p className="text-[11px] text-zinc-500 mt-5 leading-relaxed">
-            برای لغو یا حذفِ این نوبت، از تبِ «لیست نوبت‌ها» در همین صفحه استفاده کن. (نوبتِ پرداخت‌شده خودکار «تایید» است.)
+            برای لغو یا حذفِ این نوبت، از تبِ «لیست نوبت‌ها» در همین صفحه استفاده کن. (نوبتِ پرداخت‌شده خودکار «تأیید» است.)
           </p>
         </div>
       )}

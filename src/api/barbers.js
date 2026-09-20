@@ -1,6 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { http } from './http';
 
+// پروژه تک‌آرایشگره است: فقط خواندن و ویرایشِ همان یک آرایشگر لازم است.
+// 🧹 هوک‌های «ساختِ آرایشگر» و «حذفِ آرایشگر» در ۱۴۰۵/۰۶/۲۸ حذف شدند — هیچ صفحه‌ای
+// صدایشان نمی‌زد و بازمانده‌ی نسخه‌ی چندآرایشگره بودند.
+
 export const barbersKey = ['barbers'];
 
 export function useBarbers(initialData) {
@@ -11,27 +15,11 @@ export function useBarbers(initialData) {
   });
 }
 
-export function useCreateBarber() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (data) => http('/api/barbers', { method: 'POST', body: JSON.stringify(data) }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: barbersKey }),
-  });
-}
-
 export function useUpdateBarber() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...data }) =>
       http(`/api/barbers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: barbersKey }),
-  });
-}
-
-export function useDeleteBarber() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id) => http(`/api/barbers/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: barbersKey }),
   });
 }

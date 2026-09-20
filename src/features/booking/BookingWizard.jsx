@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Fragment } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,7 +11,8 @@ import {
 } from 'lucide-react';
 import { formatPrice, toPersianDigits, formatJalaliDate, isValidIranMobile } from '@/lib/persian';
 import { useAvailability, useRequestPayment } from '@/api/bookings';
-import { SMS_ENABLED } from '@/lib/features';
+import { REFUND_POLICY_NOTE } from '@/lib/features';
+import { SHOP_NAME, SHOP_PHONE_DISPLAY } from '@/lib/shop';
 import { useBookingStore } from './store';
 import DayPicker from '@/components/ui/DayPicker';
 import Button from '@/components/ui/Button';
@@ -57,13 +58,28 @@ export default function BookingWizard({ services, barbers, onClose }) {
 
   // اسلات‌های آزاد (فقط در مرحله‌ی ۲ و وقتی روز انتخاب شده).
   // موجودی مستقل از خدماتِ انتخابی است، پس تغییرِ خدمت باعثِ واکشیِ دوباره نمی‌شود.
-  const { data: avail, isLoading: loadingSlots } = useAvailability(
-    barberId, dateIso, step === 2 && Boolean(dateIso)
-  );
+  const {
+    data: avail, isLoading: loadingSlots, isError: slotsError, refetch: refetchSlots,
+  } = useAvailability(barberId, dateIso, step === 2 && Boolean(dateIso));
+
+  // 🔴 ساعتِ انتخاب‌شده در هر تازه‌سازی دوباره اعتبارسنجی می‌شود.
+  // فهرستِ ساعت‌ها هر ۲۰ ثانیه تازه می‌شود؛ ولی انتخابِ کاربر یک استیتِ مستقل بود و با آن
+  // هماهنگ نمی‌شد. اگر همان لحظه کسِ دیگری آن ساعت را می‌گرفت، دکمه‌اش غیرفعال می‌شد اما
+  // چون شرطِ «انتخاب‌شده» اول بررسی می‌شد همچنان طلایی می‌مانْد — کاربر نه می‌فهمید ساعتش
+  // رفته، نه می‌توانست با کلیک برش دارد، و تازه در گامِ آخر خطا می‌گرفت.
+  const selectedSlot = avail?.slots?.find((s) => s.time === timeSlot);
+  const selectedStillFree = !timeSlot || !avail?.slots || Boolean(selectedSlot?.available);
+
+  useEffect(() => {
+    if (timeSlot && avail?.slots && !selectedSlot?.available) {
+      setTimeSlot('');
+      toast.warning('ساعتی که انتخاب کرده بودید همین حالا رزرو شد. لطفاً ساعت دیگری انتخاب کنید.');
+    }
+  }, [avail?.slots, timeSlot, selectedSlot?.available]);
 
   const canNext =
     (step === 1 && serviceIds.length >= 1) ||
-    (step === 2 && dateIso && timeSlot && !avail?.dayOff);
+    (step === 2 && dateIso && timeSlot && !avail?.dayOff && selectedStillFree);
 
   const goNext = () => { if (canNext && step < 3) setStep(step + 1); };
   const goPrev = () => { if (step > 1) setStep(step - 1); };
@@ -93,12 +109,12 @@ export default function BookingWizard({ services, barbers, onClose }) {
       <div className="p-6 md:p-8 border-b border-zinc-900 text-center">
         <div className="flex items-center justify-center gap-2 text-amber-500 mb-2">
           <Sparkles className="w-5 h-5" />
-          <span className="text-xs font-bold tracking-wider uppercase">سیستم رزرو هوشمند banad barber</span>
+          <span className="text-xs font-bold tracking-wider uppercase">سیستم رزرو هوشمند {SHOP_NAME}</span>
         </div>
         <h2 className="text-xl md:text-2xl font-extrabold text-white">
           {step === 1 && 'انتخاب خدمت آرایشی'}
           {step === 2 && 'انتخاب روز و ساعت حضور'}
-          {step === 3 && 'تایید نهایی و پرداخت'}
+          {step === 3 && 'تأیید نهایی و پرداخت'}
         </h2>
 
         <div className="flex items-center mt-6 w-full max-w-sm mx-auto">
@@ -116,9 +132,21 @@ export default function BookingWizard({ services, barbers, onClose }) {
         </div>
       </div>
 
-      {/* مرحله ۱: خدمت (تا دو خدمت قابل انتخاب) */}
+      {/* مرحله ۱: انتخاب خدمت (یک یا چند خدمت) */}
       {step === 1 && (
         <div className="p-6 md:p-8">
+          {/* حالتِ خالی: اگر کاتالوگ خالی باشد (یا لحظه‌ای از دیتابیس نیامده باشد)، قبلاً یک
+              شبکه‌ی کاملاً خالی و یک دکمه‌ی همیشه‌خاموش نشان داده می‌شد، بدونِ هیچ توضیحی. */}
+          {services.length === 0 ? (
+            <div className="flex items-start gap-2 p-4 bg-zinc-900/60 border border-zinc-800 rounded-xl text-zinc-300 text-xs leading-relaxed">
+              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+              <span>
+                در حال حاضر خدمتی برای رزرو ثبت نشده است. لطفاً برای گرفتنِ نوبت با آرایشگاه تماس بگیرید:{' '}
+                <span className="font-bold text-amber-400">{SHOP_PHONE_DISPLAY}</span>
+              </span>
+            </div>
+          ) : (
+          <>
           <p className="text-zinc-400 text-xs md:text-sm mb-4 text-center">
             می‌توانید <span className="text-amber-400 font-bold">یک یا چند خدمت</span> انتخاب کنید:
           </p>
@@ -162,6 +190,8 @@ export default function BookingWizard({ services, barbers, onClose }) {
               <span className="text-amber-500 font-extrabold">جمع: {formatPrice(totalPrice)}</span>
             </div>
           )}
+          </>
+          )}
         </div>
       )}
 
@@ -171,12 +201,30 @@ export default function BookingWizard({ services, barbers, onClose }) {
           <p className="text-zinc-400 text-xs md:text-sm mb-3 text-center">یک روز را برای حضور انتخاب کنید (تا یک هفته‌ی آینده):</p>
           <DayPicker value={dateIso} onChange={(iso) => { setDateIso(iso); setTimeSlot(''); }} days={8} />
 
-          {dateIso && (
+          {/* اگر آرایشگری در سیستم نباشد، کوئریِ ساعت‌ها هرگز اجرا نمی‌شود و قبلاً کاربر
+              فقط یک فهرستِ خالیِ بی‌پیام می‌دید (نه اسپینر، نه خطا). */}
+          {!barberId && (
+            <div className="mt-6 flex items-start gap-2 p-4 bg-zinc-900/60 border border-zinc-800 rounded-xl text-zinc-300 text-xs leading-relaxed">
+              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+              <span>
+                رزرو آنلاین موقتاً در دسترس نیست. لطفاً با آرایشگاه تماس بگیرید:{' '}
+                <span className="font-bold text-amber-400">{SHOP_PHONE_DISPLAY}</span>
+              </span>
+            </div>
+          )}
+
+          {barberId && dateIso && (
             <div className="mt-6">
               {loadingSlots ? (
                 <div className="flex items-center justify-center gap-2 text-zinc-500 text-xs py-8">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span>در حال بررسی ساعات آزاد...</span>
+                </div>
+              ) : slotsError ? (
+                // حالتِ سومِ اجباری: قبلاً شکستِ درخواست فقط یک گریدِ خالیِ بی‌توضیح می‌داد.
+                <div className="flex flex-col items-start gap-3 p-4 bg-red-950/30 border border-red-900/50 rounded-xl text-red-300 text-xs">
+                  <span>ساعت‌های آزاد دریافت نشد. اینترنت خود را بررسی کنید.</span>
+                  <Button variant="outline" size="sm" onClick={() => refetchSlots()}>تلاش دوباره</Button>
                 </div>
               ) : avail?.dayOff ? (
                 <div className="flex items-center gap-2 p-3 bg-red-950/40 border border-red-900/50 rounded-xl text-red-400 text-xs">
@@ -210,6 +258,11 @@ export default function BookingWizard({ services, barbers, onClose }) {
                         {!slot.available && slot.reason === 'past' && (
                           <span className="block text-[8px] font-medium text-zinc-500 mt-0.5">گذشته</span>
                         )}
+                        {/* ساعتی که آرایشگر بسته: قبلاً یک دکمه‌ی قرمزِ خط‌خورده‌ی بی‌توضیح بود
+                            و مشتری ممکن بود فکر کند سایت خراب است. */}
+                        {!slot.available && slot.reason === 'blocked' && (
+                          <span className="block text-[8px] font-medium text-red-400 mt-0.5">در دسترس نیست</span>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -240,14 +293,13 @@ export default function BookingWizard({ services, barbers, onClose }) {
               <Input type="tel" placeholder="۰۹۱۲۳۴۵۶۷۸۹" style={{ direction: 'ltr', textAlign: 'left' }} error={errors.customerPhone} {...register('customerPhone')} />
             </Field>
             <div className="p-3.5 bg-zinc-950 border border-zinc-900 rounded-xl text-[11px] text-zinc-500 leading-relaxed">
-              * با کلیک روی «پرداخت و رزرو نوبت» به درگاه امن پرداخت منتقل می‌شوید. پس از پرداخت، نوبت شما ثبت و پس از تایید آرایشگر قطعی می‌شود.
+              {/* متنِ قبلی می‌گفت «پس از تایید آرایشگر قطعی می‌شود» — ولی پرداختِ موفق همان
+                  لحظه نوبت را «تایید شده» ثبت می‌کند و مشتری منتظرِ تماسی می‌مانْد که نمی‌آمد. */}
+              * با کلیک روی «پرداخت و رزرو نوبت» به درگاه امن پرداخت منتقل می‌شوید. به‌محضِ پرداختِ موفق، نوبت شما قطعی می‌شود.
               <br />
-              {/* ⏸️ تا فعال‌شدنِ پنلِ پیامک، لغوِ آنلاین در دسترس نیست؛ پس متنِ راهنما هم همان را می‌گوید. */}
-              <span className="text-amber-400/90">
-                {SMS_ENABLED
-                  ? 'توجه: در صورت لغو نوبت، ۵۰٪ مبلغ پرداختی به شما بازگردانده می‌شود.'
-                  : 'توجه: لغو نوبت فعلاً به‌صورت آنلاین ممکن نیست؛ برای لغو، با آرایشگاه تماس بگیرید.'}
-              </span>
+              {/* متنِ سیاستِ لغو از تنها منبعِ حقیقت می‌آید (وابسته به فعال‌بودنِ استرداد)، نه
+                  به کلیدِ پیامک — این دو مفهومِ جدا هستند و قاطی‌کردنشان وعده‌ی مالیِ نادرست می‌ساخت. */}
+              <span className="text-amber-400/90">توجه: {REFUND_POLICY_NOTE}</span>
               <br />
               با ادامه‌ی فرایند،{' '}
               <Link href="/terms" target="_blank" className="text-zinc-300 underline hover:text-amber-400">

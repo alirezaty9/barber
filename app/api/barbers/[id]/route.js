@@ -28,17 +28,10 @@ export async function PATCH(request, { params }) {
   }
 }
 
-export async function DELETE(request, { params }) {
-  const denied = await guardAdmin();
-  if (denied) return denied;
-
-  const { id } = await params;
-  try {
-    await prisma.barber.delete({ where: { id } });
-    return ok({ success: true });
-  } catch (e) {
-    if (e?.code === 'P2025') return notFound('آرایشگر موردنظر یافت نشد.');
-    log.error('DELETE barber failed', e);
-    return serverError();
-  }
-}
+// 🧹 مسیرِ DELETE در ۱۴۰۵/۰۶/۲۸ حذف شد.
+//
+// چرا؟ پروژه تک‌آرایشگره است و هیچ صفحه‌ای این مسیر را صدا نمی‌زد — ولی باز بود و خطرش
+// واقعی: با حذفِ آرایشگر، رابطه‌ی نوبت‌ها با او «خالی» می‌شد، محاسبه‌ی موجودی (که همیشه
+// بر اساسِ یک آرایشگرِ مشخص می‌گردد) دیگر آن نوبت‌ها را نمی‌دید، و همان ساعت‌ها دوباره به
+// مشتریِ جدید فروخته می‌شد. قفلِ یکتایِ دیتابیس هم جلویش را نمی‌گرفت.
+// (مسیرِ POST عمداً نگه داشته شد: تنها راهِ بازسازیِ آرایشگر اگر روزی رکوردش از بین برود.)

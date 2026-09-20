@@ -4,14 +4,16 @@ import {
   lookupSchema, cancelSchema, loginSchema, MAX_BOOKING_ADVANCE_DAYS,
 } from '@/lib/validation';
 import { tehranTodayISO, shiftISO } from '@/lib/time';
+import { TIME_SLOTS } from '@/lib/constants';
 
 const today = tehranTodayISO();
+// ساعت باید یکی از اسلات‌های واقعی باشد؛ «10:00» جزوِ اسلات‌های ۷۵ دقیقه‌ای نیست.
 const validBooking = (over = {}) => ({
   customerName: 'علی رضایی',
   customerPhone: '09123456789',
   serviceIds: ['svc1'],
   date: today,
-  timeSlot: '10:00',
+  timeSlot: TIME_SLOTS[1],
   ...over,
 });
 
@@ -30,8 +32,10 @@ describe('bookingSchema — تاریخ', () => {
   it('امروز معتبر است', () => {
     expect(bookingSchema.safeParse(validBooking({ date: today })).success).toBe(true);
   });
-  it('دیروز هم (به‌خاطرِ tolerance یک‌روزه) معتبر است', () => {
-    expect(bookingSchema.safeParse(validBooking({ date: shiftISO(today, -1) })).success).toBe(true);
+  // 🔴 تلورانسِ یک‌روزه برداشته شد: با آن، رزروِ «دیروز» واقعاً قابلِ ساختن بود (چون چکِ
+  // «ساعتِ گذشته» فقط برای امروز فعال می‌شود) و آن نوبت در فهرستِ پنل هم دیده نمی‌شد.
+  it('دیروز رد می‌شود', () => {
+    expect(bookingSchema.safeParse(validBooking({ date: shiftISO(today, -1) })).success).toBe(false);
   });
   it('دو روز پیش رد می‌شود', () => {
     expect(bookingSchema.safeParse(validBooking({ date: shiftISO(today, -2) })).success).toBe(false);
@@ -57,6 +61,16 @@ describe('bookingSchema — خدمات و نام', () => {
   });
   it('timeSlot با قالبِ غلط رد می‌شود', () => {
     expect(bookingSchema.safeParse(validBooking({ timeSlot: '9:0' })).success).toBe(false);
+  });
+  it('ساعتِ خارج از اسلات‌های کاری رد می‌شود', () => {
+    expect(bookingSchema.safeParse(validBooking({ timeSlot: '13:00' })).success).toBe(false);
+  });
+  // خدمتِ تکراری قبلاً پذیرفته می‌شد و مبلغ را چند برابر می‌کرد.
+  it('شناسه‌ی خدمتِ تکراری رد می‌شود', () => {
+    expect(bookingSchema.safeParse(validBooking({ serviceIds: ['svc1', 'svc1'] })).success).toBe(false);
+  });
+  it('نامِ خیلی بلند رد می‌شود', () => {
+    expect(bookingSchema.safeParse(validBooking({ customerName: 'ا'.repeat(200) })).success).toBe(false);
   });
 });
 
@@ -89,6 +103,10 @@ describe('barberSchema — workDays', () => {
   it('روزِ خارج از بازه (7) رد می‌شود', () => {
     expect(barberSchema.safeParse({ name: 'x', workDays: [0, 7] }).success).toBe(false);
   });
+  // آرایه‌ی خالی در سمتِ خواندن به «همه‌ی روزها کاری‌اند» تفسیر می‌شد — یعنی برعکسِ منظور.
+  it('آرایه‌ی خالیِ روزهای کاری رد می‌شود', () => {
+    expect(barberSchema.safeParse({ name: 'x', workDays: [] }).success).toBe(false);
+  });
 });
 
 describe('blockSchema', () => {
@@ -98,6 +116,17 @@ describe('blockSchema', () => {
   });
   it('barberId خالی رد می‌شود', () => {
     expect(blockSchema.safeParse({ barberId: '', date: '2026-07-25' }).success).toBe(false);
+  });
+  // بازه‌ی معکوس قبلاً بی‌صدا به «یک روز» تبدیل می‌شد و پیامِ موفقیت می‌گرفت.
+  it('بازه‌ی معکوس (تا تاریخ قبل از از تاریخ) رد می‌شود', () => {
+    expect(blockSchema.safeParse({
+      barberId: 'b1', date: '2026-07-27', dateTo: '2026-07-25', fullDay: true,
+    }).success).toBe(false);
+  });
+  it('ساعتِ خارج از اسلات‌های کاری در بستنِ زمان رد می‌شود', () => {
+    expect(blockSchema.safeParse({
+      barberId: 'b1', date: '2026-07-25', slots: ['13:00'],
+    }).success).toBe(false);
   });
 });
 

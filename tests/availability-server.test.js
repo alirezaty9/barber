@@ -5,13 +5,23 @@ import {
   PENDING_HOLD_MS,
 } from '@/lib/availability-server';
 import { TIME_SLOTS } from '@/lib/constants';
+import { tehranTodayISO, shiftISO, weekdayIndexSaturday } from '@/lib/time';
 
 // ── تستِ لایه‌ی سرور بدونِ دیتابیس ──
 // resolveAvailability یک «client» می‌گیرد؛ به‌جای Prismaِ واقعی یک client ساختگی می‌دهیم که
 // داده‌های کنترل‌شده برمی‌گرداند. این‌طور دقیقاً همان منطقی که باگِ ۱ در آن بود
 // (فیلترِ رزروِ pending/unpaidِ کهنه) را واقعاً اجرا و راستی‌آزمایی می‌کنیم.
 
-const SAT = '2026-07-25'; // این تاریخ «شنبه» است → index=0 در قراردادِ پروژه.
+// نزدیک‌ترین «شنبه»ی آینده (index=0 در قراردادِ پروژه).
+//
+// 🔴 عمداً محاسبه می‌شود و تاریخِ ثابت نیست: از وقتی موجودیِ روزهای گذشته کاملاً بسته شد،
+// هر تاریخِ ثابتی بعد از رسیدنِ آن روز، همه‌ی اسلات‌هایش را «گذشته» می‌بیند و تست را
+// بی‌ربط به منطقِ موردِ آزمایش می‌شکند.
+const SAT = (() => {
+  let d = shiftISO(tehranTodayISO(), 1);
+  while (weekdayIndexSaturday(d) !== 0) d = shiftISO(d, 1);
+  return d;
+})();
 
 // ساختِ یک client ساختگی: خروجیِ هر سه کوئریِ resolveAvailability را کنترل می‌کنیم.
 function fakeClient({ barber = { id: 'b1', workDays: '0,1,2,3,4,5,6' }, bookings = [], blocks = [] }) {
@@ -28,7 +38,8 @@ const slotAt = (res, t) => res.slots.find((s) => s.time === t);
 describe('resolveAvailability — فیلترِ رزروِ کهنه (هسته‌ی باگِ ۱)', () => {
   it('رزروِ pending/unpaidِ کهنه (قدیمی‌تر از hold) اسلات را آزاد می‌کند', async () => {
     const client = fakeClient({
-      bookings: [{ timeSlot: TIME_SLOTS[1], status: 'pending', paymentStatus: 'unpaid', createdAt: minutesAgo(20) }],
+      // نسبت به خودِ PENDING_HOLD_MS حساب می‌شود تا با تغییرِ آن مقدار، تست کهنه نشود.
+      bookings: [{ timeSlot: TIME_SLOTS[1], status: 'pending', paymentStatus: 'unpaid', createdAt: new Date(Date.now() - PENDING_HOLD_MS - 60_000) }],
     });
     const res = await resolveAvailability({ barberId: 'b1', date: SAT }, client);
     expect(res.dayOff).toBe(false);

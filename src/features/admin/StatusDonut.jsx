@@ -6,6 +6,25 @@ export default function StatusDonut({ segments, total }) {
   const size = 132, stroke = 16, r = (size - stroke) / 2, C = 2 * Math.PI * r;
   const sum = total || segments.reduce((s, x) => s + x.value, 0);
 
+  // درصدها با روشِ «بزرگ‌ترین باقی‌مانده» گرد می‌شوند تا جمعشان دقیقاً ۱۰۰ شود. با گردکردنِ
+  // مستقلِ هر درصد، مثلاً سه وضعیتِ برابر هر کدام ۳۳٪ می‌شدند و جمع ۹۹٪ درمی‌آمد.
+  const pcts = (() => {
+    if (!sum) return segments.map(() => 0);
+    const raw = segments.map((s) => (s.value / sum) * 100);
+    const floors = raw.map(Math.floor);
+    let left = 100 - floors.reduce((a, b) => a + b, 0);
+    const order = raw
+      .map((v, i) => ({ i, rem: v - Math.floor(v) }))
+      .sort((a, b) => b.rem - a.rem);
+    const out = [...floors];
+    for (const { i } of order) {
+      if (left <= 0) break;
+      out[i] += 1;
+      left -= 1;
+    }
+    return out;
+  })();
+
   let offset = 0;
   const arcs = segments.map((s) => {
     const frac = sum ? s.value / sum : 0;
@@ -43,8 +62,8 @@ export default function StatusDonut({ segments, total }) {
       </div>
 
       <div className="flex-1 space-y-2.5">
-        {segments.map((s) => {
-          const pct = sum ? Math.round((s.value / sum) * 100) : 0;
+        {segments.map((s, idx) => {
+          const pct = pcts[idx];
           return (
             <div key={s.label} className="flex items-center gap-2.5">
               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.color }} />

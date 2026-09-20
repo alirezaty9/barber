@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Scissors, Calendar, Menu, X, Search } from 'lucide-react';
 import { useBookingStore } from '@/features/booking/store';
+import BrandWordmark from './BrandWordmark';
 
 // ثابت و مستقل از رندر — لازم نیست در هر رندر بازساخته شود.
 const LINKS = [
@@ -50,14 +51,16 @@ export default function Navbar() {
       }`}
       style={{ pointerEvents: isScrolled ? 'auto' : 'none' }}
     >
-      <div className="max-w-7xl mx-auto px-6 flex items-center justify-between pointer-events-auto">
+      {/* 🔴 pointer-events-auto از اینجا برداشته شد. نوار تا قبل از اسکرول نامرئی است و
+          pointer-events-none می‌گیرد، ولی این کلاس روی فرزند همان را خنثی می‌کرد — یعنی
+          دکمه‌های کاملاً نامرئیِ نوار همچنان کلیک می‌گرفتند و لمسِ بالای صفحه‌ی اصلی
+          ناخواسته منوی موبایل را باز می‌کرد یا کاربر را به صفحه‌ی رهگیری می‌برد. */}
+      <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-gradient-to-br from-amber-500 to-amber-700 rounded-lg shadow-lg">
             <Scissors className="w-5 h-5 text-black" />
           </div>
-          <span dir="ltr" className="font-sans font-bold text-xl tracking-wider text-amber-500">
-            banad <span className="text-zinc-100">barber</span>
-          </span>
+          <BrandWordmark className="font-sans font-bold text-xl tracking-wider text-amber-500" />
         </div>
 
         <div className="hidden md:flex items-center gap-8">
@@ -97,7 +100,7 @@ export default function Navbar() {
       </div>
 
       {mobileMenuOpen && (
-        <div className="md:hidden glass border-t border-zinc-900 mt-4 px-6 py-5 flex flex-col gap-4 pointer-events-auto">
+        <div className="md:hidden glass border-t border-zinc-900 mt-4 px-6 py-5 flex flex-col gap-4">
           {LINKS.map((l) => (
             <a
               key={l.href}

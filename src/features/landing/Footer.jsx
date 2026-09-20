@@ -1,13 +1,16 @@
 import { Scissors, MapPin, Phone, Instagram, Clock } from 'lucide-react';
 import { toPersianDigits } from '@/lib/persian';
 import {
+  SHOP_NAME,
   SHOP_ADDRESS as ADDRESS,
   SHOP_PHONE_LINK,
   SHOP_PHONE_DISPLAY,
   SHOP_HOURS,
+  SHOP_INSTAGRAM,
   SHOP_LAT as LAT,
   SHOP_LNG as LNG,
 } from '@/lib/shop';
+import BrandWordmark from './BrandWordmark';
 
 export default function Footer() {
   const currentYear = new Intl.DateTimeFormat('fa-IR', { year: 'numeric' }).format(new Date());
@@ -20,18 +23,20 @@ export default function Footer() {
             <div className="p-2.5 bg-zinc-900 border border-zinc-800 rounded-lg">
               <Scissors className="w-5 h-5 text-amber-500" />
             </div>
-            <span dir="ltr" className="font-sans font-bold text-lg tracking-wider text-amber-500">
-              banad <span className="text-white">barber</span>
-            </span>
+            <BrandWordmark className="font-sans font-bold text-lg tracking-wider text-amber-500" accentClassName="text-white" />
           </div>
           <p className="text-zinc-500 text-xs md:text-sm leading-relaxed max-w-sm">
             ارائه برترین خدمات هیرکات، طراحی ریش و استایل تخصصی آقایان در فضایی لوکس و آرامش‌بخش با تکیه بر استانداردهای روز دنیا.
           </p>
-          <div id="social" className="flex items-center gap-3 pt-2 scroll-mt-24">
-            <a href="https://instagram.com/" target="_blank" rel="noopener noreferrer" aria-label="اینستاگرام" className="p-2 bg-zinc-900/60 border border-zinc-800/80 hover:border-amber-500/40 text-zinc-400 hover:text-amber-500 rounded-xl transition-all">
-              <Instagram className="w-4 h-4" />
-            </a>
-          </div>
+          {/* تا وقتی آدرسِ پیجِ واقعی در shop.js پر نشده، آیکون نمایش داده نمی‌شود —
+              لینکِ جای‌نگهدار مشتری را به صفحه‌ی اصلیِ اینستاگرام می‌برد، نه به پیجِ مجموعه. */}
+          {SHOP_INSTAGRAM && (
+            <div id="social" className="flex items-center gap-3 pt-2 scroll-mt-24">
+              <a href={SHOP_INSTAGRAM} target="_blank" rel="noopener noreferrer" aria-label="اینستاگرام" className="p-2 bg-zinc-900/60 border border-zinc-800/80 hover:border-amber-500/40 text-zinc-400 hover:text-amber-500 rounded-xl transition-all">
+                <Instagram className="w-4 h-4" />
+              </a>
+            </div>
+          )}
         </div>
 
         <div>
@@ -70,7 +75,7 @@ export default function Footer() {
         </div>
         <div className="rounded-2xl overflow-hidden border border-zinc-800">
           <iframe
-            title="نقشه موقعیت banad barber"
+            title={`نقشه موقعیت ${SHOP_NAME}`}
             src={`https://maps.google.com/maps?q=${LAT},${LNG}&z=17&output=embed`}
             className="w-full h-64 md:h-80"
             style={{ border: 0, filter: 'grayscale(0.4) invert(0.9) hue-rotate(180deg)' }}
@@ -93,8 +98,12 @@ export default function Footer() {
       </div>
 
       <div className="max-w-7xl mx-auto border-t border-zinc-900/60 mt-12 pt-6 text-center text-[10px] text-zinc-600 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <p>© {toPersianDigits(currentYear)} banad barber. تمامی حقوق مادی و معنوی محفوظ است.</p>
+        <p>© {toPersianDigits(currentYear)} {SHOP_NAME}. تمامی حقوق مادی و معنوی محفوظ است.</p>
         <div className="flex items-center gap-4">
+          {/* لینکِ ورودِ مدیریت عمداً نگه داشته شد: آدرسِ /admin به‌هرحال حدس‌زدنی است و
+              امنیت را رمز تأمین می‌کند نه پنهان‌بودنِ مسیر — ولی نبودش برای صاحبِ مجموعه
+              یعنی راهِ ورودِ در دسترسی ندارد. (میان‌برِ مانیفست اما حذف شد، چون آن روی
+              گوشیِ *مشتری‌ها* هم ظاهر می‌شد.) */}
           <a href="/admin" className="text-zinc-700 hover:text-amber-500 transition-colors">پنل مدیریت</a>
           <p className="text-zinc-700">طراحی شده با تم دارک مینیمال جهت رزرو نوبت آنلاین سریع</p>
         </div>

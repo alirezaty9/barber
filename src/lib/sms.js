@@ -34,6 +34,13 @@ const OTP_TEMPLATE = process.env.SMS_OTP_TEMPLATE || '';
 // ── Provider: console (توسعه) ─────────────────────────────────
 // هیچ پیامکِ واقعی نمی‌فرستد؛ فقط لاگ می‌کند. کد در لاگ دیده می‌شود تا تست کنی.
 async function viaConsole({ phone, message }) {
+  // 🔴 در پروداکشن این provider «موفقیت» برنمی‌گرداند.
+  // تله‌ای که می‌بندد: روزی که پنلِ پیامک خریده شود و NEXT_PUBLIC_SMS_ENABLED روشن شود ولی
+  // SMS_PROVIDER یادش برود، همه‌ی پیامک‌ها بی‌صدا فقط لاگ می‌شدند و اپ فکر می‌کرد ارسال شده —
+  // یعنی مشتری کدِ تأییدِ لغو نمی‌گرفت و هیچ خطایی هم جایی دیده نمی‌شد.
+  if (process.env.NODE_ENV === 'production') {
+    return { ok: false, error: 'SMS_PROVIDER روی «console» است؛ پنلِ پیامکِ واقعی تنظیم نشده.' };
+  }
   log.info(`SMS → ${phone}: ${message}`);
   return { ok: true, simulated: true };
 }

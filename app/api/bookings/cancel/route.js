@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { cancelSchema } from '@/lib/validation';
 import { refundPayment } from '@/lib/zarinpal';
 import { ok, parseBody, notFound, conflict, badRequest, serverError, tooManyRequests, serviceUnavailable, resolveCancelPatch } from '@/lib/api-helpers';
+import { isWithinCancelWindow, CANCEL_TOO_LATE_MESSAGE } from '@/lib/cancel-policy';
 import { hashOtp, OTP_MAX_ATTEMPTS } from '@/lib/otp';
 import { SMS_ENABLED, SMS_DISABLED_MESSAGE } from '@/lib/features';
 import { rateLimit, clientIp } from '@/lib/rate-limit';
@@ -27,6 +28,9 @@ export async function POST(request) {
     const booking = await prisma.booking.findUnique({ where: { code: data.code.trim() } });
     if (!booking) return notFound('نوبتی با این کد یافت نشد.');
     if (booking.status === 'cancelled') return conflict('این نوبت قبلاً لغو شده است.');
+    // همان مهلتِ مسیرِ درخواستِ کد، اینجا هم تکرار می‌شود: بینِ گرفتنِ کد و فرستادنش ممکن
+    // است نیمه‌شب رد شده باشد و نوبت به «امروز» تبدیل شود.
+    if (!isWithinCancelWindow(booking)) return conflict(CANCEL_TOO_LATE_MESSAGE);
 
     // ── راستی‌آزماییِ کدِ تأییدِ دومرحله‌ای ──
     if (!booking.cancelOtpHash || !booking.cancelOtpExpiresAt) {
@@ -58,8 +62,10 @@ export async function POST(request) {
       // اگر استردادِ واقعی ناموفق بود، وضعیت را «در انتظار استرداد» بگذار نه «مسترد»،
       // تا سیستم دروغ نگوید پول برگشته.
       if (!refund.ok) {
+        // مبلغ هم صفر می‌شود: پولی برنگشته، پس نباید در داشبورد «مسترد» شمرده شود.
         log.warn(`refund failed for ${booking.code}: ${refund.error || 'unknown'}`);
         patch.paymentStatus = 'refundPending';
+        patch.refundAmount = 0;
       }
     }
 

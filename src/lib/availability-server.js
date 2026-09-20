@@ -2,12 +2,17 @@ import { prisma } from './db';
 import { computeAvailability } from './availability';
 import { weekdayIndexSaturday } from './time';
 import { workDaysToArray } from './serializers';
+import { PENDING_HOLD_MS } from './constants';
 
 // مدتِ «نگه‌داشتنِ اسلات» برای رزروِ پرداخت‌نشده. رزروی که مشتری برای پرداخت ساخته ولی
 // هنوز پرداخت نکرده، فقط تا این مدت اسلات را می‌گیرد؛ بعد از آن اسلات دوباره آزاد می‌شود
 // (تا رزروهای رهاشده تقویم را برای همیشه قفل نکنند). جاروکشِ کرون (api/cron/expire-pending)
 // این رکوردهای کهنه را در دیتابیس هم به cancelled تبدیل می‌کند.
-export const PENDING_HOLD_MS = 15 * 60 * 1000; // ۱۵ دقیقه
+//
+// 📌 خودِ عدد در constants.js تعریف شده (فایلِ خالص و بدونِ وابستگی به دیتابیس)، چون صفحه‌ی
+// «قوانین و مقررات» هم همان را به مشتری اعلام می‌کند و نباید دو نسخه از آن وجود داشته باشد.
+// اینجا فقط دوباره صادر می‌شود تا مصرف‌کننده‌های سمتِ سرور مسیرِ import‌شان عوض نشود.
+export { PENDING_HOLD_MS };
 
 // زمانِ فعلی به وقتِ ایران — صریحاً و مستقل از تایم‌زونِ سرور، هر چه که باشد.
 // خروجی: { iso: 'YYYY-MM-DD', minutes: دقیقه‌ی گذشته از نیمه‌شب }
@@ -27,7 +32,7 @@ function tehranNow() {
 
 // helper سروریِ مشترکِ محاسبه‌ی موجودی — از تکرارِ همان بلوک در چند روت جلوگیری می‌کند.
 // آرایشگر، نوبت‌های فعال و بستن‌های زمانِ (blocks) همان روز را می‌خواند و اسلات‌ها را می‌سازد.
-// موجودی مستقل از خدمات است: هر نوبت دقیقاً یک اسلات (۱ ساعت) می‌گیرد.
+// موجودی مستقل از خدمات است: هر نوبت دقیقاً یک اسلات (۷۵ دقیقه) می‌گیرد.
 // قواعدِ تعطیلی: بستنِ کل‌روز، یا روزی که در workDaysِ آرایشگر نباشد.
 // پارامترِ client اختیاری است: هنگامِ ساختِ رزرو، برای جلوگیری از race باید کلاینتِ تراکنش
 // (tx) پاس داده شود تا این خواندن‌ها و INSERTِ بعدی در یک تراکنشِ Serializable باشند.
@@ -56,8 +61,14 @@ export async function resolveAvailability({ barberId, date }, client = prisma) {
   const isWorkingDay = workDays.length === 0 || workDays.includes(weekdayIndexSaturday(date));
 
   // اگر روزِ انتخابی «امروزِ ایران» است، ساعت‌های گذشته را غیرفعال کن.
+  //
+  // 🔴 و اگر روزِ انتخابی از امروز هم عقب‌تر است، *همه‌ی* ساعت‌ها گذشته‌اند. قبلاً برای هر روزی
+  // جز امروز مقدارِ -1 («بدونِ محدودیتِ زمانی») ست می‌شد، پس یک تاریخِ گذشته همه‌ی اسلات‌هایش
+  // را «آزاد» نشان می‌داد. این لایه‌ی دومِ دفاع است؛ لایه‌ی اول اسکیمای ورودی است.
+  // با ست‌کردنِ nowMinutes روی «انتهای روز»، شرطِ موجودِ «گذشته» طبیعی همه را می‌گیرد.
   const now = tehranNow();
-  const nowMinutes = date === now.iso ? now.minutes : -1;
+  const END_OF_DAY_MIN = 24 * 60;
+  const nowMinutes = date === now.iso ? now.minutes : date < now.iso ? END_OF_DAY_MIN : -1;
 
   const { dayOff, slots } = computeAvailability({ existing, blocks, nowMinutes, isWorkingDay });
   return { barber, dayOff, slots };

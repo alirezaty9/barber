@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { verifyPayment } from '@/lib/zarinpal';
+import { PENDING_HOLD_MS } from '@/lib/constants';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('payment:verify');
@@ -28,28 +29,55 @@ export async function GET(request) {
       headers: { Location: `/payment/result?${params}` },
     });
 
+  // آیا زرین‌پال پرداخت را تأیید کرده؟ اگر بله، دیگر حق نداریم به مشتری بگوییم «مبلغی کسر
+  // نشد» — حتی اگر ثبتِ نوبت شکست بخورد. این پرچم همان تفکیک را ممکن می‌کند.
+  let paymentTaken = false;
+  // بیرون از try نگه داشته می‌شود تا اگر خطایی افتاد، بتوانیم در لاگ و در آدرسِ بازگشت
+  // بگوییم «کدامِ نوبت» — وگرنه تنها ردِّ پولِ گرفته‌شده گم می‌شود.
+  let booking = null;
+
   // تمامِ منطق داخلِ try است تا یک خطای DB/شبکه هم به صفحه‌ی نتیجه ری‌دایرکت شود، نه ۵۰۰ خام.
   try {
     if (!authority) {
       return resultUrl('status=failed');
     }
 
-    const booking = await prisma.booking.findFirst({ where: { paymentAuthority: authority } });
+    booking = await prisma.booking.findFirst({ where: { paymentAuthority: authority } });
     if (!booking) {
       return resultUrl('status=failed');
     }
 
-    // اگر قبلاً پرداخت‌شده بود (رفرش صفحه)، مستقیم موفق برگرد.
+    // اگر قبلاً پرداخت‌شده بود (رفرش صفحه)، مستقیم موفق برگرد — مگر اینکه نوبت در این
+    // فاصله لغو شده باشد (مثلاً آرایشگاه لغوش کرده و چون استرداد خاموش است وضعیتِ پرداخت
+    // همان «پرداخت‌شده» مانده). در آن حالت «موفق» دروغ است.
     if (booking.paymentStatus === 'paid') {
-      return resultUrl(`status=success&code=${booking.code}`);
+      const outcome = booking.status === 'cancelled' ? 'needs_review' : 'success';
+      return resultUrl(`status=${outcome}&code=${booking.code}`);
+    }
+
+    // 🔴 قفلِ ضدِ replay — این مسیر یک GETِ عمومی و بی‌نهایت تکرارشدنی است.
+    //
+    // اگر روی این رزرو قبلاً یک تصمیمِ مالی ثبت شده باشد (مسترد شد، در انتظار استرداد، یا
+    // پرداخت ناموفق بود)، بازکردنِ دوباره‌ی همین آدرس نباید چیزی را عوض کند. بدونِ این قید
+    // این اتفاق می‌افتاد: نوبتی که لغو و پولش مسترد شده بود، با یک بار بازکردنِ لینکِ بازگشت
+    // دوباره «تایید شده و پرداخت‌شده» می‌شد — چون درگاه برای تراکنشِ تأییدشده کدِ «قبلاً
+    // تأیید شده» می‌دهد که ما آن را هم موفق می‌شماریم. یعنی هم پول برگشته بود، هم نوبت داده می‌شد.
+    if (booking.paymentStatus !== 'unpaid') {
+      log.warn(`verify replay ignored for ${booking.code} (paymentStatus=${booking.paymentStatus})`);
+      return resultUrl(`status=needs_review&code=${booking.code}`);
     }
 
     // کاربر پرداخت را لغو کرد یا ناموفق بود.
+    // ⚠️ فقط رزروی که هنوز در حالتِ «منتظرِ پرداخت» است باطل می‌شود. این مسیر عمومی است
+    // (بانک باید بتواند صدایش بزند) پس بدونِ این قید، هر کسی که یک Authority را بداند
+    // می‌توانست با Status=NOK نوبتِ دیگری را باطل کند.
     if (status !== 'OK') {
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: { paymentStatus: 'failed', status: 'cancelled' },
-      });
+      if (booking.status === 'pending' && booking.paymentStatus === 'unpaid') {
+        await prisma.booking.update({
+          where: { id: booking.id },
+          data: { paymentStatus: 'failed', status: 'cancelled' },
+        });
+      }
       return resultUrl(`status=failed&code=${booking.code}`);
     }
 
@@ -59,27 +87,109 @@ export async function GET(request) {
     // خودِ amount را برنمی‌گرداند (paidAmount=null)؛ در آن حالت به تأییدِ خودِ زرین‌پال تکیه می‌کنیم
     // و فقط وقتی رد می‌کنیم که درگاه «صریحاً» مبلغی متفاوت با رزرو برگردانده باشد (ضدِ دستکاری).
     const verify = await verifyPayment({ amount: booking.amount, authority });
-    const amountMismatch = verify.paidAmount != null && verify.paidAmount !== booking.amount;
+    // مقایسه‌ی مبلغ نسبت به واحد بردبار است: درخواست با واحدِ «تومان» فرستاده می‌شود ولی
+    // بعضی پاسخ‌های درگاه مبلغ را به «ریال» (ده برابر) برمی‌گردانند. اگر این را تفاوت حساب
+    // کنیم، یک پرداختِ کاملاً موفق را «مغایرتِ مبلغ» می‌بینیم و نوبت را لغو می‌کنیم.
+    const paidAmount = verify.paidAmount;
+    const amountMismatch =
+      paidAmount != null && paidAmount !== booking.amount && paidAmount !== booking.amount * 10;
+
+    if (verify.ok) paymentTaken = true;
+
     if (verify.ok && !amountMismatch) {
-      // پرداخت موفق ⇒ نوبت خودکار «تایید» می‌شود (دیگر نیازی به تاییدِ دستیِ آرایشگر نیست).
+      // 🔴 پول گرفته شده. قبل از «تایید»، مطمئن شو اسلات هنوز مالِ همین رزرو است.
+      // سناریوی واقعی: پرداختِ مشتری طول کشیده، نگه‌داشتِ اسلات تمام شده و ساعت به نفرِ
+      // دیگری رسیده. رفتارِ قبلی: خطای ایندکسِ یکتا به catch می‌افتاد و به مشتری صفحه‌ی
+      // «پرداخت ناموفق — مبلغی کسر نشد» نشان داده می‌شد، در حالی که پولش رفته بود.
+      // (اگر آرایشگرِ رزرو به هر دلیلی خالی باشد، این چک معنا ندارد و رد می‌شود؛ وگرنه شرطِ
+      // «آرایشگرِ خالی» به رکوردهای بی‌ربطِ دیگری هم می‌خورد.)
+      //
+      // ⚠️ «رزروِ فعالِ دیگر» باید دقیقاً همان تعریفی باشد که محاسبه‌ی موجودی به کار می‌برد،
+      // وگرنه این چک سخت‌گیرتر از واقعیت می‌شود: رزروِ پرداخت‌نشده‌ای که مهلتِ نگه‌داشتش
+      // تمام شده، اسلات را اشغال نمی‌کند و نباید مشتریِ پول‌داده را بیرون بیندازد. بدونِ این
+      // قید این حالت رخ می‌داد: مشتری B اسلات را می‌گرفت و پرداخت نمی‌کرد، مشتری A که پول
+      // داده بود رد می‌شد، و در نهایت اسلات **خالی** می‌ماند و A هم نوبت نداشت.
+      const staleCutoff = new Date(Date.now() - PENDING_HOLD_MS);
+      const conflict = booking.barberId
+        ? await prisma.booking.findFirst({
+            where: {
+              barberId: booking.barberId,
+              date: booking.date,
+              timeSlot: booking.timeSlot,
+              status: { not: 'cancelled' },
+              id: { not: booking.id },
+              // رزروِ پرداخت‌نشده‌ی کهنه «فعال» شمرده نمی‌شود.
+              NOT: {
+                status: 'pending',
+                paymentStatus: 'unpaid',
+                createdAt: { lt: staleCutoff },
+              },
+            },
+            select: { id: true },
+          })
+        : null;
+
+      if (!conflict) {
+        try {
+          // پرداخت موفق ⇒ نوبت خودکار «تایید» می‌شود (نیازی به تاییدِ دستیِ آرایشگر نیست).
+          await prisma.booking.update({
+            where: { id: booking.id },
+            data: { paymentStatus: 'paid', status: 'confirmed', paymentRefId: verify.refId || null },
+          });
+          return resultUrl(`status=success&code=${booking.code}`);
+        } catch (e) {
+          // P2002 = ایندکسِ یکتای اسلات؛ یعنی دقیقاً در همین لحظه ساعت به رزروِ دیگری رسید.
+          if (e?.code !== 'P2002') throw e;
+        }
+      }
+
+      // اسلات از دست رفته ولی پول گرفته شده: وضعیت را صادقانه ثبت کن تا نه در آمار گم شود
+      // و نه مشتری پیامِ دروغ ببیند. آرایشگاه باید دستی تعیین تکلیف کند (استرداد یا ساعتِ دیگر).
       await prisma.booking.update({
         where: { id: booking.id },
-        data: { paymentStatus: 'paid', status: 'confirmed', paymentRefId: verify.refId || null },
+        data: {
+          status: 'cancelled',
+          paymentStatus: 'refundPending',
+          paymentRefId: verify.refId || null,
+        },
       });
-      return resultUrl(`status=success&code=${booking.code}`);
+      log.error(`slot lost after successful payment — code=${booking.code}`);
+      return resultUrl(`status=slot_lost&code=${booking.code}`);
     }
 
     if (verify.ok && amountMismatch) {
-      log.error(`amount mismatch for ${booking.code}: paid=${verify.paidAmount} expected=${booking.amount}`);
+      // پول گرفته شده ولی مبلغ نمی‌خواند ⇒ نیازِ بررسیِ دستی، نه «ناموفق».
+      //
+      // ⚠️ status هم به cancelled می‌رود. بدونِ آن، رکورد در حالتِ pending می‌ماند و چون
+      // paymentStatus دیگر unpaid نیست، نه جاروکشِ کرون و نه آزادسازیِ لحظه‌ای سراغش
+      // نمی‌روند — یعنی آن ساعت **برای همیشه** قفل می‌شد.
+      log.error(
+        `amount mismatch for ${booking.code}: paid=${paidAmount} expected=${booking.amount} refId=${verify.refId || '-'}`,
+      );
+      await prisma.booking.update({
+        where: { id: booking.id },
+        data: { status: 'cancelled', paymentStatus: 'refundPending', paymentRefId: verify.refId || null },
+      });
+      return resultUrl(`status=needs_review&code=${booking.code}`);
     }
 
+    // تأییدِ درگاه ناموفق بود ⇒ هیچ پولی گرفته نشده؛ رزروِ موقت آزاد می‌شود.
     await prisma.booking.update({
       where: { id: booking.id },
       data: { paymentStatus: 'failed', status: 'cancelled' },
     });
     return resultUrl(`status=failed&code=${booking.code}`);
   } catch (e) {
-    log.error('verify failed', e);
-    return resultUrl('status=failed');
+    // 🔴 اینجا بدترین حالتِ ممکن است: ممکن است پول گرفته شده باشد ولی ثبتش نشده. پس هر
+    // سرنخی که برای پیداکردنِ تراکنش لازم است باید در لاگ بماند — کدِ رهگیری و شناسه‌ی
+    // تراکنشِ درگاه. قبلاً فقط خودِ خطا لاگ می‌شد و هیچ راهی برای ردیابی نمی‌ماند.
+    log.error(
+      `verify failed — code=${booking?.code || '-'} authority=${authority || '-'} paymentTaken=${paymentTaken}`,
+      e,
+    );
+    // اگر درگاه پرداخت را تأیید کرده بود ولی ثبتش شکست خورد، پیامِ «مبلغی کسر نشد» دروغ است.
+    const outcome = paymentTaken ? 'needs_review' : 'failed';
+    // کدِ رهگیری هم همراه می‌رود تا مشتری بتواند موقعِ تماس اعلامش کند.
+    return resultUrl(booking?.code ? `status=${outcome}&code=${booking.code}` : `status=${outcome}`);
   }
 }

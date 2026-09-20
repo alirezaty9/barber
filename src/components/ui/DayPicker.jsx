@@ -25,6 +25,9 @@ export default function DayPicker({ value, onChange, days = 8 }) {
           <button
             key={iso}
             type="button"
+            // مثلِ دکمه‌های ساعت در ویزارد: بدونِ این، کاربرِ صفحه‌خوان نمی‌فهمد کدام روز
+            // انتخاب شده (تفاوت فقط با رنگ نشان داده می‌شد).
+            aria-pressed={selected}
             onClick={() => onChange(iso)}
             className={cn(
               'p-3 rounded-xl border text-center transition-all',

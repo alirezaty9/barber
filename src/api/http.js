@@ -8,10 +8,21 @@ export async function http(path, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
   const start = performance.now();
 
-  const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-    ...options,
-  });
+  // شکستِ خودِ fetch (قطعیِ اینترنت، DNS، تایم‌اوت) خطای انگلیسیِ مرورگر می‌دهد —
+  // مثلِ «Failed to fetch» — و این پیام مستقیم داخلِ توستِ مشتری می‌نشست. اینجا به یک
+  // پیامِ فارسیِ قابل‌فهم ترجمه می‌شود تا مشتری بداند مشکل از اینترنتِ خودش است.
+  let res;
+  try {
+    res = await fetch(path, {
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      ...options,
+    });
+  } catch (e) {
+    log.error(`${method} ${path} → network error`, e?.message);
+    const error = new Error('ارتباط با سرور برقرار نشد. اینترنت خود را بررسی کنید و دوباره تلاش کنید.');
+    error.isNetwork = true;
+    throw error;
+  }
 
   let body = null;
   try {

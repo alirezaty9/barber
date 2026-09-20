@@ -10,8 +10,22 @@
 
 const buckets = new Map();
 
+// هرس‌کردنِ سطل‌های منقضی. بدونِ این، کلیدِ هر IP/شماره‌ای که یک‌بار دیده شده تا ابد در حافظه
+// می‌ماند و کسی که با هدرهای ساختگی کلیدهای تازه می‌سازد می‌تواند حافظه را آرام‌آرام پر کند.
+// هر ۵ دقیقه یک‌بار و فقط روی سطل‌هایی که پنجره‌شان تمام شده اجرا می‌شود (هزینه‌ی ناچیز).
+const SWEEP_EVERY_MS = 5 * 60 * 1000;
+let lastSweep = 0;
+function sweep(now) {
+  if (now - lastSweep < SWEEP_EVERY_MS) return;
+  lastSweep = now;
+  for (const [k, v] of buckets) {
+    if (now > v.reset) buckets.delete(k);
+  }
+}
+
 export function rateLimit({ key, limit, windowMs }) {
   const now = Date.now();
+  sweep(now);
   const b = buckets.get(key);
   if (!b || now > b.reset) {
     buckets.set(key, { count: 1, reset: now + windowMs });

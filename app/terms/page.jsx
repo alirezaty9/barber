@@ -1,12 +1,14 @@
 import Link from 'next/link';
 import { Scissors, FileText, CreditCard, CalendarClock, XCircle, ShieldCheck, Phone, MapPin } from 'lucide-react';
 import { SHOP_NAME, SHOP_ADDRESS, SHOP_PHONE_LINK, SHOP_PHONE_DISPLAY, SHOP_HOURS } from '@/lib/shop';
-import { TIME_SLOTS, SLOT_STEP_MIN } from '@/lib/constants';
+import { TIME_SLOTS, SLOT_STEP_MIN, PENDING_HOLD_MINUTES } from '@/lib/constants';
 import { toPersianDigits } from '@/lib/persian';
+import { SMS_ENABLED } from '@/lib/features';
+import BrandWordmark from '@/features/landing/BrandWordmark';
 
 export const metadata = {
-  title: 'قوانین و مقررات | banad barber',
-  description: 'شرایط رزرو نوبت، پرداخت آنلاین، لغو نوبت و حریم خصوصی در سامانه رزرو banad barber',
+  title: `قوانین و مقررات | ${SHOP_NAME}`,
+  description: `شرایط رزرو نوبت، پرداخت آنلاین، لغو نوبت و حریم خصوصی در سامانه رزرو ${SHOP_NAME}`,
 };
 
 // صفحه‌ی «قوانین و مقررات» — یکی از صفحاتی که درگاه‌های پرداخت (زرین‌پال) هنگامِ بررسیِ
@@ -24,9 +26,7 @@ export default function TermsPage() {
           <div className="p-2.5 bg-gradient-to-br from-amber-500 to-amber-700 rounded-lg shadow-lg">
             <Scissors className="w-5 h-5 text-black" />
           </div>
-          <span dir="ltr" className="font-sans font-extrabold text-xl tracking-wider text-amber-500">
-            banad <span className="text-white">barber</span>
-          </span>
+          <BrandWordmark className="font-sans font-extrabold text-xl tracking-wider text-amber-500" accentClassName="text-white" />
         </Link>
 
         <div className="flex flex-col items-center text-center mb-10">
@@ -64,23 +64,38 @@ export default function TermsPage() {
             </li>
             <li>پرداخت از طریق درگاه بانکی انجام می‌شود و اطلاعات کارت هرگز در این سایت ذخیره یا مشاهده نمی‌شود.</li>
             <li>
-              نوبت تنها پس از تأیید موفقیت پرداخت توسط درگاه، قطعی و «تایید شده» می‌شود و کد رهگیری
+              نوبت تنها پس از تأیید موفقیت پرداخت توسط درگاه، قطعی و «تأیید شده» می‌شود و کد رهگیری
               به کاربر نمایش داده می‌شود.
             </li>
             <li>
               در صورت انصراف یا ناموفق بودن پرداخت، نوبت ثبت نمی‌شود و آن بازه‌ی زمانی مجدداً برای
               دیگران آزاد می‌گردد.
             </li>
+            {/* این عدد از همان ثابتی می‌آید که خودِ سیستم با آن اسلات را نگه می‌دارد.
+                قبلاً دستی «۱۵ دقیقه» نوشته شده بود و وقتی مدت به ۲۵ دقیقه تغییر کرد، این
+                جمله بی‌صدا تبدیل به یک ادعای نادرست به مشتری شد. */}
             <li>
-              اگر کاربر وارد درگاه شود ولی پرداخت را کامل نکند، نوبتِ نیمه‌تمام حداکثر تا
-              ۱۵ دقیقه نگه داشته و سپس آزاد می‌شود.
+              اگر کاربر وارد درگاه شود ولی پرداخت را کامل نکند، نوبتِ نیمه‌تمام حداکثر تا{' '}
+              {toPersianDigits(String(PENDING_HOLD_MINUTES))} دقیقه نگه داشته و سپس آزاد می‌شود.
             </li>
           </Section>
 
           <Section icon={XCircle} title="۳. لغو یا تغییر نوبت">
-            <li>
-              در حال حاضر امکان لغو نوبت به‌صورت آنلاین در سایت فراهم نیست.
-            </li>
+            {/* مهلتِ لغو یک قاعده‌ی کسب‌وکاری است و باید در قوانین هم نوشته شود، نه فقط در کد.
+                ⚠️ متن به وضعیتِ واقعیِ لغوِ آنلاین گره خورده: تا وقتی آن قابلیت خاموش است،
+                گفتنِ «تا روزِ قبل ممکن است» با بندِ بعدی («آنلاین ممکن نیست») تناقض می‌ساخت —
+                و این همان صفحه‌ای است که درگاهِ پرداخت هنگامِ بررسی می‌خواند. */}
+            {SMS_ENABLED ? (
+              <li>
+                لغو نوبت <b>فقط تا روزِ قبل از نوبت</b> ممکن است. در روزِ خودِ نوبت، نوبت قابل
+                لغو نیست و باید تلفنی هماهنگ شود.
+              </li>
+            ) : (
+              <li>
+                در حال حاضر امکان لغو نوبت به‌صورت آنلاین در سایت فراهم نیست. (پس از فعال‌شدنِ
+                این قابلیت، مهلتِ لغو تا <b>روزِ قبل از نوبت</b> خواهد بود.)
+              </li>
+            )}
             <li>
               برای هرگونه لغو، تغییر یا جابه‌جایی نوبت، لازم است با شماره‌ی تماس مجموعه هماهنگ
               کنید و کد رهگیری خود را اعلام نمایید.

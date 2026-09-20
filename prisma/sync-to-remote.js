@@ -31,6 +31,23 @@ if (!SOURCE_URL) {
   process.exit(1);
 }
 
+// 🔴 محافظِ اجباری در برابرِ اجرای سهوی.
+//
+// این اسکریپت مقصد را **کاملاً پاک می‌کند**. برادرِ دوقلویش (sync-from-remote) محافظ داشت
+// ولی این یکی فقط یک کامنتِ هشدار داشت — و کامنت جلوی هیچ اجرایی را نمی‌گیرد. یک دستورِ
+// تک‌خطی کافی بود تا همه‌ی رزروهای واقعیِ مشتری‌ها از بین برود.
+//
+// حالا برای اجرا باید نامِ میزبانِ مقصد را صریح تأیید کنی:
+//     CONFIRM_WIPE="<hostname مقصد>" TARGET_DATABASE_URL="..." node prisma/sync-to-remote.js
+const targetHost = (() => {
+  try { return new URL(TARGET_URL).hostname; } catch { return ''; }
+})();
+if (process.env.CONFIRM_WIPE !== targetHost || !targetHost) {
+  console.error('❌ این دستور همه‌ی داده‌های دیتابیسِ مقصد را پاک می‌کند.');
+  console.error(`   برای تأیید، نامِ میزبانِ مقصد را هم بده:  CONFIRM_WIPE="${targetHost || '<hostname>'}"`);
+  process.exit(1);
+}
+
 const source = new PrismaClient({ datasources: { db: { url: SOURCE_URL } } });
 const target = new PrismaClient({ datasources: { db: { url: TARGET_URL } } });
 

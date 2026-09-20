@@ -5,18 +5,33 @@ import { resolveServices } from '@/lib/services-server';
 import { requestPayment } from '@/lib/zarinpal';
 import { resolveRequestBaseUrl } from '@/lib/site';
 import { createLogger } from '@/lib/logger';
-import { ok, parseBody, badRequest, serverError, generateBookingCode, ApiError } from '@/lib/api-helpers';
+import { rateLimit, clientIp } from '@/lib/rate-limit';
+import { ok, parseBody, badRequest, serverError, tooManyRequests, generateBookingCode, ApiError } from '@/lib/api-helpers';
 
 const log = createLogger('payment:request');
 
 // POST — مسیر عمومیِ رزرو با پرداخت آنلاین:
 // ۱) اعتبارسنجی و بررسی تداخل، ۲) ساخت رزرو pending/unpaid، ۳) شروع پرداخت زرین‌پال.
 export async function POST(request) {
+  // ── سقفِ نرخ (ضدِ پرکردنِ تقویم و ضدِ آلوده‌کردنِ آمارِ درگاه) ──
+  // این گران‌ترین مسیرِ عمومیِ اپ است: هر فراخوانی هم یک رکورد در دیتابیس می‌سازد و هم یک
+  // تراکنشِ واقعی در زرین‌پال. بی‌سقف، یک اسکریپتِ ساده می‌توانست همه‌ی ساعت‌های ۸ روزِ آینده
+  // را با رزروِ پرداخت‌نشده بگیرد و مشتریِ واقعی هیچ‌وقت ساعتِ آزاد نبیند.
+  const ipLimit = rateLimit({ key: `pay:${clientIp(request)}`, limit: 5, windowMs: 10 * 60_000 });
+  if (!ipLimit.ok) return tooManyRequests('درخواست‌های زیاد. چند دقیقه بعد دوباره تلاش کنید.');
+
   const { data, response } = await parseBody(request, bookingSchema);
   if (response) return response;
 
+  // سقفِ دوم روی شماره‌ی موبایل: جلوی کسی را می‌گیرد که با تغییرِ IP سقفِ بالا را دور بزند،
+  // و هم‌زمان مانعِ ساختنِ چند رزروِ نیمه‌تمام با یک شماره می‌شود.
+  const phoneLimit = rateLimit({ key: `pay-phone:${data.customerPhone}`, limit: 3, windowMs: 10 * 60_000 });
+  if (!phoneLimit.ok) {
+    return tooManyRequests('برای این شماره به‌تازگی چند رزرو ثبت شده. کمی بعد تلاش کنید.');
+  }
+
   try {
-    // یک یا چند خدمت → مجموع قیمت/مدت و برچسبِ نمایش.
+    // یک یا چند خدمت (تا سقفِ اسکیما، بی‌تکرار) → مجموع قیمت و برچسبِ نمایش.
     const svc = await resolveServices(data.serviceIds);
     if (svc.error) return badRequest(svc.error);
 
@@ -45,7 +60,10 @@ export async function POST(request) {
         where: { id: booking.id },
         data: { status: 'cancelled', paymentStatus: 'failed' },
       });
-      return serverError(payment.error || 'اتصال به درگاه پرداخت ناموفق بود.');
+      // پیامِ خامِ درگاه فقط در لاگِ سرور می‌ماند؛ به مشتری یک پیامِ فارسیِ ثابت داده می‌شود
+      // (پیامِ خامِ طرفِ سوم نه برای مشتری معنا دارد و نه باید بیرون برود).
+      log.error(`gateway request failed: ${payment.error || 'unknown'}`);
+      return serverError('اتصال به درگاه پرداخت ناموفق بود. کمی بعد دوباره تلاش کنید.');
     }
 
     await prisma.booking.update({

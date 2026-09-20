@@ -56,15 +56,21 @@ export function useDaySchedule(barberId, date, enabled = true) {
   });
 }
 
-// ثبت نوبت (مشتری یا ادمین)
+// هر تغییری در نوبت‌ها روی هر سه نمای وابسته اثر دارد: فهرستِ نوبت‌ها، ساعت‌های آزاد، و
+// «برنامه‌ی روزانه». قبلاً کلیدِ برنامه‌ی روزانه در هیچ‌کدام از mutationها باطل نمی‌شد، پس
+// بعد از ثبت یا لغوِ یک نوبت، آن صفحه تا ۳۰ ثانیه وضعیتِ قدیمی را نشان می‌داد.
+function invalidateBookingViews(qc) {
+  qc.invalidateQueries({ queryKey: ['bookings'] });
+  qc.invalidateQueries({ queryKey: ['availability'] });
+  qc.invalidateQueries({ queryKey: ['day-schedule'] });
+}
+
+// ثبتِ نوبتِ دستی (فقط ادمین)
 export function useCreateBooking() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data) => http('/api/bookings', { method: 'POST', body: JSON.stringify(data) }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['bookings'] });
-      qc.invalidateQueries({ queryKey: ['availability'] });
-    },
+    onSuccess: () => invalidateBookingViews(qc),
   });
 }
 
@@ -75,13 +81,13 @@ export function useRequestPayment() {
   });
 }
 
-// تغییر وضعیت نوبت (ادمین)
+// تغییر وضعیت نوبت (ادمین) — وضعیتِ نوبت و/یا وضعیتِ پرداخت (تسویه‌ی دستیِ استرداد).
 export function useUpdateBookingStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, status }) =>
-      http(`/api/bookings/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['bookings'] }),
+    mutationFn: ({ id, ...patch }) =>
+      http(`/api/bookings/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+    onSuccess: () => invalidateBookingViews(qc),
   });
 }
 
@@ -90,7 +96,7 @@ export function useDeleteBooking() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id) => http(`/api/bookings/${id}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['bookings'] }),
+    onSuccess: () => invalidateBookingViews(qc),
   });
 }
 

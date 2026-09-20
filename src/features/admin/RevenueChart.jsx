@@ -33,11 +33,25 @@ export default function RevenueChart({ data }) {
         })}
         <path d={area} fill="url(#rev-fill)" />
         <path d={line} fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        {/* با یک نقطه (بازه‌ی «امروز») مسیرِ خط فقط یک دستورِ M است و هیچ پیکسلی رسم نمی‌شود؛
+            نتیجه‌اش یک کادرِ کاملاً خالی بود در حالی که عددِ درآمد بالای آن غیرِصفر بود. */}
+        {n === 1 && <circle cx={px(0)} cy={py(data[0].net)} r="4" fill="#f59e0b" />}
       </svg>
 
-      <div className="flex justify-between mt-2">
+      {/* 🔴 برچسب‌ها با موقعیتِ واقعیِ همان نقطه روی محور تراز می‌شوند. قبلاً داخلِ یک
+          flex justify-between بودند که آن‌ها را با فاصله‌ی *مساوی* پخش می‌کرد، در حالی که
+          اندیس‌هایشان فاصله‌ی مساوی ندارند (…۲۰، ۲۵، ۲۹) — پس هرچه به راست می‌رفتیم انحراف
+          بیشتر می‌شد و قله‌ی درآمد به روزِ اشتباهی نسبت داده می‌شد. */}
+      <div className="relative h-4 mt-2">
         {ticks.map(({ label, i }) => (
-          <span key={i} className="text-[10px] text-zinc-500 tabular-nums">{label}</span>
+          <span
+            key={i}
+            className="absolute top-0 text-[10px] text-zinc-500 tabular-nums whitespace-nowrap -translate-x-1/2"
+            // لبه‌ها محدود می‌شوند تا اولین و آخرین برچسب نیمی از خودشان را بیرونِ کادر نگذارند.
+            style={{ left: `${Math.min(97, Math.max(3, (px(i) / W) * 100))}%` }}
+          >
+            {label}
+          </span>
         ))}
       </div>
 

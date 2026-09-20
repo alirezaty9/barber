@@ -35,9 +35,17 @@ export async function GET(request) {
     if (error) return badRequest(error);
 
     // رزروهای فعالِ همان روز با جزئیات، برای چسباندن به اسلاتِ اشغال‌شده.
+    // فقط نامِ خدمت لازم است (برای ساختِ برچسب). کشیدنِ کلِ رابطه، ستونِ عکس را هم می‌آورد
+    // که می‌تواند یک data URLِ چندصدکیلوبایتی باشد و در پاسخِ هر روز چند بار تکرار شود.
     const bookings = await prisma.booking.findMany({
       where: { barberId, date, status: { not: 'cancelled' } },
-      include: { service: true, service2: true },
+      select: {
+        id: true, code: true, customerName: true, customerPhone: true,
+        timeSlot: true, status: true, paymentStatus: true, amount: true,
+        servicesLabel: true,
+        service: { select: { name: true } },
+        service2: { select: { name: true } },
+      },
       orderBy: { timeSlot: 'asc' },
     });
     const byTime = new Map(bookings.map((b) => [b.timeSlot, b]));

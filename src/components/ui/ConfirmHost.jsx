@@ -17,7 +17,7 @@ export default function ConfirmHost() {
   const {
     title = 'آیا مطمئن هستید؟',
     description = 'این عملیات قابل بازگشت نیست.',
-    confirmText = 'تایید',
+    confirmText = 'تأیید',
     cancelText = 'انصراف',
     danger = false,
   } = options;

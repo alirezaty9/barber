@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ShieldCheck, LogOut, LayoutDashboard, CalendarClock, PlusCircle, Settings2, CalendarOff, Home } from 'lucide-react';
 import { adminLogout } from '@/api/admin';
+import { SHOP_NAME } from '@/lib/shop';
 import { cn } from '@/lib/utils';
 
 const TABS = [
@@ -38,7 +39,7 @@ export default function AdminNav() {
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-base font-extrabold text-white">پنل مدیریت banad barber</h1>
+            <h1 className="text-base font-extrabold text-white">پنل مدیریت {SHOP_NAME}</h1>
             <p className="text-[10px] text-zinc-500">مدیریت نوبت‌ها، خدمات و آرایشگران</p>
           </div>
         </div>

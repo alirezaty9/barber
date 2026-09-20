@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db';
 import { TrendingUp, Hourglass, Receipt, Clock, Scissors, XCircle, PieChart } from 'lucide-react';
 import { formatPrice, toPersianDigits, formatJalaliDate } from '@/lib/persian';
 import { servicesLabelOf } from '@/lib/serializers';
-import { TIME_SLOTS } from '@/lib/constants';
+import { TIME_SLOTS, STATUS_LABELS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import DashboardPeriod from '@/features/admin/DashboardPeriod';
 import RevenueChart from '@/features/admin/RevenueChart';
@@ -41,26 +41,42 @@ function jalaliYM(iso) {
   _ymCache.set(iso, val);
   return val;
 }
-const netOf = (b) => (b.paymentStatus === 'paid' || b.paymentStatus === 'refunded' ? b.amount - (b.refundAmount || 0) : 0);
+// آیا پولِ این نوبت واقعاً دریافت شده؟ «در انتظار استرداد» هم پولش دریافت شده و هنوز
+// برنگشته، پس باید دیده شود — قبلاً از همه‌ی محاسبات بیرون می‌افتاد و یک نوبتِ پرداخت‌شده
+// در هیچ‌کدام از عددهای داشبورد (نه درآمد، نه طلب، نه مسترد) شمرده نمی‌شد.
+const isReceived = (b) =>
+  b.paymentStatus === 'paid' || b.paymentStatus === 'refunded' || b.paymentStatus === 'refundPending';
+const netOf = (b) => (isReceived(b) ? b.amount - (b.refundAmount || 0) : 0);
 
 export default async function AdminDashboard({ searchParams }) {
   const sp = (await searchParams) || {};
   const period = sp.period || '30';
 
+  // «امروز» به وقتِ ایران — مبنای همه‌ی محاسبات و بازه‌ها. باید پیش از کوئری ساخته شود،
+  // چون خودِ کوئری هم برای محدودکردنِ بازه از آن استفاده می‌کند.
+  const todayIso = tehranTodayIso();
+
   // فقط ستون‌های موردنیازِ محاسبات (نه کلِ رکورد + دو join). servicesLabel اسنپ‌شاتِ نامِ
   // خدمات است، پس برای درآمدِ هر خدمت به include نیازی نیست.
+  //
+  // ⚡ محدوده‌ی خواندن: برای همه‌ی بازه‌ها جز «کل دوره» فقط ۴۰۰ روزِ گذشته خوانده می‌شود.
+  // چرا ۴۰۰؟ چون بزرگ‌ترین بازه‌ی محاسباتی «امسالِ شمسی» است (حداکثر ۳۶۶ روز) و بازه‌های
+  // روزشمار هم حداکثر ۹۰ روزند؛ ۴۰۰ روز با حاشیه هر دو را می‌پوشاند. بدونِ این قید، هر
+  // بازکردنِ داشبورد کلِ جدولِ نوبت‌ها را اسکن می‌کرد و با گذشتِ سال‌ها کندتر می‌شد.
   const all = await prisma.booking.findMany({
+    where: period === 'all' ? undefined : { date: { gte: shiftIso(todayIso, -400) } },
     select: {
-      date: true, timeSlot: true, status: true,
+      date: true, timeSlot: true, status: true, cancelledBy: true,
       paymentStatus: true, amount: true, refundAmount: true, servicesLabel: true,
     },
     orderBy: [{ date: 'asc' }, { timeSlot: 'asc' }],
   });
 
-  const todayIso = tehranTodayIso();
   const tj = jalaliYM(todayIso);
 
-  // ── نوارِ نگاه کلی (همیشه از کلِ داده) ──
+  // ── نوارِ نگاه کلی ──
+  // از کلِ دادهٔ خوانده‌شده (۴۰۰ روزِ اخیر) که سالِ شمسیِ جاری را کامل می‌پوشاند.
+  // ⚠️ اگر روزی بازه‌ی بزرگ‌تری (مثلاً «دو سالِ اخیر») اضافه شد، قیدِ ۴۰۰ روزِ کوئری هم باید بزرگ شود.
   let incToday = 0, incMonth = 0, incYear = 0;
   for (const b of all) {
     const n = netOf(b);
@@ -82,27 +98,59 @@ export default async function AdminDashboard({ searchParams }) {
   }
 
   // ── محاسبات بازه ──
-  let net = 0, refunded = 0, pending = 0, paidCount = 0, confirmed = 0, pend = 0, cancelled = 0;
+  //
+  // 🔴 تفکیکِ «لغوِ واقعی» از «پرداختِ رهاشده» — مهم‌ترین اصلاحِ این صفحه.
+  // وضعیتِ cancelled در دیتابیس برای دو چیزِ کاملاً متفاوت نوشته می‌شود:
+  //   • مشتری یا مدیریت نوبتِ ثبت‌شده‌ای را لغو کرده  ⇒ cancelledBy پر است
+  //   • مشتری وارد درگاه شده و بدونِ پرداخت برگشته   ⇒ cancelledBy خالی است
+  // قبلاً هر دو با هم «لغو» شمرده می‌شدند، پس «نرخ لغو» در واقع «نرخ انصراف در درگاه» را
+  // نشان می‌داد و صاحبِ کسب‌وکار نتیجه می‌گرفت مشتری‌هایش بدقول‌اند.
+  let net = 0, refunded = 0, pending = 0, paidCount = 0;
+  let servedNet = 0, servedCount = 0, cancelledHeld = 0;
+  let confirmed = 0, pend = 0, cancelledReal = 0, abandoned = 0;
   const perHour = {}, perService = {};
   for (const b of filtered) {
+    const isCancelled = b.status === 'cancelled';
     if (b.status === 'confirmed') confirmed++;
     else if (b.status === 'pending') pend++;
-    else if (b.status === 'cancelled') cancelled++;
+    // «رهاشده در درگاه» فقط وقتی است که پولی هم دریافت نشده باشد. نوبتی که پولش گرفته شده
+    // ولی اسلاتش از دست رفته هم cancelledBy ندارد — ولی مشتری‌اش پول داده و نباید در
+    // دسته‌ی «منصرف‌شده‌ها» بنشیند.
+    else if (isCancelled) { if (b.cancelledBy || isReceived(b)) cancelledReal++; else abandoned++; }
 
-    if (b.status !== 'cancelled') perHour[b.timeSlot] = (perHour[b.timeSlot] || 0) + 1;
+    if (!isCancelled) perHour[b.timeSlot] = (perHour[b.timeSlot] || 0) + 1;
 
     const n = netOf(b);
-    if (b.paymentStatus === 'paid' || b.paymentStatus === 'refunded') {
+    if (isReceived(b)) {
       net += n; paidCount++;
       refunded += b.refundAmount || 0;
       perService[servicesLabelOf(b)] = (perService[servicesLabelOf(b)] || 0) + n;
-    } else if (b.paymentStatus === 'unpaid' && b.status !== 'cancelled') {
+      // پولی که برای نوبتی گرفته شده که در نهایت لغو شد و مسترد هم نشده: بخشی از درآمد است
+      // ولی «درآمدِ خدمتِ ارائه‌شده» نیست؛ جدا نشان داده می‌شود تا با بقیه قاطی نشود.
+      // «در انتظار استرداد» نه درآمدِ خدمتِ ارائه‌شده است و نه قطعی — پولش گرفته شده ولی
+      // تکلیفش روشن نیست (یا اسلات رفته، یا مبلغ نخوانده). پس در میانگینِ «هر نوبت» نمی‌آید،
+      // وگرنه میانگین را با پولی بالا می‌برد که هنوز معلوم نیست مالِ آرایشگاه باشد.
+      if (isCancelled || b.paymentStatus === 'refundPending') cancelledHeld += n;
+      else { servedNet += n; servedCount++; }
+    } else if (b.paymentStatus === 'unpaid' && !isCancelled) {
       pending += b.amount;
     }
   }
+  // 🔴 «نیازِ پیگیری» عمداً از کلِ داده شمرده می‌شود، نه از بازه‌ی انتخاب‌شده.
+  // این یک «کارِ باز» است نه یک آمارِ دوره‌ای: نوبتِ گیرافتاده‌ی ماهِ پیش یا نوبتِ فردا هم
+  // باید دیده شود. با شمارشِ درون‌بازه‌ای، عوض‌کردنِ بازه عددِ هشدار را بی‌دلیل صفر می‌کرد.
+  const refundPendingItems = all.filter((b) => b.paymentStatus === 'refundPending');
+  const refundPendingCount = refundPendingItems.length;
+  const refundPendingAmount = refundPendingItems.reduce((s, b) => s + b.amount, 0);
+
   const totalCount = filtered.length;
-  const avg = paidCount ? Math.round(net / paidCount) : 0;
-  const cancelRate = totalCount ? Math.round((cancelled / totalCount) * 100) : 0;
+  // میانگین فقط روی نوبت‌هایی که واقعاً برگزار می‌شوند — مخرج و صورت هم‌جنس.
+  // قبلاً نوبتِ کاملاً مستردشده در مخرج بود ولی مبلغش در صورت نبود، پس میانگین پایین‌تر از
+  // هر قیمتِ واقعی می‌افتاد.
+  const avg = servedCount ? Math.round(servedNet / servedCount) : 0;
+  // مخرجِ نرخِ لغو هم فقط نوبت‌های واقعاً ثبت‌شده است (بدونِ تلاش‌های رهاشده‌ی درگاه).
+  const bookedCount = totalCount - abandoned;
+  const cancelRate = bookedCount ? Math.round((cancelledReal / bookedCount) * 100) : 0;
 
   // ── داده‌ی نمودار درآمد ──
   let chart = [];
@@ -129,18 +177,23 @@ export default async function AdminDashboard({ searchParams }) {
   const maxService = Math.max(1, ...services.map(([, v]) => v));
 
   // داده‌ی نمودارِ شلوغیِ ساعت‌ها (ستونی).
+  // برچسب کاملِ ساعت است، نه دو رقمِ اول: اسلات‌ها گامِ ۷۵ دقیقه‌ای دارند، پس بریدنِ دقیقه
+  // باعث می‌شد ستونِ ۱۰:۱۵ زیرِ برچسبِ «۱۰» بنشیند و ساعتِ شلوغ اشتباه خوانده شود — و
+  // نبودِ «۱۳» و «۱۸» روی محور شبیهِ حفره‌ی داده به‌نظر می‌رسید.
   const hoursData = TIME_SLOTS.map((t) => ({
-    label: toPersianDigits(t.slice(0, 2)),
+    label: toPersianDigits(t),
     value: perHour[t] || 0,
     full: toPersianDigits(t),
   }));
   const hoursTotal = TIME_SLOTS.reduce((s, t) => s + (perHour[t] || 0), 0);
 
-  // داده‌ی نمودارِ دوناتِ وضعیت.
+  // داده‌ی نمودارِ دوناتِ وضعیت — «رهاشده در درگاه» سهمِ خودش را دارد و در «لغو شده» قاطی نمی‌شود.
+  // برچسب‌ها از همان منبعی می‌آیند که بَجِ هر ردیف، تا یک وضعیت در دو صفحه دو اسم نداشته باشد.
   const statusSegments = [
-    { label: 'تایید شده', value: confirmed, color: '#34d399' },
-    { label: 'در انتظار', value: pend, color: '#fbbf24' },
-    { label: 'لغو شده', value: cancelled, color: '#fb7185' },
+    { label: STATUS_LABELS.confirmed, value: confirmed, color: '#34d399' },
+    { label: STATUS_LABELS.pending, value: pend, color: '#fbbf24' },
+    { label: STATUS_LABELS.cancelled, value: cancelledReal, color: '#fb7185' },
+    { label: 'رهاشده در درگاه', value: abandoned, color: '#71717a' },
   ];
 
   return (
@@ -153,6 +206,19 @@ export default async function AdminDashboard({ searchParams }) {
         </div>
         <DashboardPeriod value={period} />
       </div>
+
+      {/* هشدارِ اقدامِ لازم: پولی گرفته شده ولی نوبتش قطعی نشده. این حالت نادر است (اسلات در
+          فاصله‌ی پرداخت پر شده، یا ثبتِ نهایی شکست خورده) ولی اگر دیده نشود، پولِ مشتری
+          بی‌صاحب می‌مانَد و آرایشگاه خبردار نمی‌شود. */}
+      {refundPendingCount > 0 && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-300 text-xs leading-relaxed">
+          <span className="font-extrabold">نیازِ پیگیری: </span>
+          {toPersianDigits(refundPendingCount)} نوبت با مجموعِ {formatPrice(refundPendingAmount)} در حالتِ «در انتظار استرداد» است —
+          پول گرفته شده ولی نوبت قطعی نشده. در تبِ «نوبت‌ها ← لیست نوبت‌ها»، فیلترِ تاریخ را روی
+          <b> «همه (با گذشته)»</b> و فیلترِ پرداخت را روی <b>«در انتظار استرداد»</b> بگذار و تعیین تکلیف کن.
+          <span className="block opacity-80 mt-1">(این شمارش مستقل از بازه‌ی انتخاب‌شده است و کلِ نوبت‌ها را می‌بیند.)</span>
+        </div>
+      )}
 
       {/* درآمدِ همیشگی: امروز / این ماه / امسال */}
       <div className="grid grid-cols-3 gap-3">
@@ -168,6 +234,18 @@ export default async function AdminDashboard({ searchParams }) {
             <p className="text-[11px] font-bold tracking-[0.15em] text-zinc-500">روند درآمد · {PERIOD_LABELS[period]}</p>
             <p className="text-3xl md:text-4xl font-extrabold text-emerald-400 mt-2 tabular-nums">{formatPrice(net)}</p>
             <p className="text-[11px] text-zinc-500 mt-1.5">درآمد خالصِ این بازه · {toPersianDigits(paidCount)} پرداختِ موفق</p>
+            {/* شفاف‌سازی: چه مقدار از همین عدد مالِ نوبت‌هایی است که لغو شدند و پولشان
+                برنگشته. بدونِ این خط، آن مبلغ بی‌صدا داخلِ «درآمد» می‌نشست. */}
+            {cancelledHeld > 0 && (
+              <p className="text-[11px] text-amber-500/90 mt-1">
+                شامل {formatPrice(cancelledHeld)} از نوبت‌های لغوشده که مسترد نشده — تسویه‌ی آن با توست.
+              </p>
+            )}
+            {refunded > 0 && (
+              <p className="text-[11px] text-sky-400/90 mt-1">
+                {formatPrice(refunded)} در این بازه به مشتری‌ها مسترد شده (از عددِ بالا کسر شده است).
+              </p>
+            )}
           </div>
           <span className="shrink-0 text-[10px] text-zinc-400 border border-white/10 rounded-full px-3 py-1">{chartMode === 'daily' ? 'روزانه' : 'ماهانه'}</span>
         </div>
@@ -181,14 +259,24 @@ export default async function AdminDashboard({ searchParams }) {
       {/* KPIهای بازه */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Kpi icon={Receipt} label="تعداد نوبت" value={toPersianDigits(totalCount)} sub={`${toPersianDigits(paidCount)} پرداخت‌شده`} />
-        <Kpi icon={TrendingUp} tone="amber" label="میانگین هر نوبت" value={formatPrice(avg)} sub="به‌ازای هر پرداخت" />
-        <Kpi icon={Hourglass} tone="sky" label="در انتظار پرداخت" value={formatPrice(pending)} sub={refunded ? `${formatPrice(refunded)} مسترد` : 'طلبِ وصول‌نشده'} />
-        <Kpi icon={XCircle} tone="rose" label="نرخ لغو" value={`${toPersianDigits(cancelRate)}٪`} sub={`${toPersianDigits(cancelled)} لغو از ${toPersianDigits(totalCount)}`} />
+        <Kpi icon={TrendingUp} tone="amber" label="میانگین هر نوبت" value={formatPrice(avg)} sub={`${toPersianDigits(servedCount)} نوبتِ برگزارشده`} />
+        {/* زیرنویس همیشه همان چیزی را توضیح می‌دهد که عددِ بالایش است. قبلاً به‌محضِ وجودِ یک
+            استرداد، جایش را به مبلغِ مسترد می‌داد و دو عددِ بی‌ربط کنارِ هم می‌نشستند. */}
+        <Kpi icon={Hourglass} tone="sky" label="در انتظار پرداخت" value={formatPrice(pending)} sub="طلبِ وصول‌نشده" />
+        <Kpi
+          icon={XCircle}
+          tone="rose"
+          label="نرخ لغو"
+          value={`${toPersianDigits(cancelRate)}٪`}
+          sub={`${toPersianDigits(cancelledReal)} لغو از ${toPersianDigits(bookedCount)} نوبت`}
+        />
       </div>
 
       {/* نمودارِ ستونیِ شلوغیِ ساعت‌ها (تمام‌عرض) */}
       <div className="glass rounded-2xl p-5 md:p-6">
-        <SectionTitle icon={Clock} title="شلوغیِ ساعت‌ها" note={`${toPersianDigits(hoursTotal)} نوبت در این بازه`} />
+        {/* عدد این بخش با KPIِ «تعداد نوبت» یکی نیست و نباید باشد: اینجا فقط نوبت‌های فعال
+            شمرده می‌شوند. برچسب صریح شد تا اختلافِ دو عدد سؤال نسازد. */}
+        <SectionTitle icon={Clock} title="شلوغیِ ساعت‌ها" note={`${toPersianDigits(hoursTotal)} نوبتِ فعال (بدونِ لغوشده‌ها)`} />
         <div className="mt-5">
           {hoursTotal === 0 ? (
             <p className="text-xs text-zinc-500 text-center py-14">در این بازه نوبتی ثبت نشده است.</p>
@@ -201,7 +289,10 @@ export default async function AdminDashboard({ searchParams }) {
       {/* دو ستون: درآمدِ خدمات + دوناتِ وضعیت */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="glass rounded-2xl p-5">
-          <SectionTitle icon={Scissors} title="درآمد به تفکیک خدمت" note={services.length ? `${toPersianDigits(services.length)} خدمت` : null} />
+          {/* «ترکیب» نه «خدمت»: کلیدِ گروه‌بندی برچسبِ کاملِ نوبت است، پس نوبتِ دو-خدمتی یک
+              سطرِ سومِ جدا («الف + ب») می‌سازد. با عنوانِ قبلی، شمارنده از تعدادِ خدماتِ
+              واقعیِ آرایشگاه بیشتر می‌شد و عددش دروغ بود. */}
+          <SectionTitle icon={Scissors} title="درآمد به تفکیکِ ترکیبِ خدمات" note={services.length ? `${toPersianDigits(services.length)} ترکیب` : null} />
           {services.length === 0 ? (
             <p className="text-xs text-zinc-500 py-10 text-center">داده‌ای برای نمایش نیست.</p>
           ) : (

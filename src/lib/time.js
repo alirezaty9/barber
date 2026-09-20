@@ -30,6 +30,19 @@ export function weekdayIndexSaturday(iso) {
   return (dow + 1) % 7;
 }
 
+// ایران UTC+3:30 است (بدونِ ساعتِ تابستانی از ۲۰۲۲). برای تبدیلِ «ساعتِ دیواریِ» نوبت
+// (که به وقتِ ایران است) به یک لحظه‌ی مطلق، این مقدار کم می‌شود.
+const TEHRAN_OFFSET_MS = (3 * 60 + 30) * 60 * 1000;
+
+// لحظه‌ی مطلقِ شروعِ نوبت (میلی‌ثانیه‌ی UTC) از روی تاریخِ ISO و ساعتِ HH:MM به وقتِ ایران.
+// در دو جا لازم است (کرونِ یادآوری و مهلتِ لغو)، پس اینجا متمرکز شده تا دو نسخه‌ی
+// جداگانه از همین حساب وجود نداشته باشد.
+export function appointmentStartMs(dateIso, timeSlot) {
+  const [y, mo, d] = dateIso.split('-').map(Number);
+  const [hh, mm] = timeSlot.split(':').map(Number);
+  return Date.UTC(y, mo - 1, d, hh, mm) - TEHRAN_OFFSET_MS;
+}
+
 // فهرستِ تاریخ‌های ISO از from تا to (شاملِ هر دو) با سقفِ ایمنی.
 export function rangeISO(fromIso, toIso, cap = 90) {
   const end = toIso || fromIso;

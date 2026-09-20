@@ -1,6 +1,8 @@
 import { WifiOff } from 'lucide-react';
+import { SHOP_NAME } from '@/lib/shop';
+import OfflineRetryButton from './OfflineRetryButton';
 
-export const metadata = { title: 'آفلاین | banad barber' };
+export const metadata = { title: `آفلاین | ${SHOP_NAME}` };
 
 // صفحه‌ی فال‌بکِ آفلاین — وقتی کاربر اینترنت ندارد و صفحه در کش نیست نمایش داده می‌شود.
 export default function OfflinePage() {
@@ -14,6 +16,9 @@ export default function OfflinePage() {
         <p className="text-sm text-zinc-400 mt-2 leading-6">
           به نظر می‌رسد آفلاین هستید. لطفاً اتصال خود را بررسی کنید و دوباره تلاش کنید.
         </p>
+        {/* متن می‌گفت «دوباره تلاش کنید» ولی هیچ راهی برایش نبود؛ کاربر باید خودش
+            بلد می‌بود صفحه را رفرش کند. */}
+        <OfflineRetryButton />
       </div>
     </div>
   );

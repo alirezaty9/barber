@@ -29,6 +29,10 @@ export default function ManualBooking() {
   const [serviceIds, setServiceIds] = useState([]);
   const [dateIso, setDateIso] = useState('');
   const [timeSlot, setTimeSlot] = useState('');
+  // وضعیتِ پرداختِ نوبتِ دستی. قبلاً همیشه «پرداخت‌شده» ثبت می‌شد و هیچ‌جا هم اعلام نمی‌شد،
+  // پس نوبتِ یک مشتریِ تلفنی برای هفته‌ی بعد همان لحظه وارد «درآمد امروز» می‌شد — بدونِ
+  // اینکه یک ریال دریافت شده باشد.
+  const [paid, setPaid] = useState(true);
 
   // پروژه تک‌آرایشگره است؛ آرایشگر خودکار همان تنها آرایشگر است (بدون انتخاب).
   const activeBarber = barbers[0];
@@ -52,15 +56,21 @@ export default function ManualBooking() {
   );
 
   const onSubmit = async (form) => {
-    if (!serviceIds.length || !barberId || !dateIso || !timeSlot) {
+    // پیامِ خطا باید علتِ واقعی را بگوید؛ قبلاً نبودِ آرایشگر هم همان پیامِ «خدمت/تاریخ/ساعت
+    // را انتخاب کنید» را می‌گرفت و ادمین دنبالِ چیزی می‌گشت که مشکل نبود.
+    if (!barberId) {
+      toast.error('آرایشگری در سیستم ثبت نشده است. اول از تبِ «خدمات و آرایشگر» یک آرایشگر بساز.');
+      return;
+    }
+    if (!serviceIds.length || !dateIso || !timeSlot) {
       toast.error('لطفاً حداقل یک خدمت، تاریخ و ساعت را انتخاب کنید.');
       return;
     }
     try {
-      await createBooking.mutateAsync({ ...form, serviceIds, barberId, date: dateIso, timeSlot });
-      toast.success('نوبت با موفقیت ثبت و تایید شد.');
+      await createBooking.mutateAsync({ ...form, serviceIds, barberId, date: dateIso, timeSlot, paid });
+      toast.success(paid ? 'نوبت ثبت شد؛ مبلغش در درآمدِ روزِ نوبت حساب می‌شود.' : 'نوبت ثبت شد (پرداخت‌نشده).');
       reset();
-      setServiceIds([]); setDateIso(''); setTimeSlot('');
+      setServiceIds([]); setDateIso(''); setTimeSlot(''); setPaid(true);
     } catch (e) {
       toast.error(e.message);
     }
@@ -72,7 +82,7 @@ export default function ManualBooking() {
         <h2 className="text-2xl font-extrabold text-white flex items-center gap-2">
           <PlusCircle className="w-6 h-6 text-amber-500" /> ثبت نوبت دستی
         </h2>
-        <p className="text-xs text-zinc-400 mt-1">برای مشتریان تلفنی یا حضوری — نوبت مستقیماً «تایید شده» ثبت می‌شود.</p>
+        <p className="text-xs text-zinc-400 mt-1">برای مشتریان تلفنی یا حضوری — نوبت مستقیماً «تأیید شده» ثبت می‌شود و وضعیتِ پرداختش را خودت تعیین می‌کنی.</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="glass p-6 md:p-8 rounded-3xl space-y-4">
@@ -148,10 +158,35 @@ export default function ManualBooking() {
           </Field>
         )}
 
+        <Field label="وضعیت پرداخت:">
+          <div className="grid grid-cols-2 gap-2">
+            <PayBtn active={paid} onClick={() => setPaid(true)} label="وجه دریافت شد" hint="در درآمدِ روزِ نوبت حساب می‌شود" />
+            <PayBtn active={!paid} onClick={() => setPaid(false)} label="بعداً دریافت می‌شود" hint="در «طلبِ وصول‌نشده»" />
+          </div>
+        </Field>
+
         <Button type="submit" className="w-full mt-2" size="lg" loading={createBooking.isPending}>
           ثبت رسمی نوبت
         </Button>
       </form>
     </div>
+  );
+}
+
+// دکمه‌ی دوحالته‌ی وضعیتِ پرداخت.
+function PayBtn({ active, onClick, label, hint }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        'px-3 py-2.5 rounded-xl border text-right transition-all',
+        active ? 'bg-amber-500/15 border-amber-500/40 text-amber-400' : 'bg-zinc-950 border-zinc-900 text-zinc-500 hover:border-zinc-800'
+      )}
+    >
+      <span className="block text-xs font-bold">{label}</span>
+      <span className="block text-[10px] opacity-70 mt-0.5">{hint}</span>
+    </button>
   );
 }

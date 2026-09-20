@@ -8,7 +8,9 @@ import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { toPersianDigits, formatJalaliDate, formatPrice } from '@/lib/persian';
 import { servicesLabelOf } from '@/lib/serializers';
 import { STATUS_LABELS, PAYMENT_LABELS, STATUS_STYLES, PAYMENT_STYLES } from '@/lib/constants';
+import { REFUNDS_ENABLED } from '@/lib/features';
 import { confirm } from '@/components/ui/confirm';
+import ErrorState from '@/components/ui/ErrorState';
 import Select from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
@@ -20,8 +22,14 @@ const BORDER = {
   pending: 'border-r-amber-500',
 };
 
+// متنِ پاپ‌آپِ لغو باید همان کاری را توصیف کند که واقعاً انجام می‌شود. با استردادِ خاموش،
+// لغو فقط «لغو» است و هیچ پولی خودکار برنمی‌گردد؛ متنِ قبلی وعده‌ی استردادِ خودکار می‌داد.
+const CANCEL_CONFIRM_TEXT = REFUNDS_ENABLED
+  ? 'این نوبت لغو می‌شود و مبلغ پرداختی طبق قاعده به مشتری مسترد می‌گردد. مطمئن هستید؟'
+  : 'این نوبت لغو می‌شود. مبلغ پرداختی به‌صورت خودکار برنمی‌گردد و باید دستی با مشتری تسویه کنید. مطمئن هستید؟';
+
 export default function BookingsManager() {
-  const [filters, setFilters] = useState({ status: 'all', date: 'all', page: 1, pageSize: 10 });
+  const [filters, setFilters] = useState({ status: 'all', paymentStatus: 'all', date: 'upcoming', page: 1, pageSize: 10 });
   // ورودیِ جست‌وجو جدا نگه داشته می‌شود و فقط بعد از ۳۵۰ms سکوت وارد queryKey می‌شود
   // تا به‌ازای هر کاراکتر یک درخواست به سرور نرود (جلوگیری از طوفانِ درخواست).
   const [qInput, setQInput] = useState('');
@@ -31,7 +39,7 @@ export default function BookingsManager() {
   useEffect(() => { setFilters((f) => ({ ...f, page: 1 })); }, [debouncedQ]);
 
   const query = { ...filters, q: debouncedQ };
-  const { data, isLoading, isFetching } = useBookings(query);
+  const { data, isLoading, isFetching, isError, error, refetch } = useBookings(query);
   const updateStatus = useUpdateBookingStatus();
   const deleteBooking = useDeleteBooking();
 
@@ -44,6 +52,24 @@ export default function BookingsManager() {
   const onChangeStatus = (id, status) => {
     updateStatus.mutate({ id, status }, {
       onSuccess: () => toast.success('وضعیت نوبت به‌روزرسانی شد.'),
+      onError: (e) => toast.error(e.message),
+    });
+  };
+
+  // تسویه‌ی دستیِ نوبتی که «در انتظار استرداد» است — یعنی پولش گرفته شده ولی نوبت قطعی نشده.
+  // بدونِ این، آن رکورد تا ابد معلق می‌ماند و هیچ راهی برای علامت‌زدنش وجود ندارد.
+  const onSettleRefund = async (id, mode) => {
+    const refunded = mode === 'refunded';
+    const ok = await confirm({
+      title: refunded ? 'ثبت استرداد دستی' : 'ثبت توافق با مشتری',
+      description: refunded
+        ? 'تأیید می‌کنی که کلِ مبلغ را به مشتری برگردانده‌ای؟ وضعیت به «مسترد شده» تغییر می‌کند.'
+        : 'تأیید می‌کنی که مبلغ نزدِ آرایشگاه می‌ماند و با مشتری به توافق رسیده‌اید؟ وضعیت به «پرداخت‌شده» تغییر می‌کند.',
+      confirmText: 'تأیید',
+    });
+    if (!ok) return;
+    updateStatus.mutate({ id, paymentStatus: mode }, {
+      onSuccess: () => toast.success('وضعیت پرداخت ثبت شد.'),
       onError: (e) => toast.error(e.message),
     });
   };
@@ -61,7 +87,7 @@ export default function BookingsManager() {
   const onCancel = async (id) => {
     const ok = await confirm({
       title: 'لغو نوبت',
-      description: 'این نوبت لغو می‌شود و در صورت پرداخت، مبلغ به مشتری مسترد می‌گردد. مطمئن هستید؟',
+      description: CANCEL_CONFIRM_TEXT,
       danger: true,
       confirmText: 'بله، لغو کن',
       cancelText: 'انصراف',
@@ -78,7 +104,7 @@ export default function BookingsManager() {
       </div>
 
       {/* فیلترها */}
-      <div className="glass p-4 rounded-2xl mb-6 grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="glass p-4 rounded-2xl mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="md:col-span-1 relative">
           <Search className="w-4 h-4 text-zinc-500 absolute right-3 top-1/2 -translate-y-1/2" />
           <Input
@@ -88,16 +114,30 @@ export default function BookingsManager() {
             className="pr-9"
           />
         </div>
+        {/* برچسبِ وضعیت‌ها از همان منبعی می‌آید که بَجِ هر ردیف — وگرنه فیلترِ «در انتظار تایید»
+            ردیف‌هایی با بَجِ «منتظر تایید» نشان می‌داد و کاربر شک می‌کرد فیلتر کار کرده یا نه. */}
         <Select value={filters.status} onChange={(e) => setFilter({ status: e.target.value })}>
           <option value="all">همه وضعیت‌ها</option>
-          <option value="pending">در انتظار تایید</option>
-          <option value="confirmed">تایید شده</option>
-          <option value="cancelled">لغو شده</option>
+          {Object.entries(STATUS_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
         </Select>
+        {/* فیلترِ وضعیتِ پرداخت — بدونِ آن، پیداکردنِ نوبت‌های «در انتظار استرداد» (که پولشان
+            گرفته شده ولی تسویه نشده) بینِ کلِ فهرست عملاً ناممکن بود. */}
+        <Select value={filters.paymentStatus} onChange={(e) => setFilter({ paymentStatus: e.target.value })}>
+          <option value="all">همه پرداخت‌ها</option>
+          {Object.entries(PAYMENT_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </Select>
+        {/* 🔴 «همه تاریخ‌ها»ی قبلی در واقع «از امروز به بعد» بود و نوبت‌های گذشته را نشان نمی‌داد؛
+            حالا برچسب راست می‌گوید و دو گزینه‌ی واقعی برای دیدنِ سابقه اضافه شده. */}
         <Select value={filters.date} onChange={(e) => setFilter({ date: e.target.value })}>
-          <option value="all">همه تاریخ‌ها</option>
+          <option value="upcoming">از امروز به بعد</option>
           <option value="today">امروز</option>
           <option value="tomorrow">فردا</option>
+          <option value="past">نوبت‌های گذشته</option>
+          <option value="all">همه (با گذشته)</option>
         </Select>
       </div>
 
@@ -106,6 +146,9 @@ export default function BookingsManager() {
         <div className="flex items-center justify-center gap-2 text-zinc-500 text-sm py-16">
           <Loader2 className="w-5 h-5 animate-spin" /> در حال بارگذاری...
         </div>
+      ) : isError ? (
+        // خطا از «خالی» تفکیک شده: قبلاً قطعیِ سرور همان پیامِ «نوبتی یافت نشد» را می‌داد.
+        <ErrorState error={error} onRetry={refetch} />
       ) : items.length === 0 ? (
         <div className="glass p-12 rounded-3xl text-center text-zinc-500 flex flex-col items-center">
           <AlertCircle className="w-12 h-12 text-zinc-600 mb-4" />
@@ -121,7 +164,9 @@ export default function BookingsManager() {
                 </div>
                 <div>
                   <p className="font-bold text-sm text-zinc-100">{b.customerName}</p>
-                  <p className="font-mono text-xs text-zinc-500 mt-0.5" style={{ direction: 'ltr', textAlign: 'right' }}>{toPersianDigits(b.customerPhone)}</p>
+                  {/* شماره با ارقامِ لاتین می‌ماند: این یک شناسه است که باید کپی و در واتس‌اپ/
+                      دفترچه‌تلفن جست‌وجو شود، و ارقامِ فارسی آنجا پیدا نمی‌شوند. */}
+                  <p className="font-mono text-xs text-zinc-500 mt-0.5" style={{ direction: 'ltr', textAlign: 'right' }}>{b.customerPhone}</p>
                 </div>
               </div>
 
@@ -136,7 +181,7 @@ export default function BookingsManager() {
                 <p className="font-bold text-zinc-200 mt-1">ساعت {toPersianDigits(b.timeSlot)}</p>
                 <p className="font-mono text-[10px] text-zinc-600 mt-0.5">{b.code}</p>
                 {b.paymentRefId && (
-                  <p className="font-mono text-[10px] text-zinc-600 mt-0.5">کد پرداخت: {toPersianDigits(b.paymentRefId)}</p>
+                  <p className="font-mono text-[10px] text-zinc-600 mt-0.5" dir="ltr" style={{ textAlign: 'right' }}>کد پرداخت: {b.paymentRefId}</p>
                 )}
                 {b.refundAmount > 0 && (
                   <p className="text-[10px] text-sky-400 mt-0.5">
@@ -147,16 +192,18 @@ export default function BookingsManager() {
 
               <div className="lg:col-span-1 lg:text-center flex flex-row lg:flex-col items-center lg:items-center gap-1.5">
                 <span className={cn('px-2.5 py-1 rounded-full text-[10px] font-bold border whitespace-nowrap', STATUS_STYLES[b.status])}>
-                  {STATUS_LABELS[b.status]}
+                  {STATUS_LABELS[b.status] || 'نامشخص'}
                 </span>
                 <span className={cn('px-2.5 py-1 rounded-full text-[10px] font-bold border whitespace-nowrap', PAYMENT_STYLES[b.paymentStatus] || PAYMENT_STYLES.unpaid)}>
                   {PAYMENT_LABELS[b.paymentStatus] || PAYMENT_LABELS.unpaid}
                 </span>
               </div>
 
-              <div className="lg:col-span-3 flex items-center justify-end gap-2 border-t lg:border-t-0 border-zinc-900/60 pt-4 lg:pt-0">
-                {b.status !== 'confirmed' && b.paymentStatus !== 'failed' && (
-                  <button onClick={() => onChangeStatus(b.id, 'confirmed')} title="تایید" className="p-2 bg-emerald-950/20 text-emerald-400 hover:bg-emerald-500 hover:text-black rounded-lg border border-emerald-900/50 hover:border-transparent transition-all">
+              <div className="lg:col-span-3 flex flex-wrap items-center justify-end gap-2 border-t lg:border-t-0 border-zinc-900/60 pt-4 lg:pt-0">
+                {/* تایید فقط برای نوبتی که هنوز تایید نشده و پولش دریافت شده. همان قاعده‌ای که
+                    سرور هم اعمالش می‌کند — اینجا فقط دکمه‌ی بی‌فایده نشان داده نمی‌شود. */}
+                {b.status === 'pending' && b.paymentStatus === 'paid' && (
+                  <button onClick={() => onChangeStatus(b.id, 'confirmed')} title="تأیید" className="p-2 bg-emerald-950/20 text-emerald-400 hover:bg-emerald-500 hover:text-black rounded-lg border border-emerald-900/50 hover:border-transparent transition-all">
                     <CheckCircle className="w-4 h-4" />
                   </button>
                 )}
@@ -168,6 +215,17 @@ export default function BookingsManager() {
                 <button onClick={() => onDelete(b.id)} title="حذف دائمی" className="p-2 text-zinc-500 hover:text-red-500 transition-colors">
                   <Trash2 className="w-4 h-4" />
                 </button>
+                {/* راهِ خروج از حالتِ «در انتظار استرداد» — پولش گرفته شده ولی نوبت قطعی نشده. */}
+                {b.paymentStatus === 'refundPending' && (
+                  <div className="flex items-center gap-1.5 w-full lg:w-auto">
+                    <Button variant="outline" size="sm" onClick={() => onSettleRefund(b.id, 'refunded')}>
+                      پول را برگرداندم
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => onSettleRefund(b.id, 'paid')}>
+                      توافق شد
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           ))}

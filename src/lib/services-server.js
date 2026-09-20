@@ -3,7 +3,10 @@ import { prisma } from './db';
 // از فهرست شناسه‌ها، خدمات را می‌گیرد و مجموعِ قیمت/مدت و برچسبِ نمایش را می‌سازد.
 // ترتیبِ انتخابِ کاربر حفظ می‌شود. اگر یکی نامعتبر باشد، error برمی‌گرداند.
 export async function resolveServices(serviceIds) {
-  const ids = Array.isArray(serviceIds) ? serviceIds.filter(Boolean) : [];
+  // تکراری‌ها حذف می‌شوند (لایه‌ی دومِ دفاع؛ لایه‌ی اول اسکیمای ورودی است). بدونِ این، یک
+  // شناسه‌ی تکراری در آرایه باعث می‌شد قیمتِ همان خدمت چند بار جمع شود و مبلغِ چندبرابر به
+  // درگاه برود — چون چکِ اعتبارِ زیر با «برابریِ طول» انجام می‌شود و تکراری را معتبر می‌دید.
+  const ids = Array.isArray(serviceIds) ? [...new Set(serviceIds.filter(Boolean))] : [];
   if (ids.length === 0) return { error: 'حداقل یک خدمت انتخاب کنید.' };
 
   const found = await prisma.service.findMany({ where: { id: { in: ids } } });

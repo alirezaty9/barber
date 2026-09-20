@@ -5,16 +5,31 @@ import { Download, X, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePwaInstall } from './usePwaInstall';
 import { isAppleMobile, showManualInstallHelp } from './install-guidance';
+import { INSTALL_DISMISS_KEY, INSTALL_DISMISS_DAYS } from './install-keys';
 import { cn } from '@/lib/utils';
 
-// کلیدِ «کاربر پاپ‌آپ را بست» در حافظه‌ی مرورگر تا دوباره اذیتش نکند.
-const DISMISS_KEY = 'pwa-prompt-dismissed';
+const DISMISS_MS = INSTALL_DISMISS_DAYS * 24 * 60 * 60 * 1000;
+
+// آیا بستنِ قبلی هنوز معتبر است؟ مقدارِ ذخیره‌شده تاریخِ بستن است.
+// مقدارِ قدیمیِ '1' (از نسخه‌ی قبل) هم پذیرفته می‌شود ولی منقضی حساب می‌شود، تا کاربری که
+// یک‌بار اشتباهی بسته بود دوباره فرصتِ دیدنِ کادر را پیدا کند.
+function isDismissActive() {
+  try {
+    const raw = window.localStorage.getItem(INSTALL_DISMISS_KEY);
+    if (!raw) return false;
+    const at = Number(raw);
+    if (!Number.isFinite(at) || at <= 1) return false;
+    return Date.now() - at < DISMISS_MS;
+  } catch {
+    return false;
+  }
+}
 
 // کادرِ چسبیده به پایینِ صفحه برای نصبِ اپ.
 //
 // چرا لازم است؟ آیکنِ نصب در ردیفِ آیکن‌های بالای صفحه هست، ولی روی موبایل هیچ برچسبی
 // ندارد (تولتیپش فقط با موس کار می‌کند) — یعنی مشتری از وجودش خبردار نمی‌شود. این کادر
-// خودش یک‌بار جلوی چشم می‌آید و بعد از بسته‌شدن دیگر برنمی‌گردد.
+// خودش جلوی چشم می‌آید و بعد از بسته‌شدن، تا یک ماه دیگر برنمی‌گردد.
 //
 // ✅ هماهنگی با آیکنِ بالا: هر دو از یک وضعیتِ مشترک می‌خوانند (install-store) و از یک
 //    متنِ راهنمای مشترک استفاده می‌کنند (install-guidance)، پس هیچ‌وقت دو چیز متفاوت
@@ -25,11 +40,7 @@ export default function PwaInstallPrompt() {
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
-    try {
-      setDismissed(window.localStorage.getItem(DISMISS_KEY) === '1');
-    } catch {
-      setDismissed(false);
-    }
+    setDismissed(isDismissActive());
     setIsIOS(isAppleMobile());
   }, []);
 
@@ -38,7 +49,7 @@ export default function PwaInstallPrompt() {
 
   const close = () => {
     setDismissed(true);
-    try { window.localStorage.setItem(DISMISS_KEY, '1'); } catch { /* حافظه غیرفعال */ }
+    try { window.localStorage.setItem(INSTALL_DISMISS_KEY, String(Date.now())); } catch { /* حافظه غیرفعال */ }
   };
 
   const onInstall = async () => {
@@ -47,7 +58,8 @@ export default function PwaInstallPrompt() {
       toast.success('اپ روی صفحه‌ی اصلیِ دستگاه شما اضافه شد ✅');
       close();
     } else if (outcome === 'dismissed') {
-      // کاربر پنجره‌ی خودِ مرورگر را رد کرد — کادر را هم می‌بندیم تا تکرار نشود.
+      // کاربر پنجره‌ی خودِ مرورگر را رد کرد — کادر را هم می‌بندیم تا در همین بازدید تکرار
+      // نشود. (این بستن هم مثلِ بقیه تاریخ‌دار است و برای همیشه نیست.)
       close();
     } else {
       // 'unavailable' → معمولاً آیفون؛ همان راهنمایی که آیکنِ بالای صفحه هم می‌دهد.

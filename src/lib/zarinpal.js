@@ -8,7 +8,10 @@ const IS_SANDBOX = process.env.ZARINPAL_SANDBOX === 'true';
 const MERCHANT_ID = process.env.ZARINPAL_MERCHANT_ID || '';
 // حالتِ mock فقط با فلگِ صریحِ ALLOW_MOCK_PAYMENT=true فعال می‌شود — نه صرفاً با نبودِ Merchant ID.
 // این‌طور نبودِ merchant به‌جای «رزروِ رایگانِ خاموش» به خطا منجر می‌شود (fail-closed).
-const ALLOW_MOCK = process.env.ALLOW_MOCK_PAYMENT === 'true';
+// 🔴 حالتِ mock در پروداکشن حتی با فلگِ روشن هم فعال نمی‌شود. دلیل: اگر روزی نامِ متغیرِ
+// merchant روی پنلِ هاست غلط تایپ شود و این فلگ هم روشن مانده باشد، هر رزرو بدونِ هیچ
+// پرداختی «موفق» ثبت می‌شد — و هیچ خطایی هم دیده نمی‌شد. این قید آن حالت را غیرممکن می‌کند.
+const ALLOW_MOCK = process.env.ALLOW_MOCK_PAYMENT === 'true' && process.env.NODE_ENV !== 'production';
 const USE_MOCK = !MERCHANT_ID && ALLOW_MOCK;
 
 // اگر نه merchant داریم و نه اجازه‌ی mock، هر تلاشِ پرداخت باید با خطا رد شود.
@@ -27,9 +30,10 @@ const STARTPAY_BASE = IS_SANDBOX
   ? 'https://sandbox.zarinpal.com/pg/StartPay'
   : 'https://www.zarinpal.com/pg/StartPay';
 
-// توکن دسترسیِ استرداد (متفاوت با merchant_id). استرداد واقعیِ زرین‌پال فقط با این توکن
-// انجام می‌شود؛ اگر تنظیم نشده باشد، استرداد به‌صورت «حسابداری» ثبت می‌شود ولی پول واقعی
-// جابه‌جا نمی‌شود (برای محیط تست/بدون توکن).
+// توکن دسترسیِ استرداد (متفاوت با merchant_id). استردادِ واقعیِ زرین‌پال فقط با این توکن
+// انجام می‌شود. 🔴 اگر تنظیم نشده باشد، استرداد **شکست** می‌خورد (نه «موفقیتِ حسابداری»):
+// رفتارِ قبلی ok:true برمی‌گرداند و مصرف‌کننده‌ها آن را «مسترد شد» ثبت می‌کردند، در حالی که
+// هیچ ریالی جابه‌جا نشده بود — یعنی سیستم به صاحبِ کسب‌وکار و به مشتری دروغ می‌گفت.
 const ACCESS_TOKEN = process.env.ZARINPAL_ACCESS_TOKEN || '';
 
 /**
@@ -104,14 +108,22 @@ export async function verifyPayment({ amount, authority }) {
 }
 
 /**
- * استرداد وجه (کامل یا جزئی). بدون ZARINPAL_ACCESS_TOKEN فقط «حسابداری» ثبت می‌شود
- * (simulated: true) و پول واقعی جابه‌جا نمی‌شود؛ با توکن، درخواست استرداد واقعی زده می‌شود.
+ * استرداد وجه (کامل یا جزئی). fail-closed است: اگر امکانِ استردادِ واقعی نباشد، شکست
+ * برمی‌گرداند تا فراخوان وضعیت را «در انتظار استرداد» ثبت کند، نه «مسترد شده».
  * @param {{amount:number, authority?:string, description?:string}} p
- * @returns {Promise<{ok:boolean, simulated?:boolean, refundId?:string, error?:string}>}
+ * @returns {Promise<{ok:boolean, refundId?:string, error?:string}>}
  */
 export async function refundPayment({ amount, authority, description }) {
   if (!ACCESS_TOKEN) {
-    return { ok: true, simulated: true };
+    return { ok: false, error: 'توکنِ استردادِ زرین‌پال (ZARINPAL_ACCESS_TOKEN) تنظیم نشده است.' };
+  }
+  // سرویسِ استرداد فقط روی درگاهِ واقعی وجود دارد. در حالتِ تستی، Authorityِ سندباکس روی
+  // سرورِ اصلی شناخته نمی‌شود؛ پس به‌جای فرستادنِ درخواستی که قطعاً خطا می‌دهد، صریح رد می‌کنیم.
+  if (IS_SANDBOX) {
+    return { ok: false, error: 'در حالتِ تستیِ درگاه، استردادِ وجه امکان‌پذیر نیست.' };
+  }
+  if (!authority) {
+    return { ok: false, error: 'شناسه‌ی تراکنش برای استرداد موجود نیست.' };
   }
   try {
     const res = await fetch('https://api.zarinpal.com/pg/v4/refund.json', {
@@ -125,7 +137,7 @@ export async function refundPayment({ amount, authority, description }) {
     });
     const json = await res.json();
     if (json?.data?.code === 100 || json?.data?.id) {
-      return { ok: true, simulated: false, refundId: String(json?.data?.id ?? json?.data?.ref_id ?? '') };
+      return { ok: true, refundId: String(json?.data?.id ?? json?.data?.ref_id ?? '') };
     }
     const err = Array.isArray(json?.errors) ? json.errors[0] : json?.errors;
     return { ok: false, error: err?.message || 'استرداد ناموفق بود.' };
