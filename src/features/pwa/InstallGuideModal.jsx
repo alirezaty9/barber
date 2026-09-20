@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Smartphone, Download, Check } from 'lucide-react';
+import { Smartphone, Download, Check, Loader2 } from 'lucide-react';
 import { usePwaInstallStore } from './install-store';
 import { usePwaInstall } from './usePwaInstall';
 import { getInstallGuide } from './install-guidance';
@@ -77,10 +77,35 @@ export default function InstallGuideModal() {
             </Button>
           </>
         ) : (
-          /* مرورگر اجازه نداده — مسیرِ دستیِ همین دستگاه. */
+          /* مرورگر هنوز اجازه نداده — مسیرِ دستیِ همین دستگاه. */
           guide && (
             <>
-              <p className="text-xs font-extrabold text-amber-500 mb-2">{guide.title}</p>
+              {/* 🔴 تفکیکی که کلِ تجربه را عوض می‌کند.
+                  روی کروم و اِج دکمه‌ی یک‌کلیکی **می‌آید**، فقط مرورگر چند لحظه صبر می‌کند
+                  تا مطمئن شود کاربر واقعاً دارد با سایت کار می‌کند (یک محافظت در خودِ
+                  مرورگر، تا هر سایتی به‌محضِ بازشدن پیشنهادِ نصب ندهد).
+                  قبلاً در همان لحظه مسیرِ دستی نشان داده می‌شد و کاربر نتیجه می‌گرفت
+                  «نصبِ یک‌کلیکی کار نمی‌کند» — در حالی که چند ثانیه بعد فعال می‌شد.
+                  این کادر وضعیتِ واقعی را می‌گوید و چون به‌صورتِ زنده به‌روز می‌شود، به‌محضِ
+                  رسیدنِ اجازه خودش جایش را به دکمه‌ی نصب می‌دهد. */}
+              {guide.canPromptEventually && (
+                <div className="flex items-start gap-2.5 p-4 mb-5 bg-amber-500/5 border border-amber-500/20 rounded-2xl">
+                  <Loader2 className="w-5 h-5 shrink-0 mt-0.5 text-amber-500 animate-spin" />
+                  <div className="text-sm text-amber-200/90 leading-relaxed">
+                    <b className="text-amber-400">دکمه‌ی نصب هنوز آماده نیست.</b> مرورگرِ تو نصبِ
+                    یک‌کلیکی را پشتیبانی می‌کند، ولی چند لحظه صبر می‌کند تا مطمئن شود واقعاً داری
+                    از سایت استفاده می‌کنی.
+                    <span className="block mt-2 text-amber-200/70">
+                      این پنجره را باز بگذار و چند ثانیه در صفحه اسکرول کن — به‌محضِ آماده‌شدن،
+                      <b> همین‌جا</b> دکمه‌ی «نصب اپلیکیشن» ظاهر می‌شود.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs font-extrabold text-amber-500 mb-2">
+                {guide.canPromptEventually ? `${guide.title} — اگر عجله داری` : guide.title}
+              </p>
               <p className="text-sm text-zinc-300 leading-relaxed mb-5">{guide.intro}</p>
 
               <ol className="space-y-3">

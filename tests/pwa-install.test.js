@@ -121,6 +121,35 @@ describe('راهنمای متناسب با هر دستگاه', () => {
     }
   });
 
+  // 🔴 این تفکیک قلبِ ماجراست. روی کروم/اِج دکمه‌ی یک‌کلیکی **می‌آید**، فقط مرورگر چند
+  // لحظه صبر می‌کند تا مطمئن شود کاربر واقعاً دارد با سایت کار می‌کند. اگر این فیلد غلط
+  // شود، دوباره به کاربرِ کروم می‌گوییم «برو از منو نصب کن» در حالی که چند ثانیه بعد
+  // دکمه برایش فعال می‌شود — و او نتیجه می‌گیرد اپ خراب است.
+  it('کروم و اِج می‌توانند بعداً دکمه‌ی یک‌کلیکی بدهند', () => {
+    asBrowser(UA.desktopChrome);
+    expect(getInstallGuide().canPromptEventually).toBe(true);
+    asBrowser(UA.androidChrome);
+    expect(getInstallGuide().canPromptEventually).toBe(true);
+  });
+
+  it('آیفون و فایرفاکس هرگز دکمه‌ی یک‌کلیکی نخواهند داشت', () => {
+    asBrowser(UA.iphone);
+    expect(getInstallGuide().canPromptEventually).toBe(false);
+    asBrowser(UA.ipadNew, 5);
+    expect(getInstallGuide().canPromptEventually).toBe(false);
+    asBrowser(UA.desktopFirefox);
+    expect(getInstallGuide().canPromptEventually).toBe(false);
+    asBrowser(UA.androidFirefox);
+    expect(getInstallGuide().canPromptEventually).toBe(false);
+  });
+
+  it('هر راهنما این فیلد را دارد و حتماً بولین است', () => {
+    for (const ua of Object.values(UA)) {
+      asBrowser(ua, 5);
+      expect(typeof getInstallGuide().canPromptEventually, ua).toBe('boolean');
+    }
+  });
+
   it('هیچ راهنمایی وعده‌ی نصبِ خودکار نمی‌دهد — همه مسیرِ دستی‌اند', () => {
     // این راهنماها فقط وقتی دیده می‌شوند که نصبِ یک‌کلیکی ممکن **نباشد**؛ پس نباید
     // کاربر را به دنبالِ دکمه‌ای بفرستند که روی صفحه وجود ندارد.

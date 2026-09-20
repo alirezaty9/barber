@@ -13,8 +13,16 @@ import { INSTALL_EVENT_KEY, INSTALL_READY_EVENT } from './install-keys';
 //
 // 🌍 آنالوژی: منشی‌ای که از همان اول پشتِ در می‌ایستد تا نامه را تحویل بگیرد، چون پستچی
 // فقط یک‌بار زنگ می‌زند و منتظر نمی‌ماند.
+// 🔴 این اسکریپت باید «چندبار-اجرا-امن» باشد.
+// محتوایش دو بار در صفحه می‌آید: یک‌بار به‌عنوانِ اسکریپتِ واقعی، و یک‌بار داخلِ داده‌ای که
+// React برای بالا آوردنِ صفحه می‌فرستد. اگر React همان را دوباره اجرا کند و خطِ اولش
+// «اجازه را خالی کن» باشد، اجازه‌ی گرفته‌شده **پاک می‌شود** و دکمه‌ی نصب هرگز فعال نمی‌شود.
+// پس: اجازه فقط وقتی خالی می‌شود که از قبل وجود نداشته باشد، و گوش‌دادن هم فقط یک‌بار
+// ثبت می‌شود.
 const CAPTURE_SCRIPT = `(function(){
-  window.${INSTALL_EVENT_KEY} = null;
+  if (window.__pwaCaptureReady) return;
+  window.__pwaCaptureReady = true;
+  if (!('${INSTALL_EVENT_KEY}' in window)) window.${INSTALL_EVENT_KEY} = null;
   window.addEventListener('beforeinstallprompt', function (e) {
     e.preventDefault();
     window.${INSTALL_EVENT_KEY} = e;
@@ -22,6 +30,7 @@ const CAPTURE_SCRIPT = `(function(){
   });
   window.addEventListener('appinstalled', function () {
     window.${INSTALL_EVENT_KEY} = null;
+    window.dispatchEvent(new Event('${INSTALL_READY_EVENT}'));
   });
 })();`;
 
