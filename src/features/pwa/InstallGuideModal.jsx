@@ -32,6 +32,21 @@ export default function InstallGuideModal() {
     if (open) setGuide(getInstallGuide());
   }, [open]);
 
+  // 🔴 «صبر کن» تا کِی؟
+  // پیامِ انتظار به کاربر قول می‌دهد دکمه خودش ظاهر می‌شود. ولی اگر مرورگر به هر دلیلی
+  // اجازه ندهد، این قول هیچ‌وقت عملی نمی‌شود و کاربر جلوی یک چرخ‌دنده‌ی چرخان می‌ماند —
+  // یعنی دقیقاً همان حسِ «اپ خراب است». پس بعد از ۱۰ ثانیه انتظار را تمام‌شده اعلام
+  // می‌کنیم و صادقانه مسیرِ دستی را جلو می‌آوریم.
+  const [waitedTooLong, setWaitedTooLong] = useState(false);
+  useEffect(() => {
+    if (!open || canInstall) {
+      setWaitedTooLong(false);
+      return;
+    }
+    const timer = setTimeout(() => setWaitedTooLong(true), 10_000);
+    return () => clearTimeout(timer);
+  }, [open, canInstall]);
+
   const onInstall = async () => {
     const outcome = await promptInstall();
     // 'accepted' یا 'dismissed' یعنی پنجره‌ی مرورگر واقعاً باز شد؛ کارِ این پنجره تمام است.
@@ -88,7 +103,7 @@ export default function InstallGuideModal() {
                   «نصبِ یک‌کلیکی کار نمی‌کند» — در حالی که چند ثانیه بعد فعال می‌شد.
                   این کادر وضعیتِ واقعی را می‌گوید و چون به‌صورتِ زنده به‌روز می‌شود، به‌محضِ
                   رسیدنِ اجازه خودش جایش را به دکمه‌ی نصب می‌دهد. */}
-              {guide.canPromptEventually && (
+              {guide.canPromptEventually && !waitedTooLong && (
                 <div className="flex items-start gap-2.5 p-4 mb-5 bg-amber-500/5 border border-amber-500/20 rounded-2xl">
                   <Loader2 className="w-5 h-5 shrink-0 mt-0.5 text-amber-500 animate-spin" />
                   <div className="text-sm text-amber-200/90 leading-relaxed">
@@ -102,8 +117,20 @@ export default function InstallGuideModal() {
                 </div>
               )}
 
+              {/* بعد از ۱۰ ثانیه دیگر قولِ «خودش می‌آید» را تکرار نمی‌کنیم. */}
+              {guide.canPromptEventually && waitedTooLong && (
+                <div className="p-4 mb-5 bg-zinc-900/70 border border-zinc-700 rounded-2xl text-sm text-zinc-300 leading-relaxed">
+                  <b className="text-zinc-100">مرورگر این بار اجازه‌ی نصبِ یک‌کلیکی نداد.</b>
+                  <span className="block mt-2 text-zinc-400">
+                    این تقصیرِ تو نیست و سایت هم سالم است؛ تصمیمِ خودِ مرورگر است و هیچ سایتی
+                    نمی‌تواند به آن دستور بدهد. مسیرِ پایین <b>همیشه</b> کار می‌کند و نتیجه‌اش
+                    دقیقاً همان نصب است.
+                  </span>
+                </div>
+              )}
+
               <p className="text-xs font-extrabold text-amber-500 mb-2">
-                {guide.canPromptEventually ? `${guide.title} — اگر عجله داری` : guide.title}
+                {guide.canPromptEventually && !waitedTooLong ? `${guide.title} — اگر عجله داری` : guide.title}
               </p>
               <p className="text-sm text-zinc-300 leading-relaxed mb-5">{guide.intro}</p>
 

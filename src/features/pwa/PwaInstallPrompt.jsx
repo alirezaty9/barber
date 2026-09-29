@@ -6,24 +6,21 @@ import { Download, X, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePwaInstall } from './usePwaInstall';
 import { isAppleMobile } from './install-guidance';
-import { isInstallPromptHidden } from './install-scope';
+import { isInstallPromptHidden, isInstallDismissActive } from './install-scope';
 import { usePwaInstallStore } from './install-store';
 import { INSTALL_DISMISS_KEY, INSTALL_DISMISS_DAYS } from './install-keys';
 import { cn } from '@/lib/utils';
 
 const DISMISS_MS = INSTALL_DISMISS_DAYS * 24 * 60 * 60 * 1000;
 
-// آیا بستنِ قبلی هنوز معتبر است؟ مقدارِ ذخیره‌شده تاریخِ بستن است.
-// مقدارِ قدیمیِ '1' (از نسخه‌ی قبل) هم پذیرفته می‌شود ولی منقضی حساب می‌شود، تا کاربری که
-// یک‌بار اشتباهی بسته بود دوباره فرصتِ دیدنِ کادر را پیدا کند.
+// آیا بستنِ قبلی هنوز معتبر است؟ خودِ تصمیم‌گیری در install-scope.js است تا آزمون‌پذیر
+// بماند؛ اینجا فقط مقدار از حافظه‌ی مرورگر خوانده می‌شود.
 function isDismissActive() {
   try {
     const raw = window.localStorage.getItem(INSTALL_DISMISS_KEY);
-    if (!raw) return false;
-    const at = Number(raw);
-    if (!Number.isFinite(at) || at <= 1) return false;
-    return Date.now() - at < DISMISS_MS;
+    return isInstallDismissActive(raw, Date.now(), DISMISS_MS);
   } catch {
+    // حافظه‌ی مرورگر غیرفعال است (مثلاً حالتِ ناشناسِ بعضی مرورگرها) — کادر را نشان بده.
     return false;
   }
 }

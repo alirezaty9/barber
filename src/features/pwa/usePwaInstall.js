@@ -2,7 +2,8 @@
 
 import { useEffect, useCallback } from 'react';
 import { usePwaInstallStore } from './install-store';
-import { INSTALL_EVENT_KEY, INSTALL_READY_EVENT } from './install-keys';
+import { INSTALL_EVENT_KEY } from './install-keys';
+import { watchInstallPermission } from './install-watch';
 
 // هوکِ نصبِ PWA.
 //
@@ -38,15 +39,17 @@ export function usePwaInstall() {
     // ممکن است اجازه‌ی نصب پیش از این لحظه رسیده و کنار گذاشته شده باشد.
     setCanInstall(!!window[INSTALL_EVENT_KEY]);
 
-    const onAvailable = () =>
-      usePwaInstallStore.getState().setCanInstall(!!window[INSTALL_EVENT_KEY]);
     const onInstalled = () => usePwaInstallStore.getState().markInstalled();
-
-    window.addEventListener(INSTALL_READY_EVENT, onAvailable);
     window.addEventListener('appinstalled', onInstalled);
+
+    // خواندنِ منبعِ اصلی (حافظه‌ی مرورگر) و هم‌ترازکردنِ وضعیتِ داخلیِ اپ با آن.
+    // چرا این کار علاوه بر شنیدنِ خبر هم انجام می‌شود، در install-watch.js توضیح داده شده.
+    const sync = () => usePwaInstallStore.getState().setCanInstall(!!window[INSTALL_EVENT_KEY]);
+    const stopWatching = watchInstallPermission(sync);
+
     return () => {
-      window.removeEventListener(INSTALL_READY_EVENT, onAvailable);
       window.removeEventListener('appinstalled', onInstalled);
+      stopWatching();
     };
   }, []);
 

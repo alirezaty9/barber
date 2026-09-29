@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { isAppleMobile, getInstallGuide } from '@/features/pwa/install-guidance';
-import { isInstallPromptHidden } from '@/features/pwa/install-scope';
+import { isInstallPromptHidden, isInstallDismissActive } from '@/features/pwa/install-scope';
+import { INSTALL_DISMISS_DAYS } from '@/features/pwa/install-keys';
+import { watchInstallPermission, INSTALL_WATCH_MS } from '@/features/pwa/install-watch';
+import { INSTALL_READY_EVENT } from '@/features/pwa/install-keys';
 
 // ─────────────────────────────────────────────────────────────
 //  راهنمای نصبِ اپلیکیشن (PWA).
@@ -196,5 +199,173 @@ describe('مسیرهایی که کادرِ نصب در آن‌ها پنهان ا
   it('با مسیرِ نامعلوم (null/undefined) کرش نمی‌کند و پنهان نمی‌کند', () => {
     expect(isInstallPromptHidden(null)).toBe(false);
     expect(isInstallPromptHidden(undefined)).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+//  زیرِ نظر گرفتنِ اجازه‌ی نصب.
+//
+//  🔴 باگی که این بخش محافظش است: اجازه‌ی نصب در حافظه‌ی مرورگر می‌نشیند و وضعیتِ داخلیِ
+//  اپ فقط یک رونوشت از آن است. اگر رونوشت فقط با یک خبرِ **یک‌بارمصرف** تازه شود، هر
+//  دلیلی که باعث نشنیدنِ آن خبر شود، دکمه‌ی نصب را **برای همیشه** خاموش نگه می‌دارد —
+//  بدونِ هیچ خطایی، و فقط با رفتن به صفحه‌ی دیگر و برگشتن درست می‌شود.
+// ─────────────────────────────────────────────────────────────
+describe('زیرِ نظر گرفتنِ اجازه‌ی نصب', () => {
+  /** یک window/document ساختگی که فقط شنونده‌ها را می‌شمارد. */
+  function fakeTarget() {
+    const listeners = new Map();
+    return {
+      listeners,
+      addEventListener: (type, fn) => {
+        if (!listeners.has(type)) listeners.set(type, new Set());
+        listeners.get(type).add(fn);
+      },
+      removeEventListener: (type, fn) => listeners.get(type)?.delete(fn),
+      emit: (type) => listeners.get(type)?.forEach((fn) => fn()),
+      count: () => [...listeners.values()].reduce((n, s) => n + s.size, 0),
+    };
+  }
+
+  function setup() {
+    const win = fakeTarget();
+    const doc = fakeTarget();
+    const sync = vi.fn();
+    let clock = 0;
+    const stop = watchInstallPermission(sync, { win, doc, now: () => clock });
+
+    // ⚠️ زمان را قدم‌به‌قدم جلو می‌بریم، نه یکجا: اگر ساعتِ ساختگی را یک‌باره ۶۰ ثانیه جلو
+    // ببری، زمان‌سنج در همان **اولین** اجرایش می‌بیند که مهلت تمام شده و خودش را خاموش
+    // می‌کند — یعنی تست چیزی را می‌سنجید که در واقعیت رخ نمی‌دهد.
+    const STEP = 250;
+    const tick = (ms) => {
+      for (let passed = 0; passed < ms; passed += STEP) {
+        clock += STEP;
+        vi.advanceTimersByTime(STEP);
+      }
+    };
+    return { win, doc, sync, stop, tick };
+  }
+
+  afterEach(() => vi.useRealTimers());
+
+  // 🔴 قلبِ ماجرا: حتی اگر هیچ خبری نرسد، باید خودمان نگاه کنیم.
+  it('بدونِ رسیدنِ هیچ خبری هم هر ثانیه خودش نگاه می‌کند', () => {
+    vi.useFakeTimers();
+    const { sync, tick } = setup();
+
+    expect(sync).not.toHaveBeenCalled();
+    tick(1000);
+    expect(sync).toHaveBeenCalledTimes(1);
+    tick(3000);
+    expect(sync).toHaveBeenCalledTimes(4);
+  });
+
+  it('با رسیدنِ خبرِ «اجازه آماده است» فوراً نگاه می‌کند', () => {
+    vi.useFakeTimers();
+    const { win, sync } = setup();
+
+    win.emit(INSTALL_READY_EVENT);
+    expect(sync).toHaveBeenCalledTimes(1);
+  });
+
+  it('با برگشتنِ کاربر به تب هم نگاه می‌کند', () => {
+    vi.useFakeTimers();
+    const { win, doc, sync } = setup();
+
+    // ⚠️ خبرِ «تب دیده شد» روی document اعلام می‌شود، نه window. اگر روی window گوش
+    // می‌دادیم این تست می‌شکست — و در مرورگر بی‌صدا کار نمی‌کرد.
+    doc.emit('visibilitychange');
+    expect(sync).toHaveBeenCalledTimes(1);
+
+    win.emit('pageshow');
+    expect(sync).toHaveBeenCalledTimes(2);
+  });
+
+  // نگاه‌کردنِ ابدی کارِ بی‌خودی است؛ مرورگر تصمیمش را در ثانیه‌های اول می‌گیرد.
+  it('بعد از یک دقیقه دیگر خودش نگاه نمی‌کند', () => {
+    vi.useFakeTimers();
+    const { sync, tick } = setup();
+
+    tick(INSTALL_WATCH_MS);
+    const atLimit = sync.mock.calls.length;
+    expect(atLimit).toBe(INSTALL_WATCH_MS / 1000);
+
+    tick(30_000);
+    expect(sync).toHaveBeenCalledTimes(atLimit);
+  });
+
+  // 🔴 نشتِ شنونده: این کامپوننت در چند جای صفحه استفاده می‌شود و با هر جابه‌جایی بینِ
+  // صفحه‌ها دوباره ساخته می‌شود. اگر پاک‌سازی ناقص باشد، شنونده‌ها روی هم تلنبار می‌شوند.
+  it('پاک‌سازی همه‌ی شنونده‌ها و زمان‌سنج را برمی‌دارد', () => {
+    vi.useFakeTimers();
+    const { win, doc, sync, stop, tick } = setup();
+
+    expect(win.count() + doc.count()).toBe(3);
+    stop();
+    expect(win.count() + doc.count()).toBe(0);
+
+    win.emit(INSTALL_READY_EVENT);
+    doc.emit('visibilitychange');
+    tick(5000);
+    expect(sync).not.toHaveBeenCalled();
+  });
+
+  it('روی سرور (جایی که مرورگر نیست) کرش نمی‌کند', () => {
+    const sync = vi.fn();
+    const stop = watchInstallPermission(sync, { win: null, doc: null });
+    expect(() => stop()).not.toThrow();
+    expect(sync).not.toHaveBeenCalled();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+//  «کاربر کادر را بست» — تا کِی؟
+//
+//  خرابیِ این منطق دو شکلِ بی‌صدا دارد و هیچ‌کدام خطا نمی‌دهند: یا کادر برای همیشه ناپدید
+//  می‌شود (مشتری هیچ‌وقت پیشنهادِ نصب نمی‌بیند)، یا بستن هیچ اثری ندارد و هر بار برمی‌گردد.
+// ─────────────────────────────────────────────────────────────
+describe('اعتبارِ بستنِ کادرِ نصب', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const WINDOW = INSTALL_DISMISS_DAYS * DAY;
+  const NOW = 1_800_000_000_000; // یک زمانِ ثابت و دلخواه
+
+  it('تصمیمِ کاربر رعایت شده: مدتِ سکوت یک هفته است', () => {
+    expect(INSTALL_DISMISS_DAYS).toBe(7);
+  });
+
+  it('اگر هیچ‌وقت بسته نشده، کادر نشان داده می‌شود', () => {
+    expect(isInstallDismissActive(null, NOW, WINDOW)).toBe(false);
+    expect(isInstallDismissActive('', NOW, WINDOW)).toBe(false);
+  });
+
+  it('بستنِ همین حالا و بستنِ دو روز پیش، هنوز معتبر است', () => {
+    expect(isInstallDismissActive(String(NOW), NOW, WINDOW)).toBe(true);
+    expect(isInstallDismissActive(String(NOW - 2 * DAY), NOW, WINDOW)).toBe(true);
+  });
+
+  it('درست بعد از یک هفته کادر برمی‌گردد', () => {
+    // یک لحظه قبل از پایانِ مهلت: هنوز ساکت
+    expect(isInstallDismissActive(String(NOW - WINDOW + 1000), NOW, WINDOW)).toBe(true);
+    // دقیقاً در لحظه‌ی پایان و بعدش: دوباره نشان بده
+    expect(isInstallDismissActive(String(NOW - WINDOW), NOW, WINDOW)).toBe(false);
+    expect(isInstallDismissActive(String(NOW - 8 * DAY), NOW, WINDOW)).toBe(false);
+  });
+
+  // ⚠️ مقدارِ نسخه‌ی قدیمی که معنایش «برای همیشه ببند» بود.
+  it('مقدارِ قدیمیِ «۱» منقضی حساب می‌شود، نه ابدی', () => {
+    expect(isInstallDismissActive('1', NOW, WINDOW)).toBe(false);
+    expect(isInstallDismissActive('0', NOW, WINDOW)).toBe(false);
+  });
+
+  it('مقدارِ خراب یا نامعلوم کادر را خفه نمی‌کند', () => {
+    for (const bad of ['abc', 'NaN', '{}', 'Infinity', '-5']) {
+      expect(isInstallDismissActive(bad, NOW, WINDOW), bad).toBe(false);
+    }
+  });
+
+  // 🔴 اگر ساعتِ دستگاه جلو باشد و بعد درست شود، یک تاریخِ «آینده» ذخیره می‌ماند که با
+  // مقایسه‌ی ساده تا ابد معتبر می‌ماند و کادر را برای همیشه خفه می‌کند.
+  it('تاریخِ آینده (ساعتِ دستگاه جلو بوده) نامعتبر است', () => {
+    expect(isInstallDismissActive(String(NOW + DAY), NOW, WINDOW)).toBe(false);
   });
 });

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { INSTALL_EVENT_KEY, INSTALL_READY_EVENT } from '@/features/pwa/install-keys';
+import { usePwaInstallStore } from '@/features/pwa/install-store';
 
 // ─────────────────────────────────────────────────────────────
 //  صفحه‌ی تشخیصِ نصبِ اپ — /pwa-check
@@ -40,6 +41,9 @@ export default function PwaCheckPage() {
   const [log, setLog] = useState([]);
   const [state, setState] = useState(null);
   const [tick, setTick] = useState(0);
+  // 🔴 «کدِ اپ» در برابر «حافظه‌ی مرورگر»: اگر این دو با هم نخوانند، ایراد از ماست نه از
+  // مرورگر. تا پیش از این فقط حافظه‌ی مرورگر را نشان می‌دادیم و همین نکته‌ی کلیدی پنهان بود.
+  const storeCanInstall = usePwaInstallStore((s) => s.canInstall);
 
   // افزودنِ یک خط به گزارش، با زمانِ ثبتِ همان لحظه.
   const add = useCallback((msg) => {
@@ -184,9 +188,18 @@ export default function PwaCheckPage() {
             <section className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
               <h2 className="text-sm font-extrabold text-amber-400 mb-1">مهم‌ترین سؤال</h2>
               <div className={row}>
-                <span className={label}>اجازه‌ی نصب از مرورگر رسیده؟</span>
+                <span className={label}>اجازه‌ی نصب در حافظه‌ی مرورگر هست؟</span>
                 <span className={value}>{yesNo(state.permissionArrived)}</span>
               </div>
+              <div className={row}>
+                <span className={label}>کدِ اپ هم همین را می‌داند؟</span>
+                <span className={value}>{yesNo(storeCanInstall)}</span>
+              </div>
+              {state.permissionArrived !== storeCanInstall && (
+                <p className="my-2 rounded-xl border border-red-500/40 bg-red-500/10 p-2.5 text-xs font-bold text-red-300">
+                  🔴 این دو با هم نمی‌خوانند — یعنی ایراد در کدِ ماست، نه در مرورگر.
+                </p>
+              )}
               <div className={row}>
                 <span className={label}>مرورگر اپ را از قبل نصب‌شده می‌داند؟</span>
                 <span className={value}>{state.relatedApps}</span>

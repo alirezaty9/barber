@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Scissors, Instagram } from 'lucide-react';
 import { toPersianDigits } from '@/lib/persian';
 import { SHOP_NAME, SHOP_INTRO, SHOP_INSTAGRAM } from '@/lib/shop';
@@ -23,9 +24,14 @@ export default function Footer() {
           </div>
           {/* متنِ معرفی از src/lib/shop.js می‌آید تا با صفحه‌ی «دربارهٔ ما» یکی بماند. */}
           <p className="text-zinc-500 text-xs md:text-sm leading-relaxed max-w-sm">{SHOP_INTRO}</p>
-          <a href="/about" className="inline-block text-xs font-bold text-amber-500 hover:text-amber-400">
+          {/* 🔴 چرا Link و نه <a>؟ با <a> مرورگر کلِ سایت را از صفر می‌سازد (HTML دوباره،
+              جاوااسکریپت دوباره، فونت و عکس دوباره) و صفحه یک لحظه سفید می‌شود. با Link فقط
+              تکه‌ی عوض‌شده از سرور گرفته می‌شود و بقیه‌ی سایت دست‌نخورده می‌ماند — تقریباً آنی.
+              نوارِ بالای صفحه از اول Link داشت؛ همین لینک‌ها در فوتر <a> بودند و محسوس
+              کندتر کار می‌کردند. */}
+          <Link href="/about" className="inline-block text-xs font-bold text-amber-500 hover:text-amber-400">
             دربارهٔ ما بیشتر بخوانید ←
-          </a>
+          </Link>
           {/* تا وقتی آدرسِ پیجِ واقعی در shop.js پر نشده، آیکون نمایش داده نمی‌شود —
               لینکِ جای‌نگهدار مشتری را به صفحه‌ی اصلیِ اینستاگرام می‌برد، نه به پیجِ مجموعه. */}
           {SHOP_INSTAGRAM && (
@@ -40,15 +46,17 @@ export default function Footer() {
         <div>
           <h4 className="text-zinc-100 font-bold text-sm mb-4">دسترسی سریع</h4>
           <ul className="space-y-2.5 text-xs">
+            {/* این دو لنگرِ داخلِ همین صفحه‌اند (اسکرول)، نه رفتن به صفحه‌ی دیگر — پس <a>
+                درست است و Link هیچ سودی ندارد. */}
             <li><a href="#hero" className="hover:text-amber-500 transition-colors">خانه / صفحه اصلی</a></li>
             <li><a href="#services" className="hover:text-amber-500 transition-colors">منو خدمات و قیمت‌ها</a></li>
             {/* 🔴 «دربارهٔ ما» و «تماس با ما» صفحه‌های مستقل‌اند، نه لنگرِ داخلِ همین صفحه.
                 چک‌لیستِ ارزیابِ اینماد این دو را دو بندِ جدا می‌شمارد و دنبالِ لینکی با
                 دقیقاً همین نام‌ها می‌گردد؛ قبلاً هیچ لینکی با این نام‌ها در سایت نبود. */}
-            <li><a href="/about" className="hover:text-amber-500 transition-colors">دربارهٔ ما</a></li>
-            <li><a href="/contact" className="hover:text-amber-500 transition-colors">تماس با ما</a></li>
-            <li><a href="/track" className="hover:text-amber-500 transition-colors">رهگیری نوبت</a></li>
-            <li><a href="/terms" className="hover:text-amber-500 transition-colors">قوانین و مقررات</a></li>
+            <li><Link href="/about" className="hover:text-amber-500 transition-colors">دربارهٔ ما</Link></li>
+            <li><Link href="/contact" className="hover:text-amber-500 transition-colors">تماس با ما</Link></li>
+            <li><Link href="/track" className="hover:text-amber-500 transition-colors">رهگیری نوبت</Link></li>
+            <li><Link href="/terms" className="hover:text-amber-500 transition-colors">قوانین و مقررات</Link></li>
           </ul>
         </div>
 
@@ -57,9 +65,9 @@ export default function Footer() {
           {/* نشانی، کدِ پستی، تلفنِ ثابت، موبایل و ایمیل از قطعه‌ی مشترک می‌آیند تا با
               صفحه‌های «تماس با ما»، «دربارهٔ ما» و «قوانین» هیچ‌وقت اختلاف پیدا نکنند. */}
           <ShopContactLines valueClassName="text-zinc-500" />
-          <a href="/contact" className="inline-block font-bold text-amber-500 hover:text-amber-400">
+          <Link href="/contact" className="inline-block font-bold text-amber-500 hover:text-amber-400">
             صفحه‌ی تماس با ما ←
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -74,7 +82,11 @@ export default function Footer() {
               امنیت را رمز تأمین می‌کند نه پنهان‌بودنِ مسیر — ولی نبودش برای صاحبِ مجموعه
               یعنی راهِ ورودِ در دسترسی ندارد. (میان‌برِ مانیفست اما حذف شد، چون آن روی
               گوشیِ *مشتری‌ها* هم ظاهر می‌شد.) */}
-          <a href="/admin" className="text-zinc-700 hover:text-amber-500 transition-colors">پنل مدیریت</a>
+          {/* ⚠️ prefetch={false} فقط روی همین یکی. Next لینک‌ها را وقتی در دیدِ کاربر
+              می‌آیند از پیش می‌گیرد تا کلیک آنی باشد؛ ولی این یکی مسیرِ پشتِ ورود است و
+              پیش‌گرفتنش یعنی هر بازدیدکننده‌ی معمولیِ سایت، بی‌آنکه کلیک کند، یک درخواستِ
+              بی‌فایده به مسیرِ مدیریت می‌فرستد. */}
+          <Link href="/admin" prefetch={false} className="text-zinc-700 hover:text-amber-500 transition-colors">پنل مدیریت</Link>
           <p className="text-zinc-700">طراحی شده با تم دارک مینیمال جهت رزرو نوبت آنلاین سریع</p>
         </div>
       </div>

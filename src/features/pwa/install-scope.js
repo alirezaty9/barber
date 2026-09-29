@@ -22,3 +22,28 @@ export function isInstallPromptHidden(pathname) {
   if (typeof pathname !== 'string') return false;
   return INSTALL_HIDDEN_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
+
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * «کاربر کادر را بسته بود — آیا این بستن هنوز معتبر است؟»
+ *
+ * 🔴 چرا اینجا و آزمون‌پذیر؟ خرابیِ این منطق دو شکلِ بی‌صدا دارد و هیچ‌کدام خطا نمی‌دهند:
+ * یا کادر برای همیشه ناپدید می‌شود (و مشتری هیچ‌وقت پیشنهادِ نصب نمی‌بیند)، یا بستنش هیچ
+ * اثری ندارد و هر بار برمی‌گردد (و مشتری را کلافه می‌کند).
+ *
+ * @param {string | null} raw مقدارِ ذخیره‌شده در حافظه‌ی مرورگر (تاریخِ بستن)
+ * @param {number} nowMs زمانِ فعلی
+ * @param {number} windowMs مدتِ سکوت
+ */
+export function isInstallDismissActive(raw, nowMs, windowMs) {
+  if (!raw) return false;
+  const at = Number(raw);
+  // ⚠️ مقدارِ قدیمیِ '1' (از نسخه‌ای که «برای همیشه ببند» ذخیره می‌کرد) پذیرفته می‌شود ولی
+  // منقضی حساب می‌شود، تا کاربری که یک‌بار اشتباهی بسته بود دوباره فرصتِ دیدن پیدا کند.
+  if (!Number.isFinite(at) || at <= 1) return false;
+  // تاریخِ آینده هم نامعتبر است: ساعتِ دستگاه ممکن است عقب کشیده شود و یک مقدارِ آینده
+  // کادر را تا ابد خفه کند.
+  if (at > nowMs) return false;
+  return nowMs - at < windowMs;
+}

@@ -4,6 +4,8 @@ import ServiceWorkerRegister from '@/features/pwa/ServiceWorkerRegister';
 import InstallCapture from '@/features/pwa/InstallCapture';
 import InstallGuideModal from '@/features/pwa/InstallGuideModal';
 import PwaInstallPrompt from '@/features/pwa/PwaInstallPrompt';
+// ابزارِ موقتِ عیب‌یابی — فقط وقتی ?pwadebug=1 در آدرس باشد چیزی نشان می‌دهد.
+import PwaDebugBadge from '@/features/pwa/PwaDebugBadge';
 import { SITE_URL } from '@/lib/site';
 import { SHOP_NAME } from '@/lib/shop';
 import { INDEXING_ENABLED } from '@/lib/features';
@@ -115,6 +117,7 @@ export default function RootLayout({ children }) {
             صفحه‌های مشتری در دسترس باشد و با جابه‌جایی بینِ صفحه‌ها از بین نرود.
             خودش می‌داند در پنلِ مدیریت و صفحه‌های پرداخت چیزی نشان ندهد. */}
         <PwaInstallPrompt />
+        <PwaDebugBadge />
       </body>
     </html>
   );
