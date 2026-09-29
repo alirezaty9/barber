@@ -29,6 +29,21 @@ export default function sitemap() {
       priority: 0.5,
     },
     {
+      // دربارهٔ ما: معرفیِ مجموعه و مالک. هم برای اعتمادِ کاربر و هم یکی از صفحاتی که
+      // ارزیابِ نمادِ اعتمادِ الکترونیکی (اینماد) صریحاً دنبالش می‌گردد.
+      url: `${SITE_URL}/about`,
+      lastModified,
+      changeFrequency: 'yearly',
+      priority: 0.4,
+    },
+    {
+      // تماس با ما: نشانی، شماره‌ها، نقشه و مسیرِ رسیدگی به شکایات.
+      url: `${SITE_URL}/contact`,
+      lastModified,
+      changeFrequency: 'yearly',
+      priority: 0.4,
+    },
+    {
       // قوانین و مقررات: کم تغییر می‌کند، ولی وجودش برای اعتمادِ کاربر و بررسیِ
       // درگاهِ پرداخت لازم است، پس باید قابلِ پیداشدن باشد.
       url: `${SITE_URL}/terms`,

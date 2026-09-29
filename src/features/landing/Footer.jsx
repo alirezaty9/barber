@@ -1,15 +1,8 @@
-import { Scissors, MapPin, Phone, Instagram, Clock } from 'lucide-react';
+import { Scissors, Instagram } from 'lucide-react';
 import { toPersianDigits } from '@/lib/persian';
-import {
-  SHOP_NAME,
-  SHOP_ADDRESS as ADDRESS,
-  SHOP_PHONE_LINK,
-  SHOP_PHONE_DISPLAY,
-  SHOP_HOURS,
-  SHOP_INSTAGRAM,
-  SHOP_LAT as LAT,
-  SHOP_LNG as LNG,
-} from '@/lib/shop';
+import { SHOP_NAME, SHOP_INTRO, SHOP_INSTAGRAM } from '@/lib/shop';
+import ShopContactLines from '@/features/info/ShopContactLines';
+import ShopMap from '@/features/info/ShopMap';
 import BrandWordmark from './BrandWordmark';
 
 export default function Footer() {
@@ -28,9 +21,11 @@ export default function Footer() {
             </div>
             <BrandWordmark className="font-sans font-bold text-lg tracking-wider text-amber-500" accentClassName="text-white" />
           </div>
-          <p className="text-zinc-500 text-xs md:text-sm leading-relaxed max-w-sm">
-            ارائه برترین خدمات هیرکات، طراحی ریش و استایل تخصصی آقایان در فضایی لوکس و آرامش‌بخش با تکیه بر استانداردهای روز دنیا.
-          </p>
+          {/* متنِ معرفی از src/lib/shop.js می‌آید تا با صفحه‌ی «دربارهٔ ما» یکی بماند. */}
+          <p className="text-zinc-500 text-xs md:text-sm leading-relaxed max-w-sm">{SHOP_INTRO}</p>
+          <a href="/about" className="inline-block text-xs font-bold text-amber-500 hover:text-amber-400">
+            دربارهٔ ما بیشتر بخوانید ←
+          </a>
           {/* تا وقتی آدرسِ پیجِ واقعی در shop.js پر نشده، آیکون نمایش داده نمی‌شود —
               لینکِ جای‌نگهدار مشتری را به صفحه‌ی اصلیِ اینستاگرام می‌برد، نه به پیجِ مجموعه. */}
           {SHOP_INSTAGRAM && (
@@ -47,7 +42,11 @@ export default function Footer() {
           <ul className="space-y-2.5 text-xs">
             <li><a href="#hero" className="hover:text-amber-500 transition-colors">خانه / صفحه اصلی</a></li>
             <li><a href="#services" className="hover:text-amber-500 transition-colors">منو خدمات و قیمت‌ها</a></li>
-            <li><a href="#contact" className="hover:text-amber-500 transition-colors">ارتباط با ما</a></li>
+            {/* 🔴 «دربارهٔ ما» و «تماس با ما» صفحه‌های مستقل‌اند، نه لنگرِ داخلِ همین صفحه.
+                چک‌لیستِ ارزیابِ اینماد این دو را دو بندِ جدا می‌شمارد و دنبالِ لینکی با
+                دقیقاً همین نام‌ها می‌گردد؛ قبلاً هیچ لینکی با این نام‌ها در سایت نبود. */}
+            <li><a href="/about" className="hover:text-amber-500 transition-colors">دربارهٔ ما</a></li>
+            <li><a href="/contact" className="hover:text-amber-500 transition-colors">تماس با ما</a></li>
             <li><a href="/track" className="hover:text-amber-500 transition-colors">رهگیری نوبت</a></li>
             <li><a href="/terms" className="hover:text-amber-500 transition-colors">قوانین و مقررات</a></li>
           </ul>
@@ -55,50 +54,18 @@ export default function Footer() {
 
         <div id="contact" className="space-y-4 text-xs scroll-mt-24">
           <h4 className="text-zinc-100 font-bold text-sm">ارتباط با ما</h4>
-          <div className="flex items-start gap-2.5">
-            <MapPin className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-            <span className="leading-relaxed text-zinc-500">{ADDRESS}</span>
-          </div>
-          <a href={`tel:${SHOP_PHONE_LINK}`} className="flex items-center gap-2.5 hover:text-amber-500 transition-colors">
-            <Phone className="w-4 h-4 text-amber-500 flex-shrink-0" />
-            <span className="font-mono text-zinc-500">{SHOP_PHONE_DISPLAY}</span>
+          {/* نشانی، کدِ پستی، تلفنِ ثابت، موبایل و ایمیل از قطعه‌ی مشترک می‌آیند تا با
+              صفحه‌های «تماس با ما»، «دربارهٔ ما» و «قوانین» هیچ‌وقت اختلاف پیدا نکنند. */}
+          <ShopContactLines valueClassName="text-zinc-500" />
+          <a href="/contact" className="inline-block font-bold text-amber-500 hover:text-amber-400">
+            صفحه‌ی تماس با ما ←
           </a>
-          <div className="flex items-center gap-2.5">
-            <Clock className="w-4 h-4 text-amber-500 flex-shrink-0" />
-            <span>{SHOP_HOURS}</span>
-          </div>
         </div>
       </div>
 
-      {/* نقشه‌ی موقعیت مکانی — هدف اسکرول آیکون لوکیشن در هدر */}
-      <div id="location" className="max-w-7xl mx-auto mt-12 scroll-mt-24">
-        <div className="flex items-center gap-2 mb-3 text-sm text-zinc-100 font-bold">
-          <MapPin className="w-4 h-4 text-amber-500" />
-          <span>موقعیت روی نقشه</span>
-        </div>
-        <div className="rounded-2xl overflow-hidden border border-zinc-800">
-          <iframe
-            title={`نقشه موقعیت ${SHOP_NAME}`}
-            src={`https://maps.google.com/maps?q=${LAT},${LNG}&z=17&output=embed`}
-            className="w-full h-64 md:h-80"
-            style={{ border: 0, filter: 'grayscale(0.4) invert(0.9) hue-rotate(180deg)' }}
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-            allowFullScreen
-          />
-        </div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2">
-          <p className="text-[11px] text-zinc-500 leading-relaxed">{ADDRESS}</p>
-          <a
-            href={`https://www.google.com/maps/dir/?api=1&destination=${LAT},${LNG}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[11px] font-bold text-amber-500 hover:text-amber-400 whitespace-nowrap"
-          >
-            مسیریابی روی نقشه ←
-          </a>
-        </div>
-      </div>
+      {/* نقشه‌ی موقعیت مکانی — هدف اسکرول آیکون لوکیشن در هدر.
+          شناسه‌ی location باید بماند، وگرنه آیکنِ لوکیشنِ بالای صفحه به هیچ‌جا نمی‌رود. */}
+      <ShopMap id="location" className="max-w-7xl mx-auto mt-12 scroll-mt-24" />
 
       <div className="max-w-7xl mx-auto border-t border-zinc-900/60 mt-12 pt-6 text-center text-[10px] text-zinc-600 flex flex-col sm:flex-row items-center justify-between gap-4">
         <p>© {toPersianDigits(currentYear)} {SHOP_NAME}. تمامی حقوق مادی و معنوی محفوظ است.</p>

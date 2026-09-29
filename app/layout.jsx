@@ -3,6 +3,7 @@ import Providers from './providers';
 import ServiceWorkerRegister from '@/features/pwa/ServiceWorkerRegister';
 import InstallCapture from '@/features/pwa/InstallCapture';
 import InstallGuideModal from '@/features/pwa/InstallGuideModal';
+import PwaInstallPrompt from '@/features/pwa/PwaInstallPrompt';
 import { SITE_URL } from '@/lib/site';
 import { SHOP_NAME } from '@/lib/shop';
 import { INDEXING_ENABLED } from '@/lib/features';
@@ -98,14 +99,22 @@ export default function RootLayout({ children }) {
   return (
     <html lang="fa" dir="rtl">
       <body>
-        {/* 🔴 باید اولین چیزِ داخلِ صفحه باشد: اجازه‌ی نصبِ اپ را مرورگر فقط یک‌بار و بدونِ
-            هشدار اعلام می‌کند، و اگر آن لحظه کسی نگیردش برای همیشه از دست می‌رود. */}
+        {/* 🔴 این دو باید اولین چیزهای داخلِ صفحه باشند:
+            • InstallCapture: اجازه‌ی نصبِ اپ را مرورگر فقط یک‌بار و بدونِ هشدار اعلام می‌کند،
+              و اگر آن لحظه کسی نگیردش برای همیشه از دست می‌رود.
+            • ServiceWorkerRegister: تا سرویس‌ورکر فعال نشود، کروم سایت را «قابلِ نصب»
+              نمی‌شناسد و اصلاً آن اجازه را اعلام نمی‌کند. پس ثبتش هرچه زودتر، بهتر —
+              هر ثانیه تأخیر، یعنی همان‌قدر دیرتر آماده‌شدنِ دکمه‌ی نصب. */}
         <InstallCapture />
+        <ServiceWorkerRegister />
         <Providers>{children}</Providers>
         {/* پنجره‌ی راهنمای نصب — در ریشه‌ی صفحه رندر می‌شود چون چند دکمه‌ی متفاوت
             (آیکنِ بالای صفحه و کادرِ پایین) بازش می‌کنند و هر دو باید یک تجربه بدهند. */}
         <InstallGuideModal />
-        <ServiceWorkerRegister />
+        {/* کادرِ نصبِ اپ — اینجا (و نه داخلِ صفحه‌ی اصلی) رندر می‌شود تا روی همه‌ی
+            صفحه‌های مشتری در دسترس باشد و با جابه‌جایی بینِ صفحه‌ها از بین نرود.
+            خودش می‌داند در پنلِ مدیریت و صفحه‌های پرداخت چیزی نشان ندهد. */}
+        <PwaInstallPrompt />
       </body>
     </html>
   );

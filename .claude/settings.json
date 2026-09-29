@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(.env.liara)",
+      "Edit(.env.liara)",
+      "Bash(npm run db:studio *)",
+      "Bash(npx prisma studio *)"
+    ]
+  }
+}

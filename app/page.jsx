@@ -5,7 +5,6 @@ import LandingHero from '@/features/landing/LandingHero';
 import ServicesSection from '@/features/landing/ServicesSection';
 import Footer from '@/features/landing/Footer';
 import BookingLauncher from '@/features/booking/BookingLauncher';
-import PwaInstallPrompt from '@/features/pwa/PwaInstallPrompt';
 
 // این صفحه در هر درخواست روی سرور ساخته می‌شود و کاتالوگ را زنده از دیتابیس می‌خواند.
 //
@@ -46,9 +45,8 @@ export default async function Home() {
       {/* مودال رزرو — با Zustand کنترل می‌شود و داده‌ها را خودش از API می‌گیرد */}
       <BookingLauncher services={services} barbers={barbers} />
 
-      {/* کادرِ نصبِ اپ — چسبیده به پایینِ صفحه. با آیکنِ نصبِ بالای صفحه یک وضعیتِ
-          مشترک دارد، پس هیچ‌وقت با هم تداخل نمی‌کنند. */}
-      <PwaInstallPrompt />
+      {/* کادرِ نصبِ اپ اینجا نیست: به app/layout.jsx منتقل شد تا روی همه‌ی صفحه‌های
+          مشتری باشد، نه فقط این صفحه. */}
     </div>
   );
 }

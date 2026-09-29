@@ -7,11 +7,34 @@ import { useBookingStore } from '@/features/booking/store';
 import BrandWordmark from './BrandWordmark';
 
 // ثابت و مستقل از رندر — لازم نیست در هر رندر بازساخته شود.
+//
+// دو نوع لینک اینجا هست و تفاوتشان مهم است:
+//   • route: false → لنگرِ داخلِ همین صفحه (فقط اسکرول می‌کند، صفحه عوض نمی‌شود)
+//   • route: true  → صفحه‌ی مستقلِ دیگری از سایت
+// لینک‌های نوعِ دوم با کامپوننتِ Link رندر می‌شوند تا جابه‌جایی بینِ صفحه‌ها بدونِ
+// بارگذاریِ کاملِ دوباره انجام شود؛ با <a> ساده، هر کلیک کلِ سایت را از نو بار می‌کرد.
 const LINKS = [
   { href: '#hero', label: 'خانه' },
   { href: '#services', label: 'خدمات' },
-  { href: '#contact', label: 'ارتباط با ما' },
+  { href: '/about', label: 'دربارهٔ ما', route: true },
+  { href: '/contact', label: 'تماس با ما', route: true },
 ];
+
+// یک لینکِ نوار، با انتخابِ خودکارِ نوعِ درست.
+function NavLink({ link, className, onClick }) {
+  if (link.route) {
+    return (
+      <Link href={link.href} className={className} onClick={onClick}>
+        {link.label}
+      </Link>
+    );
+  }
+  return (
+    <a href={link.href} className={className} onClick={onClick}>
+      {link.label}
+    </a>
+  );
+}
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -65,9 +88,7 @@ export default function Navbar() {
 
         <div className="hidden md:flex items-center gap-8">
           {LINKS.map((l) => (
-            <a key={l.href} href={l.href} className="text-sm font-medium text-zinc-400 hover:text-amber-500 transition-colors">
-              {l.label}
-            </a>
+            <NavLink key={l.href} link={l} className="text-sm font-medium text-zinc-400 hover:text-amber-500 transition-colors" />
           ))}
         </div>
 
@@ -102,14 +123,12 @@ export default function Navbar() {
       {mobileMenuOpen && (
         <div className="md:hidden glass border-t border-zinc-900 mt-4 px-6 py-5 flex flex-col gap-4">
           {LINKS.map((l) => (
-            <a
+            <NavLink
               key={l.href}
-              href={l.href}
+              link={l}
               onClick={() => setMobileMenuOpen(false)}
               className="text-sm font-medium text-zinc-300 hover:text-amber-500 py-1 transition-colors"
-            >
-              {l.label}
-            </a>
+            />
           ))}
           <div className="h-px bg-zinc-800 my-2" />
           <div className="flex flex-col gap-3">

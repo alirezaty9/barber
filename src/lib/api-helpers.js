@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { randomBytes, timingSafeEqual } from 'crypto';
 import { isAuthenticated } from './auth';
-import { REFUNDS_ENABLED } from './features';
+import { REFUNDS_ENABLED, REFUND_CUSTOMER_PERCENT, REFUND_SHOP_CANCEL_PERCENT } from './features';
 
 /** مقایسه‌ی دو رشته‌ی محرمانه به‌صورتِ constant-time (ضدِ timing attack). */
 function secretsMatch(candidate, expected) {
@@ -124,7 +124,8 @@ export function generateBookingCode() {
 
 /**
  * محاسبه‌ی patch لغو نوبت + استرداد.
- * قاعده: اگر «مشتری» لغو کند ۵۰٪ و اگر «ادمین/آرایشگر» لغو کند ۱۰۰٪ مبلغِ پرداخت‌شده مسترد می‌شود.
+ * قاعده: لغو توسطِ «مشتری» ⇒ REFUND_CUSTOMER_PERCENT و لغو توسطِ «ادمین/آرایشگر» ⇒
+ * REFUND_SHOP_CANCEL_PERCENT درصد از مبلغِ پرداخت‌شده (هر دو در src/lib/features.js).
  * فقط نوبت‌های «پرداخت‌شده» مشمول استرداد هستند.
  * @param {{paymentStatus:string, amount:number}} booking
  * @param {'customer'|'admin'} cancelledBy
@@ -132,11 +133,23 @@ export function generateBookingCode() {
 export function buildCancelPatch(booking, cancelledBy) {
   const patch = { status: 'cancelled', cancelledBy };
   if (booking.paymentStatus === 'paid' && booking.amount > 0) {
-    const ratio = cancelledBy === 'admin' ? 1 : 0.5;
     patch.paymentStatus = 'refunded';
-    patch.refundAmount = Math.floor(booking.amount * ratio);
+    patch.refundAmount = Math.floor(booking.amount * refundRatioFor(cancelledBy));
   }
   return patch;
+}
+
+// 🔴 تنها جایی که نسبتِ استرداد حساب می‌شود.
+//
+// درصدها از src/lib/features.js می‌آیند، نه از عددِ دستی. چرا مهم شد؟ از ۱۴۰۵/۰۷/۰۷
+// صفحه‌ی «قوانین و مقررات» همین درصد را **به مشتری وعده می‌دهد** و از همان ثابت می‌خواند.
+// اگر اینجا عددِ جداگانه‌ای بماند، روزی که یکی عوض شود صفحه‌ی قوانین به مشتری دروغ می‌گوید
+// بی‌آنکه هیچ تستی بشکند. یک منبعِ حقیقت، این حالت را غیرممکن می‌کند.
+//
+// «هیچ‌کس لغو نکرده» (null) هم مثلِ لغوِ مدیریت رفتار می‌کند، چون تقصیرِ مشتری نبوده.
+function refundRatioFor(cancelledBy) {
+  const percent = cancelledBy === 'customer' ? REFUND_CUSTOMER_PERCENT : REFUND_SHOP_CANCEL_PERCENT;
+  return percent / 100;
 }
 
 /**
@@ -155,8 +168,7 @@ export function buildCancelPatch(booking, cancelledBy) {
  * دو برابرِ چیزی که واقعاً پرداخت شده، و همین عدد به خودِ مشتری هم نشان داده می‌شد.
  */
 export function refundShareFor(booking) {
-  const ratio = booking.cancelledBy === 'customer' ? 0.5 : 1;
-  return Math.floor((booking.amount || 0) * ratio);
+  return Math.floor((booking.amount || 0) * refundRatioFor(booking.cancelledBy));
 }
 
 /**

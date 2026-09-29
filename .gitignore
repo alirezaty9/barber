@@ -53,13 +53,15 @@ db-dump*.sql
 db-backup*.sql
 backup-*.sql
 
-# ===== Claude Code (تنظیمات محلی) =====
-.claude/
+# ===== Claude Code =====
+# فقط فایلِ محلیِ شخصی نادیده گرفته می‌شود؛ تنظیماتِ مشترکِ پروژه
+# (.claude/settings.json و هر skill/rule/hook آینده) باید در گیت بماند.
+.claude/settings.local.json
 
 # ===== فایل‌های کاری/موقت (پاسخ‌های تولیدشده) =====
 # الگوی * هم response.md را می‌گیرد و هم کپی‌های اتفاقی مثلِ «response copy.md».
 response*.md
-pending.md
+launch-checklist.md
 v2ray.md
 explain.md
 setup.sql

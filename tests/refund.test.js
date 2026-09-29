@@ -94,3 +94,82 @@ describe('resolveCancelPatch — رفتار با کلیدِ REFUNDS_ENABLED', ()
     expect(patch.refundAmount).toBeUndefined();
   });
 });
+
+// ── درصدها فقط یک منبع دارند ──
+// صفحه‌ی «قوانین و مقررات» از ۱۴۰۵/۰۷/۰۷ همین درصدها را **به مشتری وعده می‌دهد**.
+// اگر منطقِ استرداد عددِ جداگانه‌ی خودش را داشته باشد، روزی که یکی عوض شود صفحه‌ی قوانین
+// بی‌صدا به مشتری دروغ می‌گوید. این تست‌ها آن جدایی را غیرممکن می‌کنند.
+describe('درصدهای استرداد — یک منبعِ حقیقت', () => {
+  it('لغوِ مشتری دقیقاً همان REFUND_CUSTOMER_PERCENT را اعمال می‌کند', async () => {
+    const { REFUND_CUSTOMER_PERCENT } = await import('@/lib/features');
+    const patch = buildCancelPatch({ paymentStatus: 'paid', amount: 400000 }, 'customer');
+    expect(patch.refundAmount).toBe(Math.floor(400000 * (REFUND_CUSTOMER_PERCENT / 100)));
+  });
+
+  it('لغوِ مدیریت دقیقاً همان REFUND_SHOP_CANCEL_PERCENT را اعمال می‌کند', async () => {
+    const { REFUND_SHOP_CANCEL_PERCENT } = await import('@/lib/features');
+    const patch = buildCancelPatch({ paymentStatus: 'paid', amount: 400000 }, 'admin');
+    expect(patch.refundAmount).toBe(Math.floor(400000 * (REFUND_SHOP_CANCEL_PERCENT / 100)));
+  });
+
+  it('محاسبه‌ی لحظه‌ی لغو و محاسبه‌ی تسویه‌ی دستی به یک عدد می‌رسند', () => {
+    // قبلاً این دو تابع برای «لغوکننده‌ی نامشخص» دو عددِ متفاوت می‌دادند. حالا هر دو از
+    // یک منبع می‌خوانند، پس مبلغی که به مشتری وعده داده می‌شود و مبلغی که آرایشگر
+    // «برگرداندم» ثبت می‌کند نمی‌توانند از هم جدا بیفتند.
+    for (const who of ['customer', 'admin']) {
+      const patch = buildCancelPatch({ paymentStatus: 'paid', amount: 333333 }, who);
+      expect(refundShareFor({ cancelledBy: who, amount: 333333 })).toBe(patch.refundAmount);
+    }
+  });
+});
+
+// ── متنِ رسمیِ سیاستِ بازگشتِ وجه ──
+// 🔴 این تست از یک تصمیمِ کسب‌وکاری محافظت می‌کند، نه از یک جزئیاتِ فنی.
+// تعهدِ «۵۰٪ برمی‌گردد» باید **مستقل از** کلیدِ استردادِ خودکار به مشتری گفته شود، چون
+// استردادِ دستی هم یک اجرای معتبر از همان تعهد است و صفحه‌ی قوانین رویش بنا شده.
+// اگر کسی روزی این متن را دوباره به REFUNDS_ENABLED گره بزند، همین تست می‌شکند.
+describe('REFUND_POLICY_NOTE — متنی که به مشتری نشان داده می‌شود', () => {
+  beforeEach(() => vi.resetModules());
+  afterEach(() => vi.unstubAllEnvs());
+
+  async function loadFeatures({ refunds, sms }) {
+    vi.stubEnv('NEXT_PUBLIC_REFUNDS_ENABLED', refunds);
+    vi.stubEnv('NEXT_PUBLIC_SMS_ENABLED', sms);
+    return import('@/lib/features');
+  }
+
+  it('با استردادِ خودکارِ خاموش هم درصدِ بازگشت را اعلام می‌کند', async () => {
+    const f = await loadFeatures({ refunds: 'false', sms: 'false' });
+    expect(f.REFUNDS_ENABLED).toBe(false);
+    expect(f.REFUND_POLICY_NOTE).toContain('۵۰٪');
+  });
+
+  it('با استردادِ خودکارِ روشن همان درصد را اعلام می‌کند', async () => {
+    const f = await loadFeatures({ refunds: 'true', sms: 'false' });
+    expect(f.REFUND_POLICY_NOTE).toContain('۵۰٪');
+  });
+
+  it('درصد همیشه با ارقامِ فارسی نوشته می‌شود، نه لاتین', async () => {
+    const f = await loadFeatures({ refunds: 'false', sms: 'false' });
+    expect(f.REFUND_POLICY_NOTE).not.toMatch(/[0-9]/);
+  });
+
+  it('با پیامکِ خاموش، «تماس تلفنی» را به‌عنوان راهِ لغو می‌گوید', async () => {
+    const f = await loadFeatures({ refunds: 'false', sms: 'false' });
+    expect(f.REFUND_POLICY_NOTE).toContain('تماس تلفنی');
+  });
+
+  it('با پیامکِ روشن، دیگر مشتری را به تلفن ارجاع نمی‌دهد', async () => {
+    const f = await loadFeatures({ refunds: 'false', sms: 'true' });
+    expect(f.REFUND_POLICY_NOTE).not.toContain('تماس تلفنی');
+    expect(f.REFUND_POLICY_NOTE).toContain('۵۰٪');
+  });
+
+  it('مهلتِ لغو (روزِ قبل) در هر دو حالت به مشتری گفته می‌شود', async () => {
+    for (const sms of ['false', 'true']) {
+      vi.resetModules();
+      const f = await loadFeatures({ refunds: 'false', sms });
+      expect(f.REFUND_POLICY_NOTE).toContain('روزِ قبل');
+    }
+  });
+});

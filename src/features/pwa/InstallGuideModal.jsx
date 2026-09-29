@@ -92,12 +92,11 @@ export default function InstallGuideModal() {
                 <div className="flex items-start gap-2.5 p-4 mb-5 bg-amber-500/5 border border-amber-500/20 rounded-2xl">
                   <Loader2 className="w-5 h-5 shrink-0 mt-0.5 text-amber-500 animate-spin" />
                   <div className="text-sm text-amber-200/90 leading-relaxed">
-                    <b className="text-amber-400">دکمه‌ی نصب هنوز آماده نیست.</b> مرورگرِ تو نصبِ
-                    یک‌کلیکی را پشتیبانی می‌کند، ولی چند لحظه صبر می‌کند تا مطمئن شود واقعاً داری
-                    از سایت استفاده می‌کنی.
+                    <b className="text-amber-400">یک لحظه…</b> مرورگرِ تو نصبِ یک‌کلیکی را
+                    پشتیبانی می‌کند و همین حالا دارد سایت را برای نصب آماده می‌کند.
                     <span className="block mt-2 text-amber-200/70">
-                      این پنجره را باز بگذار و چند ثانیه در صفحه اسکرول کن — به‌محضِ آماده‌شدن،
-                      <b> همین‌جا</b> دکمه‌ی «نصب اپلیکیشن» ظاهر می‌شود.
+                      این پنجره را باز بگذار — به‌محضِ آماده‌شدن، <b>همین‌جا</b> دکمه‌ی «نصب
+                      اپلیکیشن» خودش ظاهر می‌شود. لازم نیست کاری بکنی.
                     </span>
                   </div>
                 </div>

@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { Download, X, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePwaInstall } from './usePwaInstall';
 import { isAppleMobile } from './install-guidance';
+import { isInstallPromptHidden } from './install-scope';
 import { usePwaInstallStore } from './install-store';
 import { INSTALL_DISMISS_KEY, INSTALL_DISMISS_DAYS } from './install-keys';
 import { cn } from '@/lib/utils';
@@ -40,6 +42,7 @@ export default function PwaInstallPrompt() {
   const [dismissed, setDismissed] = useState(true); // پیش‌فرض مخفی تا وضعیت از حافظه خوانده شود
   const [isIOS, setIsIOS] = useState(false);
   const openGuide = usePwaInstallStore((s) => s.openGuide);
+  const pathname = usePathname();
 
   useEffect(() => {
     setDismissed(isDismissActive());
@@ -70,6 +73,13 @@ export default function PwaInstallPrompt() {
       openGuide();
     }
   };
+
+  // 🔴 این کادر در ریشه‌ی صفحه (app/layout.jsx) رندر می‌شود تا روی همه‌ی صفحه‌های مشتری
+  // باشد و با جابه‌جایی بینِ صفحه‌ها از بین نرود. پس خودش باید بداند کجا نباید باشد.
+  // اینجا به‌جای «مخفی‌کردن با CSS» کلاً چیزی ساخته نمی‌شود، چون این مسیرها هیچ‌وقت قرار
+  // نیست کادر را نشان بدهند و متنِ پنهان بی‌دلیل در صفحه ماندن ندارد.
+  // (فهرست و منطقش در install-scope.js تا آزمون‌پذیر بماند.)
+  if (isInstallPromptHidden(pathname)) return null;
 
   return (
     <div

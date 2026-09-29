@@ -1,175 +1,219 @@
 import Link from 'next/link';
-import { Scissors, FileText, CreditCard, CalendarClock, XCircle, ShieldCheck, Phone, MapPin } from 'lucide-react';
-import { SHOP_NAME, SHOP_ADDRESS, SHOP_PHONE_LINK, SHOP_PHONE_DISPLAY, SHOP_HOURS } from '@/lib/shop';
+import {
+  FileText, CreditCard, CalendarClock, XCircle, ShieldCheck,
+  Store, MessageSquareWarning, Phone,
+} from 'lucide-react';
+import { SHOP_NAME, SHOP_OWNER, SHOP_EMAIL, SHOP_PHONE_DISPLAY } from '@/lib/shop';
 import { TIME_SLOTS, SLOT_STEP_MIN, PENDING_HOLD_MINUTES } from '@/lib/constants';
 import { toPersianDigits } from '@/lib/persian';
-import { SMS_ENABLED } from '@/lib/features';
-import BrandWordmark from '@/features/landing/BrandWordmark';
+import {
+  SMS_ENABLED,
+  REFUND_CUSTOMER_PERCENT,
+  REFUND_SHOP_CANCEL_PERCENT,
+  REFUND_SETTLEMENT_HOURS,
+} from '@/lib/features';
+import InfoPageShell from '@/features/info/InfoPageShell';
+import InfoSection from '@/features/info/InfoSection';
+import ShopContactLines from '@/features/info/ShopContactLines';
 
 export const metadata = {
   title: `قوانین و مقررات | ${SHOP_NAME}`,
-  description: `شرایط رزرو نوبت، پرداخت آنلاین، لغو نوبت و حریم خصوصی در سامانه رزرو ${SHOP_NAME}`,
+  description: `شرایط رزرو نوبت، پرداخت آنلاین، انصراف و بازگشت وجه، حریم خصوصی و رسیدگی به شکایات در سامانه رزرو ${SHOP_NAME}`,
 };
 
-// صفحه‌ی «قوانین و مقررات» — یکی از صفحاتی که درگاه‌های پرداخت (زرین‌پال) هنگامِ بررسیِ
-// سایت انتظار دارند ببینند. محتوا عمداً با رفتارِ واقعیِ اپ هماهنگ نوشته شده: مبلغِ کامل
-// به‌عنوان پیش‌پرداخت آنلاین گرفته می‌شود، پرداختِ ناموفق نوبت را آزاد می‌کند، و لغو
-// فعلاً فقط تلفنی است (چون سامانه‌ی پیامکِ کدِ تأیید هنوز فعال نشده).
+// صفحه‌ی «قوانین و مقررات» — یکی از صفحاتی که هم درگاه‌های پرداخت (زرین‌پال) و هم ارزیابِ
+// نمادِ اعتمادِ الکترونیکی (اینماد) هنگامِ بررسیِ سایت انتظار دارند ببینند.
+//
+// 🔴 محتوا عمداً با رفتارِ واقعیِ اپ هماهنگ نوشته شده و هیچ عددی دستی تکرار نشده:
+// مدتِ نوبت، مهلتِ نگه‌داشتِ رزروِ نیمه‌تمام و درصدهای بازگشتِ وجه همه از همان ثابت‌هایی
+// خوانده می‌شوند که خودِ سیستم با آن‌ها کار می‌کند. پس این صفحه نمی‌تواند بی‌صدا تبدیل به
+// یک ادعای نادرست به مشتری شود.
 export default function TermsPage() {
   const firstSlot = TIME_SLOTS[0];
   const lastSlot = TIME_SLOTS[TIME_SLOTS.length - 1];
 
   return (
-    <div className="min-h-screen bg-[#030303] text-zinc-100 px-6 py-12">
-      <div className="max-w-2xl mx-auto">
-        <Link href="/" className="flex items-center gap-3 mb-8 justify-center">
-          <div className="p-2.5 bg-gradient-to-br from-amber-500 to-amber-700 rounded-lg shadow-lg">
-            <Scissors className="w-5 h-5 text-black" />
-          </div>
-          <BrandWordmark className="font-sans font-extrabold text-xl tracking-wider text-amber-500" accentClassName="text-white" />
-        </Link>
+    <InfoPageShell
+      icon={FileText}
+      title="قوانین و مقررات"
+      intro={`استفاده از سامانه‌ی رزرو آنلاین ${SHOP_NAME} به معنای پذیرش شرایط زیر است. لطفاً پیش از ثبت نوبت، این صفحه را بخوانید.`}
+    >
+      <InfoSection icon={Store} title="۱. مشخصات ارائه‌دهنده‌ی خدمات">
+        <li>
+          خدماتِ این سایت توسط مجموعه‌ی <b>{SHOP_NAME}</b>
+          {SHOP_OWNER ? <> به مدیریتِ <b>{SHOP_OWNER}</b></> : null} ارائه می‌شود.
+        </li>
+        <li>
+          نشانیِ کاملِ محلِ فعالیت، شماره‌های تماس و ساعاتِ کاری در پایینِ همین صفحه و در
+          صفحه‌ی{' '}
+          <Link href="/contact" className="text-amber-500 hover:text-amber-400 font-bold">تماس با ما</Link>{' '}
+          آمده است. معرفیِ مجموعه در صفحه‌ی{' '}
+          <Link href="/about" className="text-amber-500 hover:text-amber-400 font-bold">دربارهٔ ما</Link>{' '}
+          قابل مشاهده است.
+        </li>
+        <li>
+          خدماتِ ارائه‌شده صرفاً خدماتِ آرایشگریِ آقایان است و <b>حضوری</b> در محلِ مجموعه
+          انجام می‌شود؛ هیچ کالایی ارسال نمی‌شود، بنابراین هزینه‌ی ارسال یا بسته‌بندی وجود ندارد.
+        </li>
+      </InfoSection>
 
-        <div className="flex flex-col items-center text-center mb-10">
-          <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-2xl mb-3">
-            <FileText className="w-6 h-6" />
-          </div>
-          <h1 className="text-2xl font-extrabold text-white">قوانین و مقررات</h1>
-          <p className="text-xs text-zinc-400 mt-2 leading-relaxed max-w-md">
-            استفاده از سامانه‌ی رزرو آنلاین {SHOP_NAME} به معنای پذیرش شرایط زیر است. لطفاً پیش از
-            ثبت نوبت، این صفحه را بخوانید.
-          </p>
+      <InfoSection icon={CalendarClock} title="۲. نحوه‌ی رزرو نوبت">
+        <li>رزرو نوبت فقط از طریق همین سایت و با انتخاب خدمت، روز و ساعت انجام می‌شود.</li>
+        <li>
+          هر نوبت {toPersianDigits(String(SLOT_STEP_MIN))} دقیقه در نظر گرفته شده و ساعت‌های
+          کاری از {toPersianDigits(firstSlot)} تا آخرین نوبتِ ساعت {toPersianDigits(lastSlot)} است.
+        </li>
+        <li>
+          برای ثبت نوبت، وارد کردن «نام و نام خانوادگی» و «شماره موبایل» الزامی است. مسئولیت
+          درستیِ این اطلاعات با کاربر است؛ در صورت اشتباه بودن شماره، امکان هماهنگی وجود نخواهد داشت.
+        </li>
+        <li>
+          هر بازه‌ی زمانی فقط به یک نفر اختصاص می‌یابد و انتخاب زمان به‌صورت لحظه‌ای بررسی می‌شود.
+        </li>
+      </InfoSection>
+
+      <InfoSection icon={CreditCard} title="۳. قیمت‌ها و پرداخت">
+        <li>
+          قیمتِ هر خدمت در صفحه‌ی اصلیِ سایت و در مرحله‌ی انتخابِ خدمت به تومان درج شده است.
+          مبلغِ نهاییِ قابلِ پرداخت پیش از انتقال به درگاهِ بانکی به شما نمایش داده می‌شود.
+        </li>
+        <li>
+          <b>هیچ هزینه‌ی پنهانی وجود ندارد</b>: مبلغی که در آخرین مرحله می‌بینید همان مبلغی است
+          که از حسابِ شما کسر می‌شود. مالیات، کارمزد یا هزینه‌ی خدماتِ اضافه‌ای به آن افزوده نمی‌شود.
+        </li>
+        <li>
+          رزرو نوبت مستلزم پرداخت آنلاینِ <span className="text-amber-400 font-bold">کل مبلغ خدمت</span> به‌عنوان
+          پیش‌پرداخت است.
+        </li>
+        <li>پرداخت از طریق درگاه بانکی انجام می‌شود و اطلاعات کارت هرگز در این سایت ذخیره یا مشاهده نمی‌شود.</li>
+        <li>
+          نوبت تنها پس از تأیید موفقیت پرداخت توسط درگاه، قطعی و «تأیید شده» می‌شود و کد رهگیری
+          به کاربر نمایش داده می‌شود.
+        </li>
+        <li>
+          در صورت انصراف یا ناموفق بودن پرداخت، نوبت ثبت نمی‌شود و آن بازه‌ی زمانی مجدداً برای
+          دیگران آزاد می‌گردد.
+        </li>
+        {/* این عدد از همان ثابتی می‌آید که خودِ سیستم با آن اسلات را نگه می‌دارد.
+            قبلاً دستی «۱۵ دقیقه» نوشته شده بود و وقتی مدت به ۲۵ دقیقه تغییر کرد، این
+            جمله بی‌صدا تبدیل به یک ادعای نادرست به مشتری شد. */}
+        <li>
+          اگر کاربر وارد درگاه شود ولی پرداخت را کامل نکند، نوبتِ نیمه‌تمام حداکثر تا{' '}
+          {toPersianDigits(String(PENDING_HOLD_MINUTES))} دقیقه نگه داشته و سپس آزاد می‌شود.
+        </li>
+      </InfoSection>
+
+      {/* 🔴 این بند یک تعهدِ مالیِ ثبت‌شده است. درصدها از src/lib/features.js می‌آیند —
+          همان اعدادی که سیستمِ استرداد هم با آن‌ها کار می‌کند. دستی عوضشان نکن. */}
+      <InfoSection icon={XCircle} title="۴. انصراف، لغو نوبت و بازگشت وجه">
+        <li>
+          <b>مهلتِ انصراف:</b> لغو نوبت <b>تا روزِ قبل از نوبت</b> امکان‌پذیر است. در روزِ خودِ
+          نوبت، نوبت قابلِ لغو نیست.
+        </li>
+        {SMS_ENABLED ? (
+          <li>لغو از طریق صفحه‌ی رهگیری نوبت در همین سایت و با تأییدِ پیامکی انجام می‌شود.</li>
+        ) : (
+          <li>
+            در حال حاضر لغو نوبت از داخلِ سایت فراهم نیست و باید با شماره‌ی تماسِ مجموعه
+            هماهنگ شود؛ کدِ رهگیریِ خود را اعلام کنید.
+          </li>
+        )}
+        <li>
+          <b>در صورت لغو تا روزِ قبل از نوبت، {toPersianDigits(String(REFUND_CUSTOMER_PERCENT))}٪
+          مبلغِ پرداختی به شما بازگردانده می‌شود.</b>{' '}
+          {toPersianDigits(String(100 - REFUND_CUSTOMER_PERCENT))}٪ باقی‌مانده بابتِ بازه‌ی
+          زمانی‌ای است که به نامِ شما رزرو شده و امکانِ فروشِ دوباره‌اش از دست رفته است.
+        </li>
+        <li>
+          <b>اگر مجموعه به هر دلیل نتواند نوبتِ رزروشده را ارائه کند،{' '}
+          {toPersianDigits(String(REFUND_SHOP_CANCEL_PERCENT))}٪ مبلغِ پرداختی بازگردانده
+          می‌شود</b> و پیش از زمانِ نوبت با شما تماس گرفته خواهد شد.
+        </li>
+        <li>
+          <b>روشِ بازگشتِ وجه:</b> مبلغ حداکثر تا{' '}
+          {toPersianDigits(String(REFUND_SETTLEMENT_HOURS))} ساعت پس از لغو، به همان کارتی که
+          پرداخت با آن انجام شده یا به شماره‌حسابی که اعلام می‌کنید واریز می‌شود.
+        </li>
+        <li>
+          عدم حضور در نوبت بدونِ هماهنگیِ قبلی، به‌منزله‌ی انصراف در روزِ نوبت است و مبلغِ
+          پرداختی بازگردانده نمی‌شود.
+        </li>
+        <li>
+          برای جابه‌جاییِ نوبت به روز یا ساعتِ دیگر (به‌جای لغو) با شماره‌ی تماسِ مجموعه
+          هماهنگ کنید؛ در این حالت مبلغِ پرداختی به نوبتِ جدید منتقل می‌شود.
+        </li>
+      </InfoSection>
+
+      <InfoSection icon={ShieldCheck} title="۵. حریم خصوصی و اطلاعات کاربران">
+        <li>
+          اطلاعاتی که ذخیره می‌شود محدود است به: نام، شماره موبایل، خدمت انتخابی، تاریخ و ساعت
+          نوبت، و وضعیت پرداخت. هیچ اطلاعات بانکی نزد ما نگهداری نمی‌شود.
+        </li>
+        <li>این اطلاعات صرفاً برای مدیریت نوبت‌ها و اطلاع‌رسانی به کاربر استفاده می‌شود و در اختیار شخص ثالث قرار نمی‌گیرد.</li>
+        <li>
+          کاربر می‌تواند با وارد کردن شماره موبایل خود در صفحه‌ی{' '}
+          <Link href="/track" className="text-amber-500 hover:text-amber-400 font-bold">رهگیری نوبت</Link>{' '}
+          وضعیت نوبت‌هایش را مشاهده کند.
+        </li>
+        <li>
+          برای حذفِ اطلاعاتِ خود از سامانه، از راه‌های ارتباطیِ پایینِ همین صفحه درخواستتان را
+          اعلام کنید.
+        </li>
+      </InfoSection>
+
+      <InfoSection icon={CalendarClock} title="۶. حضور در نوبت">
+        <li>لطفاً چند دقیقه پیش از زمان نوبت در محل حاضر باشید.</li>
+        <li>
+          تأخیر بیش از ۱۵ دقیقه ممکن است به لغو نوبت یا کوتاه شدن زمان خدمت منجر شود، زیرا
+          نوبت‌های بعدی پشت سر هم تنظیم شده‌اند.
+        </li>
+      </InfoSection>
+
+      {/* بندِ «رسیدگی به شکایات» — چک‌لیستِ ارزیابِ اینماد صریحاً یک مسیرِ مشخص برای
+          دریافتِ شکایتِ مشتری می‌خواهد و شماره‌ی تلفنِ تنها کافی شمرده نمی‌شود. */}
+      <InfoSection icon={MessageSquareWarning} title="۷. رسیدگی به شکایات">
+        <li>
+          اگر از خدمات، فرایندِ رزرو یا پرداخت شکایتی دارید، از راه‌های زیر اعلام کنید:{' '}
+          {SHOP_EMAIL ? (
+            <>
+              ایمیلِ <span className="font-mono" dir="ltr">{SHOP_EMAIL}</span> یا تماس با شماره‌ی{' '}
+              <span className="font-mono">{SHOP_PHONE_DISPLAY}</span>.
+            </>
+          ) : (
+            <>تماس با شماره‌ی <span className="font-mono">{SHOP_PHONE_DISPLAY}</span>.</>
+          )}
+        </li>
+        <li>
+          لطفاً <b>کدِ رهگیریِ نوبت</b> و شماره‌ی موبایلی که با آن رزرو کرده‌اید را در متنِ
+          شکایت ذکر کنید تا پیگیری ممکن باشد.
+        </li>
+        <li>
+          شکایات در ساعاتِ کاریِ مجموعه بررسی می‌شود و نتیجه‌اش حداکثر تا{' '}
+          {toPersianDigits(String(REFUND_SETTLEMENT_HOURS))} ساعت به شما اعلام می‌گردد.
+        </li>
+      </InfoSection>
+
+      <InfoSection icon={FileText} title="۸. تغییر قوانین">
+        <li>
+          مجموعه می‌تواند این شرایط را به‌روزرسانی کند. نسخه‌ی معتبر همواره همین صفحه است و
+          ملاکِ هر نوبت، قوانینِ زمانِ ثبت آن نوبت است.
+        </li>
+        <li>
+          فعالیتِ این سایت در چارچوبِ قوانینِ جمهوری اسلامی ایران و قانونِ تجارتِ الکترونیکی است.
+        </li>
+      </InfoSection>
+
+      {/* اطلاعاتِ تماس — هم درگاهِ پرداخت و هم ارزیابِ اینماد این بخش را می‌بینند.
+          از قطعه‌ی مشترک می‌آید تا با پایینِ صفحه‌ی اصلی هیچ‌وقت اختلاف پیدا نکند. */}
+      <div className="glass p-6 rounded-3xl border border-amber-500/20 space-y-3">
+        <h2 className="flex items-center gap-2.5 text-sm font-extrabold text-amber-500">
+          <Phone className="w-4 h-4 flex-shrink-0" />
+          راه‌های ارتباط با ما
+        </h2>
+        <div className="space-y-3 text-xs">
+          <ShopContactLines />
         </div>
-
-        <div className="space-y-4">
-          <Section icon={CalendarClock} title="۱. نحوه‌ی رزرو نوبت">
-            <li>رزرو نوبت فقط از طریق همین سایت و با انتخاب خدمت، روز و ساعت انجام می‌شود.</li>
-            <li>
-              هر نوبت {toPersianDigits(String(SLOT_STEP_MIN))} دقیقه در نظر گرفته شده و ساعت‌های
-              کاری از {toPersianDigits(firstSlot)} تا آخرین نوبتِ ساعت {toPersianDigits(lastSlot)} است
-              ({SHOP_HOURS}).
-            </li>
-            <li>
-              برای ثبت نوبت، وارد کردن «نام و نام خانوادگی» و «شماره موبایل» الزامی است. مسئولیت
-              درستیِ این اطلاعات با کاربر است؛ در صورت اشتباه بودن شماره، امکان هماهنگی وجود نخواهد داشت.
-            </li>
-            <li>
-              هر بازه‌ی زمانی فقط به یک نفر اختصاص می‌یابد و انتخاب زمان به‌صورت لحظه‌ای بررسی می‌شود.
-            </li>
-          </Section>
-
-          <Section icon={CreditCard} title="۲. پرداخت و تأیید نوبت">
-            <li>
-              رزرو نوبت مستلزم پرداخت آنلاینِ <span className="text-amber-400 font-bold">کل مبلغ خدمت</span> به‌عنوان
-              پیش‌پرداخت است. مبلغ هر خدمت پیش از پرداخت در همان صفحه نمایش داده می‌شود.
-            </li>
-            <li>پرداخت از طریق درگاه بانکی انجام می‌شود و اطلاعات کارت هرگز در این سایت ذخیره یا مشاهده نمی‌شود.</li>
-            <li>
-              نوبت تنها پس از تأیید موفقیت پرداخت توسط درگاه، قطعی و «تأیید شده» می‌شود و کد رهگیری
-              به کاربر نمایش داده می‌شود.
-            </li>
-            <li>
-              در صورت انصراف یا ناموفق بودن پرداخت، نوبت ثبت نمی‌شود و آن بازه‌ی زمانی مجدداً برای
-              دیگران آزاد می‌گردد.
-            </li>
-            {/* این عدد از همان ثابتی می‌آید که خودِ سیستم با آن اسلات را نگه می‌دارد.
-                قبلاً دستی «۱۵ دقیقه» نوشته شده بود و وقتی مدت به ۲۵ دقیقه تغییر کرد، این
-                جمله بی‌صدا تبدیل به یک ادعای نادرست به مشتری شد. */}
-            <li>
-              اگر کاربر وارد درگاه شود ولی پرداخت را کامل نکند، نوبتِ نیمه‌تمام حداکثر تا{' '}
-              {toPersianDigits(String(PENDING_HOLD_MINUTES))} دقیقه نگه داشته و سپس آزاد می‌شود.
-            </li>
-          </Section>
-
-          <Section icon={XCircle} title="۳. لغو یا تغییر نوبت">
-            {/* مهلتِ لغو یک قاعده‌ی کسب‌وکاری است و باید در قوانین هم نوشته شود، نه فقط در کد.
-                ⚠️ متن به وضعیتِ واقعیِ لغوِ آنلاین گره خورده: تا وقتی آن قابلیت خاموش است،
-                گفتنِ «تا روزِ قبل ممکن است» با بندِ بعدی («آنلاین ممکن نیست») تناقض می‌ساخت —
-                و این همان صفحه‌ای است که درگاهِ پرداخت هنگامِ بررسی می‌خواند. */}
-            {SMS_ENABLED ? (
-              <li>
-                لغو نوبت <b>فقط تا روزِ قبل از نوبت</b> ممکن است. در روزِ خودِ نوبت، نوبت قابل
-                لغو نیست و باید تلفنی هماهنگ شود.
-              </li>
-            ) : (
-              <li>
-                در حال حاضر امکان لغو نوبت به‌صورت آنلاین در سایت فراهم نیست. (پس از فعال‌شدنِ
-                این قابلیت، مهلتِ لغو تا <b>روزِ قبل از نوبت</b> خواهد بود.)
-              </li>
-            )}
-            <li>
-              برای هرگونه لغو، تغییر یا جابه‌جایی نوبت، لازم است با شماره‌ی تماس مجموعه هماهنگ
-              کنید و کد رهگیری خود را اعلام نمایید.
-            </li>
-            <li>
-              تعیین تکلیف مبلغ پرداخت‌شده در چنین مواردی، با هماهنگی مستقیم مجموعه انجام می‌شود.
-            </li>
-            <li>
-              چنانچه مجموعه به هر دلیل نتواند نوبت رزروشده را ارائه کند، پیش از زمان نوبت با شما
-              تماس گرفته خواهد شد.
-            </li>
-          </Section>
-
-          <Section icon={ShieldCheck} title="۴. حریم خصوصی و اطلاعات کاربران">
-            <li>
-              اطلاعاتی که ذخیره می‌شود محدود است به: نام، شماره موبایل، خدمت انتخابی، تاریخ و ساعت
-              نوبت، و وضعیت پرداخت. هیچ اطلاعات بانکی نزد ما نگهداری نمی‌شود.
-            </li>
-            <li>این اطلاعات صرفاً برای مدیریت نوبت‌ها و اطلاع‌رسانی به کاربر استفاده می‌شود و در اختیار شخص ثالث قرار نمی‌گیرد.</li>
-            <li>
-              کاربر می‌تواند با وارد کردن شماره موبایل خود در صفحه‌ی{' '}
-              <Link href="/track" className="text-amber-500 hover:text-amber-400 font-bold">رهگیری نوبت</Link>{' '}
-              وضعیت نوبت‌هایش را مشاهده کند.
-            </li>
-          </Section>
-
-          <Section icon={CalendarClock} title="۵. حضور در نوبت">
-            <li>لطفاً چند دقیقه پیش از زمان نوبت در محل حاضر باشید.</li>
-            <li>
-              تأخیر بیش از ۱۵ دقیقه ممکن است به لغو نوبت یا کوتاه شدن زمان خدمت منجر شود، زیرا
-              نوبت‌های بعدی پشت سر هم تنظیم شده‌اند.
-            </li>
-          </Section>
-
-          <Section icon={FileText} title="۶. تغییر قوانین">
-            <li>
-              مجموعه می‌تواند این شرایط را به‌روزرسانی کند. نسخه‌ی معتبر همواره همین صفحه است و
-              ملاکِ هر نوبت، قوانینِ زمانِ ثبت آن نوبت است.
-            </li>
-          </Section>
-
-          {/* اطلاعات تماس — درگاه‌های پرداخت هنگام بررسی سایت این بخش را هم می‌بینند. */}
-          <div className="glass p-6 rounded-3xl border border-amber-500/20 space-y-3">
-            <h2 className="text-sm font-extrabold text-amber-500">راه‌های ارتباط با ما</h2>
-            <div className="flex items-start gap-2.5 text-xs">
-              <MapPin className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-              <span className="text-zinc-400 leading-relaxed">{SHOP_ADDRESS}</span>
-            </div>
-            <a href={`tel:${SHOP_PHONE_LINK}`} className="flex items-center gap-2.5 text-xs hover:text-amber-500 transition-colors">
-              <Phone className="w-4 h-4 text-amber-500 flex-shrink-0" />
-              <span className="font-mono text-zinc-400">{SHOP_PHONE_DISPLAY}</span>
-            </a>
-            <p className="text-[11px] text-zinc-500">{SHOP_HOURS}</p>
-          </div>
-        </div>
-
-        <Link href="/" className="block text-center text-xs text-zinc-500 hover:text-amber-400 mt-8 transition-colors">
-          ← بازگشت به صفحه‌ی اصلی
-        </Link>
       </div>
-    </div>
-  );
-}
-
-function Section({ icon: Icon, title, children }) {
-  return (
-    <section className="glass p-6 rounded-3xl border border-zinc-800">
-      <h2 className="flex items-center gap-2.5 text-sm font-extrabold text-white mb-4">
-        <Icon className="w-4 h-4 text-amber-500 flex-shrink-0" />
-        {title}
-      </h2>
-      <ul className="space-y-2.5 text-xs text-zinc-400 leading-relaxed list-disc pr-4 marker:text-amber-500/60">
-        {children}
-      </ul>
-    </section>
+    </InfoPageShell>
   );
 }

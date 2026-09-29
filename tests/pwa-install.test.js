@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { isAppleMobile, getInstallGuide } from '@/features/pwa/install-guidance';
+import { isInstallPromptHidden } from '@/features/pwa/install-scope';
 
 // ─────────────────────────────────────────────────────────────
 //  راهنمای نصبِ اپلیکیشن (PWA).
@@ -158,5 +159,42 @@ describe('راهنمای متناسب با هر دستگاه', () => {
       const all = getInstallGuide().steps.join(' ');
       expect(all, ua).not.toMatch(/دکمه‌ی نصبِ (بالا|زیر)/);
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+//  کادرِ دعوت به نصب از کجا تا کجا؟
+//
+//  از وقتی این کادر در ریشه‌ی صفحه رندر می‌شود، روی **همه‌ی** مسیرها می‌آید. خرابیِ این
+//  منطق هیچ خطایی نمی‌دهد: یا کادر روی پنلِ مدیریت و صفحه‌ی نتیجه‌ی پرداخت می‌افتد، یا
+//  بی‌صدا از صفحه‌های مشتری غیب می‌شود.
+// ─────────────────────────────────────────────────────────────
+describe('مسیرهایی که کادرِ نصب در آن‌ها پنهان است', () => {
+  it('در پنلِ مدیریت و زیرصفحه‌هایش پنهان است', () => {
+    expect(isInstallPromptHidden('/admin')).toBe(true);
+    expect(isInstallPromptHidden('/admin/bookings')).toBe(true);
+    expect(isInstallPromptHidden('/admin/settings/services')).toBe(true);
+  });
+
+  it('در صفحه‌های برگشت از درگاهِ پرداخت پنهان است', () => {
+    expect(isInstallPromptHidden('/payment')).toBe(true);
+    expect(isInstallPromptHidden('/payment/result')).toBe(true);
+  });
+
+  it('در صفحه‌های مشتری دیده می‌شود', () => {
+    for (const p of ['/', '/track', '/about', '/contact', '/terms', '/offline']) {
+      expect(isInstallPromptHidden(p), p).toBe(false);
+    }
+  });
+
+  // ⚠️ اگر مقایسه startsWith خالی بود، این مسیرهای فرضیِ آینده هم اشتباهی پنهان می‌شدند.
+  it('مسیری که فقط نامش با مستثناها شروع می‌شود پنهان نمی‌شود', () => {
+    expect(isInstallPromptHidden('/administration')).toBe(false);
+    expect(isInstallPromptHidden('/payments-faq')).toBe(false);
+  });
+
+  it('با مسیرِ نامعلوم (null/undefined) کرش نمی‌کند و پنهان نمی‌کند', () => {
+    expect(isInstallPromptHidden(null)).toBe(false);
+    expect(isInstallPromptHidden(undefined)).toBe(false);
   });
 });
